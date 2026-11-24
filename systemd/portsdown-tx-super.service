@@ -1,0 +1,22 @@
+[Unit]
+Description=Portsdown transmitter process and PTT supervisor (experimental)
+After=network.target
+
+[Service]
+Type=simple
+User=portsdown
+Group=portsdown
+SupplementaryGroups=video dialout
+EnvironmentFile=/etc/portsdown/portsdown.env
+RuntimeDirectory=portsdown
+RuntimeDirectoryMode=0750
+UMask=0007
+ExecStart=/usr/bin/env ${PORTSDOWN_DIR}/control/tx-super
+ExecStopPost=/usr/bin/env ${PORTSDOWN_DIR}/control/safe-off-post.sh
+KillMode=control-group
+TimeoutStopSec=3s
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+[Unit]
+Description=Portsdown persistent ucode web control (experimental)
+After=portsdown-tx-super.service
+Requires=portsdown-tx-super.service
+
+[Service]
+Type=simple
+User=portsdown
+Group=portsdown
+SupplementaryGroups=video dialout
+EnvironmentFile=/etc/portsdown/portsdown.env
+StateDirectory=portsdown
+ExecStart=/usr/bin/env ucode -L ${PORTSDOWN_DIR}/control/ucode ${PORTSDOWN_DIR}/control/ucode/daemon.uc
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

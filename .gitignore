@@ -53,6 +53,9 @@ src/meteorbeacon/beacon
 src/meteorbeacon/server
 src/sdrplayview/sdrplayview
 src/rydemon/rydemon
+control/tx-super
+control/config-store
+__pycache__/
 src/muntjac/muntjacsdr_dvb
 src/muntjac/mjcalib
 src/meteorview/restart_counter.txt

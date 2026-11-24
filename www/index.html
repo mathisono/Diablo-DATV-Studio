@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portsdown Control (development)</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header><h1>Portsdown Control</h1><span id="connection">Connecting…</span></header>
+  <main>
+    <section class="controls">
+      <h2>Transmitter</h2>
+      <p class="notice">Development control plane. A running TX process is not proof of RF output. Hardware and PTT remain unverified.</p>
+      <div class="actions">
+        <button id="tx-start" class="primary">Arm / Start TX</button>
+        <button id="tx-stop" class="danger">E-Stop / PTT Off</button>
+        <button id="rx-start">Start RX</button>
+        <button id="rx-stop">Stop RX</button>
+      </div>
+      <p id="tx-status" role="status">Supervisor status pending</p>
+    </section>
+    <section>
+      <h2>Output settings</h2>
+      <form id="settings">
+        <label>Board<select id="modeoutput"></select></label>
+        <label>Source<select id="modeinput"></select></label>
+        <label>Modulation<select id="modulation"></select></label>
+        <label>Encoder<select id="encoding"></select></label>
+        <label>Video format<select id="format"></select></label>
+        <label>Frequency (MHz)<input id="freqoutput" type="number" step="0.001" required></label>
+        <label>Symbol rate (ksym/s)<input id="symbolrate" type="number" step="1" required></label>
+        <label>FEC<select id="fec"></select></label>
+        <label>Express level (0–44)<input id="explevel" type="number" min="0" max="44" step="1"></label>
+        <label>Pluto attenuation (0–71)<input id="plutopwr" type="number" min="0" max="71" step="1"></label>
+        <label>Lime gain (0–100)<input id="limegain" type="number" min="0" max="100" step="1"></label>
+        <button type="submit">Save configuration</button>
+      </form>
+      <div class="presets" aria-label="Portsdown presets">
+        <p>Presets (saved on this Portsdown)</p>
+        <div id="presets"></div>
+      </div>
+    </section>
+    <section>
+      <h2>Low-resolution preview</h2>
+      <div class="preview"><img id="live-preview" alt="Live transmitter preview"><img id="video-placeholder" src="/no-ip-input.svg" alt="NO IP INPUT"></div>
+      <p id="video-status">Waiting for MJPEG source</p>
+      <p>Peer mode: <span id="peer-status">Standalone</span></p>
+      <div id="remote-preview-box" hidden><h3>Remote slave preview</h3><div class="preview"><img id="remote-preview" alt="Remote slave preview"></div></div>
+    </section>
+    <section>
+      <h2>Events</h2>
+      <pre id="log" aria-live="polite"></pre>
+    </section>
+  </main>
+</body>
+</html>

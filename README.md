@@ -1,6 +1,11 @@
 ![portsdown banner](/doc/img/Portsdown_4.jpg)
 # Portsdown Buster Build For RPi 4
 
+An experimental, **uninstalled** headless web-control implementation is being
+developed separately; see [Headless ucode control status](doc/headless-ucode-control.md).
+It does not yet replace the working touchscreen GUI or drive verified RF
+hardware. The existing Buster and Trixie transmitter paths remain intact.
+
 ## Trixie development status (23 November 2026)
 
 The `arm64-transmitter` branch contains work toward **two distinct targets**.
