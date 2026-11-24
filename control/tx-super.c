@@ -20,14 +20,14 @@
 #define LINE 512
 #define LOG_LINE 1024
 
-enum role { TX, RX, PREVIEW, ROLE_COUNT };
+enum role { TX, RX, PREVIEW, SRT1, SRT2, SRT3, SRT4, SRT5, ROLE_COUNT };
 struct child { pid_t pid; int logfd; char pending[LOG_LINE]; size_t used; };
 struct client { int fd; char input[LINE]; size_t used; };
 
 static volatile sig_atomic_t stopping;
 static struct child children[ROLE_COUNT];
 static struct client clients[CLIENTS];
-static const char *role_names[] = { "TX", "RX", "PREVIEW" };
+static const char *role_names[] = { "TX", "RX", "PREVIEW", "SRT1", "SRT2", "SRT3", "SRT4", "SRT5" };
 static const char *executables[ROLE_COUNT];
 static const char *board;
 static const char *express_ctrl;
@@ -149,7 +149,10 @@ static bool start_role(enum role role)
     dup2(pipefd[1], STDOUT_FILENO);
     dup2(pipefd[1], STDERR_FILENO);
     close(pipefd[1]);
-    execl(execpath, execpath, (char *)NULL);
+    if (role >= SRT1) {
+      char slot[2] = { (char)('1' + role - SRT1), 0 };
+      execl(execpath, execpath, slot, (char *)NULL);
+    } else execl(execpath, execpath, (char *)NULL);
     _exit(127);
   }
   close(pipefd[1]); nonblock(pipefd[0]);
@@ -166,11 +169,14 @@ static void command(int fd, const char *line)
     last_peer_hb = monotonic_ms(); send_client(fd, "OK\n"); return;
   }
   if (strcmp(line, "STATUS") == 0) {
-    char result[192];
-    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s\n",
+    char result[256];
+    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s srt1=%s srt2=%s srt3=%s srt4=%s srt5=%s\n",
       children[TX].pid ? "running" : "stopped", children[RX].pid ? "running" : "stopped",
       children[PREVIEW].pid ? "running" : "stopped", board,
-      slave_mode ? "slave" : "standalone", slave_mode && last_peer_hb > 0 && monotonic_ms() - last_peer_hb < 1500 ? "ok" : "stale");
+      slave_mode ? "slave" : "standalone", slave_mode && last_peer_hb > 0 && monotonic_ms() - last_peer_hb < 1500 ? "ok" : "stale",
+      children[SRT1].pid ? "running" : "stopped", children[SRT2].pid ? "running" : "stopped",
+      children[SRT3].pid ? "running" : "stopped", children[SRT4].pid ? "running" : "stopped",
+      children[SRT5].pid ? "running" : "stopped");
     send_client(fd, result);
     return;
   }
@@ -246,6 +252,7 @@ int main(void)
   executables[TX] = getenv("PORTSDOWN_TX_EXEC");
   executables[RX] = getenv("PORTSDOWN_RX_EXEC");
   executables[PREVIEW] = getenv("PORTSDOWN_PREVIEW_EXEC");
+  for (int i = SRT1; i <= SRT5; i++) executables[i] = getenv("PORTSDOWN_SRT_EXEC");
   for (int i = 0; i < ROLE_COUNT; i++) children[i].logfd = -1;
   for (int i = 0; i < CLIENTS; i++) clients[i].fd = -1;
   if (mkdir(dir, 0750) < 0 && errno != EEXIST) { perror("mkdir"); return 1; }
@@ -322,7 +329,7 @@ int main(void)
       (void)start_role(PREVIEW);
     }
   }
-  stop_role(TX); stop_role(RX); stop_role(PREVIEW);
+  for (int i = 0; i < ROLE_COUNT; i++) stop_role((enum role)i);
   safe_off();
   for (int i = 0; i < CLIENTS; i++) if (clients[i].fd >= 0) close(clients[i].fd);
   close(server); unlink(sockpath);

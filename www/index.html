@@ -49,6 +49,11 @@
       <p>Peer mode: <span id="peer-status">Standalone</span></p>
       <div id="remote-preview-box" hidden><h3>Remote slave preview</h3><div class="preview"><img id="remote-preview" alt="Remote slave preview"></div></div>
     </section>
+    <section class="srt-section">
+      <h2>SRT input encoders</h2>
+      <p>Enable each listener independently. Its test card is preview-only; live TS is sent to a separate local output only while real SRT video is present. These slots do not key RF.</p>
+      <div id="srt-slots" class="srt-grid"></div>
+    </section>
     <section>
       <h2>Events</h2>
       <pre id="log" aria-live="polite"></pre>

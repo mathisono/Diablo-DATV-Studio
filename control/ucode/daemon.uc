@@ -26,6 +26,19 @@ let last_status = '';
 let logs = [];
 let log_subscription = null;
 
+function srt_state(status) {
+  let slots = [];
+  let base = +(getenv('PORTSDOWN_SRT_PORT_BASE') ?? '9101');
+  let ts_base = +(getenv('PORTSDOWN_SRT_TS_PORT_BASE') ?? '12001');
+  for (let slot = 1; slot <= 5; slot++) {
+    let enabled = index(status ?? '', `srt${slot}=running`) >= 0;
+    let preview = video.stats(slot);
+    push(slots, { slot: slot, enabled: enabled, live: enabled && preview.producer,
+      srt_port: base + slot - 1, ts_port: ts_base + slot - 1, preview: preview });
+  }
+  return slots;
+}
+
 function emit(event, data) {
   let message = `id: ${++event_id}\nevent: ${event}\ndata: ${sprintf('%J', data)}\n\n`;
   let live = [];
@@ -54,6 +67,7 @@ function api(peer, method, path, body) {
     return response(peer, '200 OK', 'application/json', sprintf('%J', {
       supervisor: result, board: cfg?.modeoutput ?? 'unknown', modulation: cfg?.modulation ?? 'unknown',
       peer_role: peer_role, peer: peerctl.status(), logs: logs, video: video.stats(),
+      srt: srt_state(result.status),
       remote_preview_url: peer_role == 'MASTER' ? getenv('PORTSDOWN_SLAVE_PREVIEW_URL') : null
     }));
   }
@@ -108,6 +122,19 @@ function api(peer, method, path, body) {
     emit('state', { command: commands[path], result: result });
     return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json', sprintf('%J', result));
   }
+  if (method == 'GET' && path == '/api/srt') {
+    let result = super.request(sockpath, 'STATUS');
+    return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json',
+      sprintf('%J', { slots: srt_state(result.status) }));
+  }
+  if (method == 'POST' && match(path, /^\/api\/srt\/[1-5]\/(enable|disable)$/)) {
+    if (peer_role == 'SLAVE') return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only"}');
+    let slot = substr(path, 9, 1);
+    let enabled = substr(path, 11) == 'enable';
+    let result = super.request(sockpath, `${enabled ? 'START' : 'STOP'}_SRT${slot}`);
+    emit('state', { command: `${enabled ? 'START' : 'STOP'}_SRT${slot}`, result: result });
+    return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json', sprintf('%J', result));
+  }
   if (method == 'GET' && path == '/api/events') {
     if (length(sessions) >= 16) return response(peer, '503 Service Unavailable', 'text/plain', 'Too many subscribers');
     if (response(peer, '200 OK', 'text/event-stream', ': connected\n\n', true)) push(sessions, peer);
@@ -115,8 +142,18 @@ function api(peer, method, path, body) {
   }
   if (method == 'GET' && path == '/api/video') {
     if (!response(peer, '200 OK', 'multipart/x-mixed-replace; boundary=frame', '', true)) return;
-    video.subscribe(peer);
+    if (!video.subscribe(peer, 0)) peer.close();
     return;
+  }
+  if (method == 'GET' && match(path, /^\/api\/video\/srt\/[1-5]$/)) {
+    if (!response(peer, '200 OK', 'multipart/x-mixed-replace; boundary=frame', '', true)) return;
+    if (!video.subscribe(peer, +substr(path, -1))) peer.close();
+    return;
+  }
+  if (method == 'GET' && match(path, /^\/no-srt-input-[1-5]\.jpg$/)) {
+    let file = fs.readfile(`${dir}/www${path}`);
+    return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :
+      response(peer, '200 OK', 'image/jpeg', file);
   }
   let files = { '/': ['index.html', 'text/html; charset=utf-8'],
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -140,6 +177,20 @@ if (!peerctl.start({ role: peer_role, token: getenv('PORTSDOWN_PEER_TOKEN'),
   (state) => emit('peer', state))) die('Invalid peer configuration');
 let video_server = video.start(+(getenv('PORTSDOWN_MJPEG_PORT') ?? '8082'));
 if (!video_server) die('Cannot bind loopback MJPEG ingest port');
+let srt_preview_base = +(getenv('PORTSDOWN_SRT_MJPEG_PORT_BASE') ?? '8083');
+let srt_input_base = +(getenv('PORTSDOWN_SRT_PORT_BASE') ?? '9101');
+let srt_ts_base = +(getenv('PORTSDOWN_SRT_TS_PORT_BASE') ?? '12001');
+if (srt_preview_base < 1024 || srt_preview_base > 65531 ||
+    srt_input_base < 1024 || srt_input_base > 65531 ||
+    srt_ts_base < 1024 || srt_ts_base > 65531) die('Invalid SRT port base');
+let srt_servers = [];
+for (let slot = 1; slot <= 5; slot++) {
+  let listener = video.start(srt_preview_base + slot - 1, slot);
+  if (!listener) die(`Cannot bind SRT preview ingest port for slot ${slot}`);
+  if (!video.set_fallback(slot, fs.readfile(`${dir}/www/no-srt-input-${slot}.jpg`)))
+    die(`Missing SRT test card for slot ${slot}`);
+  push(srt_servers, listener);
+}
 /* tx-super may have started its standby preview before the MJPEG listener
  * existed, causing FFmpeg's first TCP connect to fail. Retry now. */
 super.request(sockpath, 'START_PREVIEW');
@@ -199,6 +250,7 @@ uloop.handle(server, () => {
 uloop.timer(1000, function() {
   let result = super.request(sockpath, 'STATUS');
   let state = result.status ?? result.message;
+  for (let slot in srt_state(result.status)) video.tick(slot.slot, slot.enabled);
   if (state != last_status) { last_status = state; emit('state', result); }
   if (!log_subscription || !log_subscription.handle.fileno()) {
     log_subscription = super.subscribe(sockpath, (line) => {

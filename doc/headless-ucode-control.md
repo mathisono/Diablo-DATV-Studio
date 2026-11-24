@@ -20,6 +20,12 @@ verified on real hardware.
 - `www/`: no-framework responsive dashboard, four server-side presets,
   320×240 preview with a **NO IP INPUT** placeholder, and an E-Stop button.
   An optional remote-slave preview URL can be configured separately.
+- Five independently enabled SRT source slots (`control/srt-slot.sh`) each
+  accept MPEG-TS over SRT, encode live video/audio to a local 480p H.264/AAC
+  MPEG-TS output, and provide a 320×240 MJPEG preview. Each preview serves a
+  numbered **NO SRT INPUT** test card while its listener has no valid video,
+  then returns to the card after input loss. The test card is **preview-only**:
+  it never generates TS or satisfies a transmitter's live-input gate.
 - `systemd/`: uninstalled service templates. `portsdown-tx-super.service`
   uses `ExecStopPost` as a second attempt to invoke the safe-off hook if the
   supervisor dies while systemd is alive.
@@ -53,6 +59,10 @@ an explicit private-interface address.
   launcher** must still be built for each capture/backend combination to
   maintain preview during TX. It must be interlocked so RF stays off until
   valid live TS is received and stops when that input disappears.
+- The five SRT encoders are **not** connected to a board or the RF TX gate.
+  Their enable/disable state is held by the running supervisor (not persisted
+  across its restart). Five-way simultaneous encoding, real ATEM sources, and
+  on-board CPU/thermal performance remain unverified.
 - The GPIO and DATV-Express USB/PTT behavior, Pluto/Lime safe-off hooks,
   native video devices, real RF output, and UI behavior on a complete
   Portsdown install have not been tested. Software cannot guarantee PTT-off
@@ -87,6 +97,28 @@ export PORTSDOWN_MJPEG_PORT=8082
 ucode -L "$PORTSDOWN_DIR/control/ucode" "$PORTSDOWN_DIR/control/ucode/daemon.uc"
 ```
 
+To make the five software-only SRT listeners available, export
+`PORTSDOWN_SRT_EXEC="$PORTSDOWN_DIR/control/srt-slot.sh"` **before** starting
+`tx-super`. The web UI has an Enable/Disable button for each slot. By default:
+
+| Slot | SRT caller destination | Live TS output (loopback UDP) | MJPEG preview |
+| --- | --- | --- | --- |
+| 1 | `srt://TANK:9101?mode=caller` | `127.0.0.1:12001` | `/api/video/srt/1` |
+| 2 | `srt://TANK:9102?mode=caller` | `127.0.0.1:12002` | `/api/video/srt/2` |
+| 3 | `srt://TANK:9103?mode=caller` | `127.0.0.1:12003` | `/api/video/srt/3` |
+| 4 | `srt://TANK:9104?mode=caller` | `127.0.0.1:12004` | `/api/video/srt/4` |
+| 5 | `srt://TANK:9105?mode=caller` | `127.0.0.1:12005` | `/api/video/srt/5` |
+
+The SRT input accepts a live MPEG-TS carrying video (audio optional). TS
+outputs are **local-only and absent when input is absent**; they are not
+automatically DVB-S2 modulated or transmitted. The default software encoder
+targets 854×480 H.264 at 800 kbit/s video plus 64 kbit/s AAC when audio is
+present. Allow for FEC/mux overhead before using a TS in a 1000 ksym/s mode.
+`PORTSDOWN_SRT_PORT_BASE`, `PORTSDOWN_SRT_TS_PORT_BASE`, and
+`PORTSDOWN_SRT_MJPEG_PORT_BASE` can change the consecutive five-port blocks;
+set them identically in both service processes. The listener ports bind all
+interfaces, so restrict access to trusted senders with a firewall/VPN.
+
 Open `http://127.0.0.1:8080/` locally, or tunnel the loopback port over SSH.
 For a service install, create a dedicated `portsdown` user/group, copy and
 edit `control/portsdown.env.example` as `/etc/portsdown/portsdown.env`, install
@@ -108,6 +140,12 @@ On 23 November 2026, the two C utilities also compiled natively as AArch64
 ELF executables in `/tmp/portsdown-headless-control-build` on TANK (Debian 13
 Trixie). TANK's rover service remained active. `ucode` and the web service
 were **not** installed or run there; no TX or RF test was attempted.
+The five-slot supervisor revision was separately built as AArch64 in
+`/tmp/portsdown-srt-control-check`; FFmpeg on TANK lists SRT input/output
+support. On the development host, 13 hardware-free tests passed, including
+five concurrent synthetic callers producing distinct local TS outputs and a
+single-source arrival/loss test proving the MJPEG card returns and TS stops.
+This is **not** an on-device five-encoder performance or RF result.
 
 ## Next integration gates
 

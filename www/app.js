@@ -5,6 +5,7 @@ const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
 let logInitialized = false;
+let srtLocked = false;
 function log(message) {
   const node = $('log');
   node.textContent = `${new Date().toLocaleTimeString()} ${message}\n` + node.textContent.slice(0, 10000);
@@ -74,6 +75,37 @@ function showState(state) {
   for (const id of fields) $(id).disabled = locked;
   $('settings').querySelector('button[type=submit]').disabled = locked;
   for (const button of $('presets').querySelectorAll('button')) button.disabled = locked;
+  srtLocked = locked;
+  if (state.srt) showSrt(state.srt);
+}
+function showSrt(slots) {
+  for (const slot of slots) {
+    const n = slot.slot;
+    const button = $(`srt-toggle-${n}`);
+    const live = $(`srt-live-${n}`);
+    const placeholder = $(`srt-placeholder-${n}`);
+    const status = $(`srt-status-${n}`);
+    const endpoint = `/api/video/srt/${n}`;
+    button.textContent = slot.enabled ? 'Disable listener' : 'Enable listener';
+    button.disabled = srtLocked;
+    button.dataset.enabled = slot.enabled ? '1' : '0';
+    if (slot.enabled && !live.getAttribute('src')) live.src = endpoint;
+    if (!slot.enabled && live.getAttribute('src')) live.removeAttribute('src');
+    placeholder.hidden = !!slot.live;
+    status.textContent = !slot.enabled ? 'Disabled' : slot.live ? 'Live SRT video' : 'Enabled · awaiting video';
+    $(`srt-meta-${n}`).textContent = `SRT UDP ${slot.srt_port} → live TS UDP 127.0.0.1:${slot.ts_port}`;
+  }
+}
+for (let n=1;n<=5;n++) {
+  const card=document.createElement('article');
+  card.className='srt-card';
+  card.innerHTML=`<h3>SRT input ${n}</h3><div class="preview"><img id="srt-live-${n}" alt="Live SRT input ${n} preview"><img id="srt-placeholder-${n}" class="placeholder" src="/no-srt-input-${n}.jpg" alt="NO SRT INPUT ${n} test pattern"></div><p id="srt-status-${n}" class="status" role="status">Disabled</p><p id="srt-meta-${n}" class="meta"></p><button id="srt-toggle-${n}" type="button">Enable listener</button>`;
+  $('srt-slots').append(card);
+  $(`srt-toggle-${n}`).addEventListener('click', async () => {
+    const action=$(`srt-toggle-${n}`).dataset.enabled==='1'?'disable':'enable';
+    try { await api(`/api/srt/${n}/${action}`,'POST'); showSrt((await api('/api/srt')).slots); }
+    catch(error) { log(`SRT ${n}: ${error.message}`); }
+  });
 }
 async function command(path) {
   try { const result = await api(path,'POST'); log(`${path}: ${JSON.stringify(result)}`); showState(await api('/api/state')); }
@@ -106,3 +138,4 @@ events.addEventListener('log', event=>{ try { log(JSON.parse(event.data).line); 
 events.onerror=()=>{ $('connection').textContent='Event link reconnecting'; };
 reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
+setInterval(async () => { try { showSrt((await api('/api/srt')).slots); } catch {} }, 1000);

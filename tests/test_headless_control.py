@@ -4,6 +4,7 @@ import http.client
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -149,7 +150,18 @@ class UcodeTest(unittest.TestCase):
             probe.bind(("127.0.0.1", 0)); self.port = probe.getsockname()[1]
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0)); self.video_port = probe.getsockname()[1]
-        env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent)}
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0)); self.srt_port = probe.getsockname()[1]
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0)); self.ts_port = probe.getsockname()[1]
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0)); self.srt_preview_port = probe.getsockname()[1]
+        env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent),
+                            "PORTSDOWN_SRT_EXEC": str(CONTROL / "srt-slot.sh"),
+                            "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
+                            "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
+                            "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
+                            "PORTSDOWN_FFMPEG": shutil.which("ffmpeg") or ""}
         self.supervisor = subprocess.Popen([str(CONTROL / "tx-super")], env=env,
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertTrue(wait_for(self.sock.exists))
@@ -158,6 +170,9 @@ class UcodeTest(unittest.TestCase):
             "PORTSDOWN_TX_SOCKET": str(self.sock),
             "PORTSDOWN_HTTP_PORT": str(self.port),
             "PORTSDOWN_MJPEG_PORT": str(self.video_port),
+            "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
+            "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
+            "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
             "PORTSDOWN_PRESETS_PATH": str(self.path / "presets.json"),
         }
         args = [self.ucode]
@@ -225,6 +240,108 @@ class UcodeTest(unittest.TestCase):
                 self.assertIn(b"multipart/x-mixed-replace", result)
                 self.assertIn(b"Content-Type: image/jpeg", result)
 
+    def test_five_srt_slots_are_independent_and_offer_test_card(self):
+        status, body = self.request("GET", "/api/srt")
+        self.assertEqual(status, 200, body)
+        slots = json.loads(body)["slots"]
+        self.assertEqual([s["slot"] for s in slots], list(range(1, 6)))
+        self.assertTrue(all(not s["enabled"] and not s["live"] for s in slots))
+        status, body = self.request("GET", "/no-srt-input-3.jpg")
+        self.assertEqual(status, 200)
+        self.assertTrue(body.startswith(b"\xff\xd8"))
+        for n in range(1, 6):
+            status, body = self.request("POST", f"/api/srt/{n}/enable")
+            self.assertEqual(status, 200, body)
+        slots = json.loads(self.request("GET", "/api/srt")[1])["slots"]
+        self.assertTrue(all(s["enabled"] and not s["live"] for s in slots))
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+            viewer.settimeout(3)
+            viewer.sendall(f"GET /api/video/srt/3 HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+            result = b""
+            while b"\xff\xd9" not in result:
+                result += viewer.recv(8192)
+            self.assertIn(b"Content-Type: image/jpeg", result)
+            self.assertIn(b"\xff\xd8", result)
+        status, body = self.request("POST", "/api/srt/3/disable")
+        self.assertEqual(status, 200, body)
+        slots = json.loads(self.request("GET", "/api/srt")[1])["slots"]
+        self.assertEqual([s["enabled"] for s in slots], [True, True, False, True, True])
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "FFmpeg unavailable")
+    def test_srt_video_arrival_loss_and_live_ts_only(self):
+        if "  srt\n" not in subprocess.run(["ffmpeg", "-hide_banner", "-protocols"],
+                                          capture_output=True, text=True).stdout:
+            self.skipTest("FFmpeg lacks SRT")
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as ts:
+            ts.bind(("127.0.0.1", self.ts_port))
+            ts.settimeout(8)
+            status, body = self.request("POST", "/api/srt/1/enable")
+            self.assertEqual(status, 200, body)
+            sender = subprocess.Popen([
+                "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
+                "-f", "lavfi", "-i", "testsrc2=size=640x480:rate=25", "-t", "4",
+                "-c:v", "libx264", "-preset", "ultrafast", "-f", "mpegts",
+                f"srt://127.0.0.1:{self.srt_port}?mode=caller&latency=200000",
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            try:
+                packet, _ = ts.recvfrom(2048)
+                self.assertEqual(packet[0], 0x47)
+                self.assertTrue(wait_for(lambda: json.loads(self.request("GET", "/api/srt")[1])["slots"][0]["live"], 3))
+                self.assertEqual(sender.wait(timeout=8), 0, sender.stderr.read())
+                self.assertTrue(wait_for(lambda: not json.loads(self.request("GET", "/api/srt")[1])["slots"][0]["live"], 6))
+                self.assertTrue(json.loads(self.request("GET", "/api/srt")[1])["slots"][0]["enabled"])
+                with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+                    viewer.settimeout(2)
+                    viewer.sendall(f"GET /api/video/srt/1 HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+                    result = b""
+                    while b"\xff\xd9" not in result:
+                        result += viewer.recv(8192)
+                    self.assertIn((ROOT / "www/no-srt-input-1.jpg").read_bytes(), result)
+                ts.setblocking(False)
+                while True:
+                    try: ts.recvfrom(2048)
+                    except BlockingIOError: break
+                ts.settimeout(1)
+                with self.assertRaises(socket.timeout): ts.recvfrom(2048)
+                self.assertEqual(self.request("POST", "/api/srt/1/disable")[0], 200)
+            finally:
+                if sender.poll() is None:
+                    sender.terminate(); sender.wait(timeout=3)
+                sender.stderr.close()
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "FFmpeg unavailable")
+    def test_five_simultaneous_srt_sources_have_distinct_ts_outputs(self):
+        if "  srt\n" not in subprocess.run(["ffmpeg", "-hide_banner", "-protocols"],
+                                          capture_output=True, text=True).stdout:
+            self.skipTest("FFmpeg lacks SRT")
+        receivers, senders = [], []
+        try:
+            for n in range(5):
+                receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                receiver.bind(("127.0.0.1", self.ts_port + n))
+                receiver.settimeout(12)
+                receivers.append(receiver)
+                status, body = self.request("POST", f"/api/srt/{n+1}/enable")
+                self.assertEqual(status, 200, body)
+            for n in range(5):
+                senders.append(subprocess.Popen([
+                    "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
+                    "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=25",
+                    "-t", "5", "-threads:v", "1", "-c:v", "libx264", "-preset", "ultrafast",
+                    "-f", "mpegts", f"srt://127.0.0.1:{self.srt_port+n}?mode=caller&latency=200000",
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE))
+            for n, receiver in enumerate(receivers):
+                packet, _ = receiver.recvfrom(2048)
+                self.assertEqual(packet[0], 0x47, f"slot {n+1}")
+            self.assertTrue(wait_for(lambda: all(s["live"] for s in json.loads(
+                self.request("GET", "/api/srt")[1])["slots"]), 2))
+        finally:
+            for sender in senders:
+                if sender.poll() is None:
+                    sender.terminate(); sender.wait(timeout=3)
+                sender.stderr.close()
+            for receiver in receivers: receiver.close()
+
     def test_preset_is_saved_on_server(self):
         preset = {"modeoutput": "DATVEXPRESS", "modulation": "S2QPSK",
                   "freqoutput": "437", "symbolrate": "333", "fec": "12"}
@@ -261,7 +378,7 @@ class PeerTest(unittest.TestCase):
             tx.write_text('#!/bin/sh\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n'); tx.chmod(0o755)
             ctrl = root / "expctrl"; ctrl.touch()
             offlog = root / "off.log"
-            peer_port, master_port, slave_port, master_video, slave_video = (port() for _ in range(5))
+            peer_port, master_port, slave_port, master_video, slave_video, master_srt_video, slave_srt_video = (port() for _ in range(7))
             procs = []
 
             def start_process(args, env):
@@ -299,10 +416,12 @@ class PeerTest(unittest.TestCase):
                 start_process(daemon_args(), shared | {
                     "PORTSDOWN_TX_SOCKET": str(slave_sock), "PORTSDOWN_HTTP_PORT": str(slave_port),
                     "PORTSDOWN_MJPEG_PORT": str(slave_video), "PORTSDOWN_PEER_ROLE": "SLAVE",
+                    "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(slave_srt_video),
                     "PORTSDOWN_PEER_BIND": "127.0.0.1"})
                 master = start_process(daemon_args(), shared | {
                     "PORTSDOWN_TX_SOCKET": str(master_sock), "PORTSDOWN_HTTP_PORT": str(master_port),
                     "PORTSDOWN_MJPEG_PORT": str(master_video), "PORTSDOWN_PEER_ROLE": "MASTER",
+                    "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(master_srt_video),
                     "PORTSDOWN_PEER_HOST": "127.0.0.1"})
                 def configured():
                     try:
