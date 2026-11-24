@@ -21,8 +21,9 @@ verified on real hardware.
   320×240 preview with a **NO IP INPUT** placeholder, and an E-Stop button.
   An optional remote-slave preview URL can be configured separately.
 - Five independently enabled SRT source slots (`control/srt-slot.sh`) each
-  accept MPEG-TS over SRT, encode live video/audio to a local 480p H.264/AAC
-  MPEG-TS output, and provide a 320×240 MJPEG preview. Each preview serves a
+  accept MPEG-TS over SRT, encode live video/audio to a local source-resolution
+  H.264/AAC MPEG-TS output, and provide a 320×240 aspect-preserving MJPEG
+  preview. Each preview serves a
   numbered **NO SRT INPUT** test card while its listener has no valid video,
   then returns to the card after input loss. The test card is **preview-only**:
   it never generates TS or satisfies a transmitter's live-input gate.
@@ -109,15 +110,15 @@ To make the five software-only SRT listeners available, export
 | 4 | `srt://TANK:9104?mode=caller` | `127.0.0.1:12004` | `/api/video/srt/4` |
 | 5 | `srt://TANK:9105?mode=caller` | `127.0.0.1:12005` | `/api/video/srt/5` |
 
-The SRT input accepts a live MPEG-TS carrying video (audio optional), without
-locking its input raster to 480p. Synthetic H.264 inputs at 640×480/25,
-1280×720/24, and 1920×1080/15 passed offline ingest checks. **All three are
-currently downscaled to 854×480 output**; selectable 720p/1080p TS outputs
-are not implemented in these five slots. TS outputs are **local-only and
-absent when input is absent**; they are not automatically DVB-S2 modulated or
-transmitted. The default software encoder targets 800 kbit/s H.264 video plus
-64 kbit/s AAC when audio is present. Allow for FEC/mux overhead before using
-a TS in a 1000 ksym/s mode.
+The SRT input accepts a live MPEG-TS carrying video (audio optional). Its
+**IPTS output retains the caller's raster**: synthetic H.264 inputs at
+640×480/25, 1280×720/24, and 1920×1080/15 were probed at the same respective
+output resolutions. The separate 320×240 MJPEG preview letterboxes 16:9
+sources. TS outputs are **local-only and absent when input is absent**; they
+are not automatically DVB-S2 modulated or transmitted. The software encoder
+still targets 800 kbit/s H.264 video plus 64 kbit/s AAC when audio is present,
+so 1080p picture quality at that bitrate may be limited. Allow for FEC/mux
+overhead before using a TS in a 1000 ksym/s mode.
 `PORTSDOWN_SRT_PORT_BASE`, `PORTSDOWN_SRT_TS_PORT_BASE`, and
 `PORTSDOWN_SRT_MJPEG_PORT_BASE` can change the consecutive five-port blocks;
 set them identically in both service processes. The listener ports bind all
@@ -149,8 +150,8 @@ The five-slot supervisor revision was separately built as AArch64 in
 support. On the development host, 14 hardware-free tests passed, including
 five concurrent synthetic callers producing distinct local TS outputs and a
 single-source arrival/loss test proving the MJPEG card returns and TS stops.
-Separate 720p24 and 1080p15 synthetic callers decoded and produced 854×480
-H.264 TS, as confirmed by `ffprobe`.
+The 480p25, 720p24, and 1080p15 synthetic callers decoded and produced
+matching-raster H.264 TS, as confirmed by `ffprobe`.
 This is **not** an on-device five-encoder performance or RF result.
 
 ## Next integration gates

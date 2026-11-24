@@ -27,11 +27,12 @@ while :; do
   # restarts the listener; neither TS nor preview receives a saved frame.
   "$ffmpeg" -hide_banner -nostdin -loglevel warning -rw_timeout 3000000 \
     -i "srt://0.0.0.0:$srt_port?mode=listener&latency=200000" \
-    -map 0:v:0 -map 0:a:0? -vf 'scale=w=854:h=480:force_original_aspect_ratio=decrease,pad=854:480:(ow-iw)/2:(oh-ih)/2' \
+    -map 0:v:0 -map 0:a:0? \
     -c:v libx264 -threads:v 1 -preset ultrafast -tune zerolatency -pix_fmt yuv420p \
     -b:v 800k -maxrate 900k -bufsize 1200k -g 50 -c:a aac -b:a 64k -ar 48000 \
     -f mpegts "udp://127.0.0.1:$ts_port?pkt_size=1316" \
-    -map 0:v:0 -vf 'fps=5,scale=320:240' -an -c:v mjpeg -threads:v 1 -q:v 10 \
+    -map 0:v:0 -vf 'fps=5,scale=w=320:h=240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2' \
+    -an -c:v mjpeg -threads:v 1 -q:v 10 \
     -f mjpeg "tcp://127.0.0.1:$preview_port"
   echo "SRT slot $slot: input lost; waiting for next caller"
   sleep 1
