@@ -39,6 +39,35 @@ function srt_state(status) {
   return slots;
 }
 
+function asi_file_status() {
+  let path = getenv('PORTSDOWN_ASI_TS_FILE');
+  if (!path) return { state: 'unconfigured' };
+  if (substr(path, 0, 1) != '/') return { state: 'unknown' };
+  let cfg = config.load(cfgpath);
+  if (!cfg?.call || !cfg?.service_name) return { state: 'unconfigured' };
+  /* Probe only on this separate status request, never on the 1 Hz state poll
+   * or TX path. A slow or unreadable file must not block playout. */
+  let proc = fs.popen(['timeout', '3s', 'ffprobe', '-v', 'error',
+    '-show_entries', 'program=program_id:program_tags=service_provider,service_name',
+    '-of', 'json', path], 'r');
+  if (!proc) return { state: 'unknown' };
+  let raw = proc.read(65536);
+  let rc = proc.close();
+  if (rc != 0 || !raw || length(raw) >= 65536) return { state: 'unknown' };
+  let data;
+  try { data = json(raw); } catch (e) { return { state: 'unknown' }; }
+  if (type(data?.programs) != 'array' || length(data.programs) == 0)
+    return { state: 'unknown' };
+  for (let program in data.programs) {
+    let provider = program.tags?.service_provider ?? '';
+    let name = program.tags?.service_name ?? '';
+    if (provider != cfg.call || name != cfg.service_name)
+      return { state: 'mismatch', programs: length(data.programs),
+        observed_provider: substr(provider, 0, 64), observed_name: substr(name, 0, 64) };
+  }
+  return { state: 'match', programs: length(data.programs) };
+}
+
 function emit(event, data) {
   let message = `id: ${++event_id}\nevent: ${event}\ndata: ${sprintf('%J', data)}\n\n`;
   let live = [];
@@ -61,6 +90,8 @@ function response(peer, status, ctype, body, keep) {
 }
 
 function api(peer, method, path, body) {
+  if (method == 'GET' && path == '/api/asi/file-status')
+    return response(peer, '200 OK', 'application/json', sprintf('%J', asi_file_status()));
   if (method == 'GET' && path == '/api/state') {
     let result = super.request(sockpath, 'STATUS');
     let cfg = config.load(cfgpath);

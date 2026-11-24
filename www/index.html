@@ -43,6 +43,7 @@
         <label class="asi-only" hidden>Output channel index<input id="asi_channel" type="number" min="0" max="15" step="1"></label>
         <label class="asi-only" hidden>ASI TS bitrate (bit/s)<input id="asi_bitrate" type="number" min="100000" max="214000000" step="1"></label>
         <p class="asi-only asi-note" hidden>ASI carries MPEG-TS to an external modulator. Set frequency, symbol rate, FEC and RF enable on that modulator. Device and channel indices must be verified on the target host.</p>
+        <p id="asi-file-status" class="asi-only asi-status" role="status" hidden>ASI file metadata status pending. Playout is not restricted by service labels.</p>
         <label class="express-only">Express level (0–44)<input id="explevel" type="number" min="0" max="44" step="1"></label>
         <label class="pluto-only" hidden>Pluto attenuation (0–71)<input id="plutopwr" type="number" min="0" max="71" step="1"></label>
         <label class="lime-only" hidden>Lime gain (0–100)<input id="limegain" type="number" min="0" max="100" step="1"></label>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline MPEG-TS metadata and ASI pass-through gate; never opens hardware."""
+"""Offline MPEG-TS metadata and ASI playout arguments; never opens hardware."""
 
 import os
 from pathlib import Path
@@ -25,7 +25,7 @@ class ServiceMetadataTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 values(cfg)
 
-    def test_asi_file_requires_matching_saved_service_metadata(self):
+    def test_asi_file_applies_labels_when_available_without_blocking_mismatch(self):
         with tempfile.TemporaryDirectory(prefix="portsdown-asi-metadata-") as directory:
             temp = Path(directory)
             stream = temp / "source.ts"
@@ -54,22 +54,39 @@ class ServiceMetadataTest(unittest.TestCase):
                                   text=True, timeout=15)
             self.assertEqual(good.returncode, 0, good.stderr)
             self.assertIn("dektec", args_file.read_text())
-            args_file.unlink()
+            self.assertIn("svrename", args_file.read_text())
             config.write_text(config.read_text().replace("service_name=Trevor",
                                                          "service_name=Different"))
-            bad = subprocess.run([str(launcher)], env=env, capture_output=True,
-                                 text=True, timeout=15)
-            self.assertNotEqual(bad.returncode, 0)
-            self.assertIn("metadata differs", bad.stderr)
-            self.assertFalse(args_file.exists(), "mismatch must not start ASI")
+            changed = subprocess.run([str(launcher)], env=env, capture_output=True,
+                                     text=True, timeout=15)
+            self.assertEqual(changed.returncode, 0, changed.stderr)
+            argv = args_file.read_text().splitlines()
+            self.assertEqual(argv[argv.index("--name") + 1], "Different")
+            self.assertEqual(argv[argv.index("--provider") + 1], "KG6MDW")
             config.write_text(config.read_text().replace("service_name=Different",
                                                          "service_name=Trevor").replace(
                                                              "call=KG6MDW", "call=K6SOE"))
-            bad = subprocess.run([str(launcher)], env=env, capture_output=True,
-                                 text=True, timeout=15)
-            self.assertNotEqual(bad.returncode, 0)
-            self.assertIn("metadata differs", bad.stderr)
-            self.assertFalse(args_file.exists(), "provider mismatch must not start ASI")
+            changed = subprocess.run([str(launcher)], env=env, capture_output=True,
+                                     text=True, timeout=15)
+            self.assertEqual(changed.returncode, 0, changed.stderr)
+            argv = args_file.read_text().splitlines()
+            self.assertEqual(argv[argv.index("--provider") + 1], "K6SOE")
+            config.write_text(config.read_text().replace("call=K6SOE", "call="))
+            passthrough = subprocess.run([str(launcher)], env=env, capture_output=True,
+                                         text=True, timeout=15)
+            self.assertEqual(passthrough.returncode, 0, passthrough.stderr)
+            self.assertNotIn("svrename", args_file.read_text(),
+                             "missing metadata still permits original TS playout")
+            config.write_text(config.read_text().replace("call=", "call=KG6MDW"))
+            fake_tsp.write_text('#!/bin/sh\n'
+                                'if [ "$1" = -P ] && [ "$2" = svrename ] && '
+                                '[ "$3" = --help ]; then exit 1; fi\n'
+                                'printf "%s\\n" "$@" > "$TSP_ARGS_OUT"\n')
+            no_plugin = subprocess.run([str(launcher)], env=env, capture_output=True,
+                                       text=True, timeout=15)
+            self.assertEqual(no_plugin.returncode, 0, no_plugin.stderr)
+            self.assertNotIn("svrename", args_file.read_text(),
+                             "missing plugin still permits original TS playout")
 
 
 if __name__ == "__main__":

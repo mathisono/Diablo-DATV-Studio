@@ -46,8 +46,21 @@ function refreshBoardFields() {
   if (asi) {
     for (const [id,value] of Object.entries({asi_device:'0',asi_channel:'0',asi_bitrate:'3071588'}))
       if (!$(id).value) $(id).value = value;
+    refreshAsiFileStatus();
   }
   refreshSourceFields();
+}
+async function refreshAsiFileStatus() {
+  if ($('modeoutput').value !== 'DEKTEC_ASI') return;
+  const flag = $('asi-file-status');
+  try {
+    const info = await api('/api/asi/file-status');
+    flag.classList.toggle('warning', info.state === 'mismatch');
+    if (info.state === 'match') flag.textContent = `ASI file service metadata matches saved settings (${info.programs} service${info.programs === 1 ? '' : 's'}).`;
+    else if (info.state === 'mismatch') flag.textContent = `ASI file metadata differs: provider “${info.observed_provider || '(missing)'}”, service “${info.observed_name || '(missing)'}”. Playout is allowed; configured labels will be applied when possible.`;
+    else if (info.state === 'unconfigured') flag.textContent = 'No ASI file or service labels configured. Playout is not blocked by metadata.';
+    else flag.textContent = 'ASI file metadata could not be checked. Playout is not blocked by metadata.';
+  } catch { flag.textContent = 'ASI file metadata status unavailable. Playout is not blocked by metadata.'; }
 }
 function refreshSourceFields() {
   const hdmi = $('modeinput').value === 'HDMI';
@@ -188,3 +201,4 @@ events.onerror=()=>{ $('connection').textContent='Event link reconnecting'; };
 reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
 setInterval(async () => { try { showState(await api('/api/state')); } catch {} }, 1000);
+setInterval(refreshAsiFileStatus, 10000);

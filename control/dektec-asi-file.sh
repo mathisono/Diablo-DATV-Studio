@@ -25,22 +25,36 @@ case "$device:$channel:$bitrate" in *[!0-9:]*|'') echo 'Invalid ASI numeric sett
 }
 command -v tsp >/dev/null 2>&1 || { echo 'TSDuck tsp is not installed' >&2; exit 1; }
 command -v ffprobe >/dev/null 2>&1 || { echo 'ffprobe is not installed' >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo 'jq is not installed' >&2; exit 1; }
-# shellcheck source=../scripts/ts_service_metadata.sh
-. "$(dirname "$0")/../scripts/ts_service_metadata.sh"
-ts_service_metadata_load "$PORTSDOWN_CONFIG"
 format=$(ffprobe -v error -show_entries format=format_name \
     -of default=noprint_wrappers=1:nokey=1 "$PORTSDOWN_ASI_TS_FILE") || {
     echo 'Cannot probe TS file' >&2; exit 1;
 }
 case ",$format," in *,mpegts,*) ;; *) echo 'Input is not MPEG-TS' >&2; exit 1;; esac
-# ASI passes the file's TS packets through unchanged. Never claim GUI metadata
-# was applied unless every program in that file actually carries it.
-ffprobe -v error -show_programs -of json "$PORTSDOWN_ASI_TS_FILE" |
-    jq -e --arg provider "$TS_SERVICE_PROVIDER" --arg name "$TS_SERVICE_NAME" \
-      '.programs | length > 0 and all(.[]; .tags.service_provider == $provider and .tags.service_name == $name)' \
-      >/dev/null || { echo 'TS service metadata differs from configured CALLSIGN/service name' >&2; exit 1; }
+# TSDuck's svrename updates the SDT service descriptors in flight, without
+# decoding or FFmpeg-remuxing the video/audio. This is best-effort metadata,
+# not an acceptance gate: missing config, plugin, or program enumeration leaves
+# the original TS playable. Never prevent playout for a name/provider mismatch.
+set -- -I file "$PORTSDOWN_ASI_TS_FILE"
+# shellcheck source=../scripts/ts_service_metadata.sh
+. "$(dirname "$0")/../scripts/ts_service_metadata.sh"
+if ts_service_metadata_load "$PORTSDOWN_CONFIG" &&
+   tsp -P svrename --help >/dev/null 2>&1; then
+    programs=$(ffprobe -v error -show_entries program=program_id \
+        -of default=noprint_wrappers=1:nokey=1 "$PORTSDOWN_ASI_TS_FILE") || programs=
+    if [ -n "$programs" ]; then
+        for service_id in $programs; do
+            case "$service_id" in *[!0-9]*|'') continue;; esac
+            set -- "$@" -P svrename "$service_id" \
+                --provider "$TS_SERVICE_PROVIDER" --name "$TS_SERVICE_NAME"
+        done
+        echo 'Applying configured TS service metadata during ASI playout' >&2
+    else
+        echo 'Cannot enumerate TS programs; playing original TS metadata' >&2
+    fi
+else
+    echo 'TS service metadata unavailable; playing original TS metadata' >&2
+fi
 # Exact device/channel and plugin options must be confirmed against the target
 # host's tsdektec and tsp -O dektec --help before hardware use.
-exec tsp -I file "$PORTSDOWN_ASI_TS_FILE" -O dektec \
+exec tsp "$@" -O dektec \
     --device "$device" --channel "$channel" --io-standard ASI --bitrate "$bitrate"

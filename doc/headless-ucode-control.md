@@ -18,7 +18,9 @@ Portsdown display was involved.
 
 The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
 device 0/channel 0 and 3,071,588 bit/s values are **example settings**, not
-enumerated hardware. SRT port numbers shown are temporary test ports.
+enumerated hardware. Its amber ASI metadata flag compares a synthetic TS file
+with example saved labels; the mismatch is advisory and does not prevent
+playout. SRT port numbers shown are temporary test ports.
 
 ![Elgato HDMI configuration with a low-resolution synthetic preview; TX disabled](images/headless-web-gui-elgato-asi.png)
 
@@ -85,12 +87,15 @@ capture, audio, and RF remain unverified.
   live encoder or an RF safety interlock. `PORTSDOWN_BOARD=dektec_asi` must
   match `modeoutput=DEKTEC_ASI`, and the supervisor still requires an
   independently verified safe-off hook before it will start TX.
-  The ASI file launcher passes existing TS packets through unchanged. It
-  checks every detected program's `service_provider` and `service_name`
-  against the saved GUI settings and **refuses playout on a mismatch**;
-  changing the GUI fields does not rewrite an existing file. Generate or
-  remultiplex the file with matching metadata first. Offline validation uses
-  a fake `tsp`, not a DekTec card.
+  The ASI file launcher **does not reject** a file because its service
+  metadata differs. The web GUI shows a non-blocking match/mismatch/unknown
+  flag for the configured file. During playout, TSDuck's `svrename` processor
+  applies the saved callsign and service name to detected services' SDT
+  descriptors when available; it does not decode/re-encode video or rewrite
+  the source file. If service metadata or the processor is unavailable, the
+  original TS can still play. An offline test with a local TSDuck build
+  confirmed that `svrename` changed the service tags while retaining packet
+  count and PMT/PCR PIDs; physical DekTec output is still unverified.
 - `systemd/`: uninstalled service templates. `portsdown-tx-super.service`
   uses `ExecStopPost` as a second attempt to invoke the safe-off hook if the
   supervisor dies while systemd is alive.
@@ -130,7 +135,8 @@ an explicit private-interface address.
   Legacy `avc2ts` and unchanged pass-through tools may preserve their original
   service descriptors rather than use the new GUI fields. Inspect their TS
   with `ffprobe -show_programs` before sending it to a modulator; the ASI
-  launcher rejects a mismatch but other legacy outputs are not yet gated.
+  GUI flags a mismatch but does not block playout. Other legacy outputs are
+  not yet flagged.
 - A native DVB-S2 QPSK experimental DATV-Express backend exists; no
   DVB-S2X backend was found in this branch. DVB-S2X is therefore **not**
   offered by the capability map.

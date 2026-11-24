@@ -153,6 +153,7 @@ class UcodeTest(unittest.TestCase):
         self.path = Path(self.tmp.name)
         self.config = self.path / "config.txt"
         self.config.write_text("modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nfreqoutput=437\nsymbolrate=333\nfec=12\ncall=KG6MDW\nservice_name=Trevor\n")
+        self.asi_file = self.path / "asi-source.ts"
         self.sock = self.path / "run" / "tx.sock"
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0)); self.port = probe.getsockname()[1]
@@ -176,6 +177,7 @@ class UcodeTest(unittest.TestCase):
         self.assertTrue(wait_for(self.sock.exists))
         env = os.environ | {
             "PORTSDOWN_DIR": str(ROOT), "PORTSDOWN_CONFIG": str(self.config),
+            "PORTSDOWN_ASI_TS_FILE": str(self.asi_file),
             "PORTSDOWN_TX_SOCKET": str(self.sock),
             "PORTSDOWN_HTTP_PORT": str(self.port),
             "PORTSDOWN_MJPEG_PORT": str(self.video_port),
@@ -253,6 +255,25 @@ class UcodeTest(unittest.TestCase):
         status, body = self.request("POST", "/api/tx/start")
         self.assertEqual(status, 503)
         self.assertFalse(json.loads(body)["ok"])
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/ffprobe unavailable")
+    def test_asi_file_metadata_mismatch_is_gui_status_not_tx_gate(self):
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+            "-i", "testsrc2=size=320x240:rate=10", "-t", "1", "-c:v",
+            "mpeg2video", "-metadata", "service_provider=KG6MDW",
+            "-metadata", "service_name=Original", "-f", "mpegts", str(self.asi_file),
+        ], check=True, capture_output=True, timeout=15)
+        status, body = self.request("GET", "/api/asi/file-status")
+        self.assertEqual(status, 200, body)
+        mismatch = json.loads(body)
+        self.assertEqual(mismatch["state"], "mismatch")
+        self.assertEqual(mismatch["observed_name"], "Original")
+        status, body = self.request("POST", "/api/config", {"service_name": "Original"})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(self.request("GET", "/api/asi/file-status")[1])["state"], "match")
+        self.asi_file.unlink()
+        self.assertEqual(json.loads(self.request("GET", "/api/asi/file-status")[1])["state"], "unknown")
 
     def test_hdmi_capture_requires_video_device_and_accepts_optional_alsa(self):
         status, body = self.request("POST", "/api/config", {"modeinput": "HDMI"})
