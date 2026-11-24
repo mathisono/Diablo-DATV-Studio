@@ -16,13 +16,13 @@ export const capabilities = {
 
 const fec_s = ['12', '23', '34', '56', '78'];
 const fec_s2 = ['14', '13', '12', '35', '23', '34', '56', '89', '91'];
-const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','DESKTOP','SRT',
+const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','HDMI','DESKTOP','SRT',
   'IPTSIN','IPTSIN264','IPTSIN265'];
 const formats = ['4:3','16:9','720p','1080p'];
 const encoders = ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'];
 const mutable = ['modeoutput', 'modeinput', 'modulation', 'freqoutput', 'symbolrate',
   'fec', 'format', 'encoding', 'explevel', 'plutopwr', 'limegain', 'streamurl', 'streamkey',
-  'asi_device', 'asi_channel', 'asi_bitrate'];
+  'asi_device', 'asi_channel', 'asi_bitrate', 'expresshdmidevice', 'expressaudiodevice'];
 
 export function load(path) {
   let raw = fs.readfile(path);
@@ -58,6 +58,11 @@ export function validate(cfg) {
     if (index(mod == 'S2QPSK' ? fec_s2 : fec_s, cfg.fec) < 0) return 'unsupported FEC';
   }
   if (cfg.modeinput != null && index(sources, cfg.modeinput) < 0) return 'unsupported source';
+  if (cfg.modeinput == 'HDMI' && !match(cfg.expresshdmidevice ?? '', /^\/dev\/video[0-9]+$/))
+    return 'HDMI capture requires a /dev/videoN device';
+  if (cfg.expressaudiodevice != null && cfg.expressaudiodevice != '' &&
+      !match(cfg.expressaudiodevice, /^(default|hw:[A-Za-z0-9_,.:=-]+|plughw:[A-Za-z0-9_,.:=-]+)$/))
+    return 'unsupported HDMI audio device';
   if (cfg.format != null && index(formats, cfg.format) < 0) return 'unsupported format';
   if (cfg.encoding != null && index(encoders, cfg.encoding) < 0) return 'unsupported encoder';
   if (cfg.explevel != null && (!match(cfg.explevel, /^[0-9]+$/) || +cfg.explevel > 44)) return 'Express level outside 0-44';

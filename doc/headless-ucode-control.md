@@ -20,6 +20,19 @@ The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
 device 0/channel 0 and 3,071,588 bit/s values are **example settings**, not
 enumerated hardware. SRT port numbers shown are temporary test ports.
 
+![Elgato HDMI capture to DekTec ASI configuration example; TX disabled](images/headless-web-gui-elgato-asi.png)
+
+This **configuration example** selects Elgato HDMI video (`/dev/video2`),
+optional ALSA audio (`hw:1,0`), H.264 at 720p, and DekTec ASI output at
+3,071,588 bit/s. The device names and indices are illustrative, not detected
+on the current host. When HDMI is selected, the GUI shows the separate V4L2
+and ALSA fields and a **NO HDMI INPUT** preview card; the five SRT slots
+remain available in a collapsed section. The legacy Express capture path
+recognizes `modeinput=HDMI`, `expresshdmidevice`, and `expressaudiodevice`,
+but this headless ASI route is **not yet a live encoder or playout path**.
+The standalone MJPEG preview launcher still needs its `PORTSDOWN_VIDEO_DEVICE`
+set to the actual HDMI device and restarted after device changes.
+
 ## Implemented
 
 - `control/tx-super.c`: Unix socket commands `START_TX`, `STOP_TX`, `START_RX`,

@@ -237,6 +237,21 @@ class UcodeTest(unittest.TestCase):
         self.assertEqual(status, 503)
         self.assertFalse(json.loads(body)["ok"])
 
+    def test_hdmi_capture_requires_video_device_and_accepts_optional_alsa(self):
+        status, body = self.request("POST", "/api/config", {"modeinput": "HDMI"})
+        self.assertEqual(status, 400, body)
+        status, body = self.request("POST", "/api/config", {
+            "modeinput": "HDMI", "expresshdmidevice": "/dev/video2",
+            "expressaudiodevice": "plughw:CARD=CamLink,DEV=0"})
+        self.assertEqual(status, 200, body)
+        status, body = self.request("POST", "/api/config", {"expresshdmidevice": "/tmp/fake"})
+        self.assertEqual(status, 400, body)
+        status, body = self.request("POST", "/api/config", {"expressaudiodevice": ""})
+        self.assertEqual(status, 200, body)
+        status, body = self.request("GET", "/no-hdmi-input.svg")
+        self.assertEqual(status, 200, body)
+        self.assertIn(b"NO HDMI INPUT", body)
+
     def test_cross_origin_form_and_dns_rebinding_are_rejected(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=2)
         conn.request("POST", "/api/tx/start")
@@ -395,14 +410,16 @@ class UcodeTest(unittest.TestCase):
                 senders.append(subprocess.Popen([
                     "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
                     "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=25",
-                    "-t", "5", "-threads:v", "1", "-c:v", "libx264", "-preset", "ultrafast",
+                    # Keep all callers alive while five encoders start and each
+                    # UDP receiver obtains its first packet on a loaded host.
+                    "-t", "12", "-threads:v", "1", "-c:v", "libx264", "-preset", "ultrafast",
                     "-f", "mpegts", f"srt://127.0.0.1:{self.srt_port+n}?mode=caller&latency=200000",
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE))
             for n, receiver in enumerate(receivers):
                 packet, _ = receiver.recvfrom(2048)
                 self.assertEqual(packet[0], 0x47, f"slot {n+1}")
             self.assertTrue(wait_for(lambda: all(s["live"] for s in json.loads(
-                self.request("GET", "/api/srt")[1])["slots"]), 2))
+                self.request("GET", "/api/srt")[1])["slots"]), 3))
         finally:
             for sender in senders:
                 if sender.poll() is None:

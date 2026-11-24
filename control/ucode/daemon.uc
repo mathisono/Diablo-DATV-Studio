@@ -158,7 +158,8 @@ function api(peer, method, path, body) {
   let files = { '/': ['index.html', 'text/html; charset=utf-8'],
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
     '/style.css': ['style.css', 'text/css; charset=utf-8'],
-    '/no-ip-input.svg': ['no-ip-input.svg', 'image/svg+xml'] };
+    '/no-ip-input.svg': ['no-ip-input.svg', 'image/svg+xml'],
+    '/no-hdmi-input.svg': ['no-hdmi-input.svg', 'image/svg+xml'] };
   if (method == 'GET' && files[path]) {
     let file = fs.readfile(`${dir}/www/${files[path][0]}`);
     return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :

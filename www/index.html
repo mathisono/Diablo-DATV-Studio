@@ -29,6 +29,10 @@
         <label><span id="modulation-label">Modulation</span><select id="modulation"></select></label>
         <label>Encoder<select id="encoding"></select></label>
         <label>Video format<select id="format"></select></label>
+        <label class="hdmi-only" hidden>HDMI video device<input id="expresshdmidevice" type="text" placeholder="/dev/videoN" autocomplete="off"></label>
+        <label class="hdmi-only" hidden>HDMI audio device (optional)<input id="expressaudiodevice" type="text" placeholder="hw:1,0" autocomplete="off"></label>
+        <p class="hdmi-only hdmi-note" hidden>Elgato/Cam Link video is a V4L2 device. HDMI audio may appear as a separate ALSA device; verify both on the host before saving.</p>
+        <p id="route-summary" class="route-summary" hidden></p>
         <label class="rf-only">Frequency (MHz)<input id="freqoutput" type="number" step="0.001" required></label>
         <label class="rf-only">Symbol rate (ksym/s)<input id="symbolrate" type="number" step="1" required></label>
         <label class="rf-only">FEC<select id="fec"></select></label>
@@ -54,9 +58,11 @@
       <div id="remote-preview-box" hidden><h3>Remote slave preview</h3><div class="preview"><img id="remote-preview" alt="Remote slave preview"></div></div>
     </section>
     <section class="srt-section">
-      <h2>SRT input encoders</h2>
+      <details id="srt-details" open>
+      <summary>Five optional SRT input encoders</summary>
       <p>Enable each listener independently. Its test card is preview-only; live TS is sent to a separate local output only while real SRT video is present. These slots do not key RF.</p>
       <div id="srt-slots" class="srt-grid"></div>
+      </details>
     </section>
     <section>
       <h2>Events</h2>

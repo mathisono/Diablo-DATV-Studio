@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate'];
+const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice'];
 const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
@@ -47,6 +47,20 @@ function refreshBoardFields() {
     for (const [id,value] of Object.entries({asi_device:'0',asi_channel:'0',asi_bitrate:'3071588'}))
       if (!$(id).value) $(id).value = value;
   }
+  refreshSourceFields();
+}
+function refreshSourceFields() {
+  const hdmi = $('modeinput').value === 'HDMI';
+  $('srt-details').open = $('modeinput').value === 'SRT';
+  for (const el of document.querySelectorAll('.hdmi-only')) el.hidden = !hdmi;
+  $('expresshdmidevice').required = hdmi;
+  const route = $('route-summary');
+  route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
+  const codec = $('encoding').value === 'H264' ? 'H.264' : $('encoding').value;
+  route.textContent = `Elgato HDMI → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
+  const placeholder = $('video-placeholder');
+  placeholder.src = hdmi ? '/no-hdmi-input.svg' : '/no-ip-input.svg';
+  placeholder.alt = hdmi ? 'NO HDMI INPUT' : 'NO IP INPUT';
 }
 function fill(config, updateCurrent=true) {
   if (updateCurrent) current = config;
@@ -54,7 +68,7 @@ function fill(config, updateCurrent=true) {
   choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,mode]), config.modulation);
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
-    ['CARDH264','Test card / HDMI'],['DESKTOP','Desktop'],['SRT','SRT input'],
+    ['CARDH264','Test card'],['HDMI','Elgato HDMI'],['DESKTOP','Desktop'],['SRT','SRT input'],
     ['IPTSIN','IP transport stream'],['IPTSIN264','IPTS H.264'],['IPTSIN265','IPTS H.265']
   ], config.modeinput);
   choices('encoding', ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'].map(v=>[v,v]), config.encoding);
@@ -134,10 +148,12 @@ for (const [id,path] of Object.entries({
   'rx-start':'/api/rx/start','rx-stop':'/api/rx/stop'
 })) $(id).addEventListener('click',()=>command(path));
 $('modeoutput').addEventListener('change',refreshMode);
+$('modeinput').addEventListener('change',refreshSourceFields);
+$('encoding').addEventListener('change',refreshSourceFields);
 $('modulation').addEventListener('change',refreshFec);
 $('settings').addEventListener('submit',async event => {
   event.preventDefault();
-  const changed = Object.fromEntries(fields.map(id => [id,$(id).value]).filter(([id,value])=>value!=='' && value!==(current[id]??'')));
+  const changed = Object.fromEntries(fields.map(id => [id,$(id).value]).filter(([id,value])=>(value!=='' || id==='expressaudiodevice') && value!==(current[id]??'')));
   try { await api('/api/config','POST',changed); log('Configuration saved'); await reload(); }
   catch (error) { log(`Save failed: ${error.message}`); }
 });
