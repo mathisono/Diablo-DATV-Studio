@@ -6,6 +6,14 @@ remove those legacy paths yet. Do not enable it as a replacement for a working
 Portsdown transmitter until board-specific launch and safe-off paths have been
 verified on real hardware.
 
+## Web GUI screenshot
+
+![Experimental Portsdown web GUI with five enabled SRT inputs showing numbered NO SRT INPUT test cards](images/headless-web-gui-srt.png)
+
+Captured from an isolated local run with all five SRT listeners enabled and
+waiting for video. TX was disabled (`PORTSDOWN_BOARD=none`); no RF or physical
+Portsdown display was involved.
+
 ## Implemented
 
 - `control/tx-super.c`: Unix socket commands `START_TX`, `STOP_TX`, `START_RX`,

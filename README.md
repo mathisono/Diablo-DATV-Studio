@@ -3,6 +3,7 @@
 
 An experimental, **uninstalled** headless web-control implementation is being
 developed separately; see [Headless ucode control status](doc/headless-ucode-control.md).
+See the [headless web GUI screenshot](doc/images/headless-web-gui-srt.png).
 It does not yet replace the working touchscreen GUI or drive verified RF
 hardware. The existing Buster and Trixie transmitter paths remain intact.
 
