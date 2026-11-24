@@ -309,6 +309,51 @@ class UcodeTest(unittest.TestCase):
                     sender.terminate(); sender.wait(timeout=3)
                 sender.stderr.close()
 
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/ffprobe unavailable")
+    def test_720p_and_1080p_srt_inputs_decode_to_480p_ts(self):
+        if "  srt\n" not in subprocess.run(["ffmpeg", "-hide_banner", "-protocols"],
+                                          capture_output=True, text=True).stdout:
+            self.skipTest("FFmpeg lacks SRT")
+        sources = [(2, "1280x720", 24), (3, "1920x1080", 15)]
+        receivers, senders = [], []
+        try:
+            for slot, _, _ in sources:
+                receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                receiver.bind(("127.0.0.1", self.ts_port + slot - 1))
+                receiver.settimeout(10)
+                receivers.append(receiver)
+                status, body = self.request("POST", f"/api/srt/{slot}/enable")
+                self.assertEqual(status, 200, body)
+            for slot, raster, fps in sources:
+                senders.append(subprocess.Popen([
+                    "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
+                    "-f", "lavfi", "-i", f"testsrc2=size={raster}:rate={fps}",
+                    "-t", "5", "-threads:v", "1", "-c:v", "libx264", "-preset", "ultrafast",
+                    "-f", "mpegts", f"srt://127.0.0.1:{self.srt_port+slot-1}?mode=caller&latency=200000",
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE))
+            for (slot, raster, _), receiver in zip(sources, receivers):
+                data = bytearray()
+                while len(data) < 150000:
+                    packet, _ = receiver.recvfrom(2048)
+                    self.assertEqual(packet[0], 0x47, raster)
+                    data.extend(packet)
+                capture = self.path / f"synthetic-{slot}.ts"
+                capture.write_bytes(data)
+                probe = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,width,height", "-of", "json", str(capture),
+                ], capture_output=True, text=True, timeout=10, check=True)
+                self.assertEqual(json.loads(probe.stdout)["streams"][0],
+                                 {"codec_name": "h264", "width": 854, "height": 480}, raster)
+            slots = json.loads(self.request("GET", "/api/srt")[1])["slots"]
+            self.assertTrue(slots[1]["live"] and slots[2]["live"])
+        finally:
+            for sender in senders:
+                if sender.poll() is None:
+                    sender.terminate(); sender.wait(timeout=3)
+                sender.stderr.close()
+            for receiver in receivers: receiver.close()
+
     @unittest.skipUnless(shutil.which("ffmpeg"), "FFmpeg unavailable")
     def test_five_simultaneous_srt_sources_have_distinct_ts_outputs(self):
         if "  srt\n" not in subprocess.run(["ffmpeg", "-hide_banner", "-protocols"],

@@ -61,8 +61,8 @@ an explicit private-interface address.
   valid live TS is received and stops when that input disappears.
 - The five SRT encoders are **not** connected to a board or the RF TX gate.
   Their enable/disable state is held by the running supervisor (not persisted
-  across its restart). Five-way simultaneous encoding, real ATEM sources, and
-  on-board CPU/thermal performance remain unverified.
+  across its restart). Real ATEM sources and five-way on-board CPU/thermal
+  performance remain unverified.
 - The GPIO and DATV-Express USB/PTT behavior, Pluto/Lime safe-off hooks,
   native video devices, real RF output, and UI behavior on a complete
   Portsdown install have not been tested. Software cannot guarantee PTT-off
@@ -109,11 +109,15 @@ To make the five software-only SRT listeners available, export
 | 4 | `srt://TANK:9104?mode=caller` | `127.0.0.1:12004` | `/api/video/srt/4` |
 | 5 | `srt://TANK:9105?mode=caller` | `127.0.0.1:12005` | `/api/video/srt/5` |
 
-The SRT input accepts a live MPEG-TS carrying video (audio optional). TS
-outputs are **local-only and absent when input is absent**; they are not
-automatically DVB-S2 modulated or transmitted. The default software encoder
-targets 854×480 H.264 at 800 kbit/s video plus 64 kbit/s AAC when audio is
-present. Allow for FEC/mux overhead before using a TS in a 1000 ksym/s mode.
+The SRT input accepts a live MPEG-TS carrying video (audio optional), without
+locking its input raster to 480p. Synthetic H.264 inputs at 640×480/25,
+1280×720/24, and 1920×1080/15 passed offline ingest checks. **All three are
+currently downscaled to 854×480 output**; selectable 720p/1080p TS outputs
+are not implemented in these five slots. TS outputs are **local-only and
+absent when input is absent**; they are not automatically DVB-S2 modulated or
+transmitted. The default software encoder targets 800 kbit/s H.264 video plus
+64 kbit/s AAC when audio is present. Allow for FEC/mux overhead before using
+a TS in a 1000 ksym/s mode.
 `PORTSDOWN_SRT_PORT_BASE`, `PORTSDOWN_SRT_TS_PORT_BASE`, and
 `PORTSDOWN_SRT_MJPEG_PORT_BASE` can change the consecutive five-port blocks;
 set them identically in both service processes. The listener ports bind all
@@ -142,9 +146,11 @@ Trixie). TANK's rover service remained active. `ucode` and the web service
 were **not** installed or run there; no TX or RF test was attempted.
 The five-slot supervisor revision was separately built as AArch64 in
 `/tmp/portsdown-srt-control-check`; FFmpeg on TANK lists SRT input/output
-support. On the development host, 13 hardware-free tests passed, including
+support. On the development host, 14 hardware-free tests passed, including
 five concurrent synthetic callers producing distinct local TS outputs and a
 single-source arrival/loss test proving the MJPEG card returns and TS stops.
+Separate 720p24 and 1080p15 synthetic callers decoded and produced 854×480
+H.264 TS, as confirmed by `ffprobe`.
 This is **not** an on-device five-encoder performance or RF result.
 
 ## Next integration gates
