@@ -128,6 +128,7 @@ static bool stop_role(enum role role)
 static bool start_role(enum role role)
 {
   if (children[role].pid > 0) return true;
+  if (role == PREVIEW && (children[TX].pid > 0 || children[RX].pid > 0)) return false;
   const char *execpath = executables[role];
   if (!execpath || execpath[0] != '/' || access(execpath, X_OK) != 0) return false;
   if (role == TX) {

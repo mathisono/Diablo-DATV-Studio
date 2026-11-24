@@ -140,6 +140,15 @@ if (!peerctl.start({ role: peer_role, token: getenv('PORTSDOWN_PEER_TOKEN'),
   (state) => emit('peer', state))) die('Invalid peer configuration');
 let video_server = video.start(+(getenv('PORTSDOWN_MJPEG_PORT') ?? '8082'));
 if (!video_server) die('Cannot bind loopback MJPEG ingest port');
+/* tx-super may have started its standby preview before the MJPEG listener
+ * existed, causing FFmpeg's first TCP connect to fail. Retry now. */
+super.request(sockpath, 'START_PREVIEW');
+if (getenv('PORTSDOWN_PREVIEW_EXEC')) uloop.timer(2000, function() {
+  let state = super.request(sockpath, 'STATUS').status ?? '';
+  if (index(state, 'tx=stopped') >= 0 && index(state, 'rx=stopped') >= 0 &&
+      index(state, 'preview=stopped') >= 0) super.request(sockpath, 'START_PREVIEW');
+  this.set(2000);
+});
 let server = socket.listen('127.0.0.1', port, { family: socket.AF_INET, socktype: socket.SOCK_STREAM }, 32, true);
 if (!server) die(`Cannot bind loopback HTTP port ${port}`);
 
