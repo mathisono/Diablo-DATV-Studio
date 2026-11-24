@@ -24,17 +24,21 @@
     <section>
       <h2>Output settings</h2>
       <form id="settings">
-        <label>Board<select id="modeoutput"></select></label>
+        <label class="wide">Output hardware<select id="modeoutput"></select></label>
         <label>Source<select id="modeinput"></select></label>
-        <label>Modulation<select id="modulation"></select></label>
+        <label><span id="modulation-label">Modulation</span><select id="modulation"></select></label>
         <label>Encoder<select id="encoding"></select></label>
         <label>Video format<select id="format"></select></label>
-        <label>Frequency (MHz)<input id="freqoutput" type="number" step="0.001" required></label>
-        <label>Symbol rate (ksym/s)<input id="symbolrate" type="number" step="1" required></label>
-        <label>FEC<select id="fec"></select></label>
-        <label>Express level (0–44)<input id="explevel" type="number" min="0" max="44" step="1"></label>
-        <label>Pluto attenuation (0–71)<input id="plutopwr" type="number" min="0" max="71" step="1"></label>
-        <label>Lime gain (0–100)<input id="limegain" type="number" min="0" max="100" step="1"></label>
+        <label class="rf-only">Frequency (MHz)<input id="freqoutput" type="number" step="0.001" required></label>
+        <label class="rf-only">Symbol rate (ksym/s)<input id="symbolrate" type="number" step="1" required></label>
+        <label class="rf-only">FEC<select id="fec"></select></label>
+        <label class="asi-only" hidden>DekTec device index<input id="asi_device" type="number" min="0" max="15" step="1"></label>
+        <label class="asi-only" hidden>Output channel index<input id="asi_channel" type="number" min="0" max="15" step="1"></label>
+        <label class="asi-only" hidden>ASI TS bitrate (bit/s)<input id="asi_bitrate" type="number" min="100000" max="214000000" step="1"></label>
+        <p class="asi-only asi-note" hidden>ASI carries MPEG-TS to an external modulator. Set frequency, symbol rate, FEC and RF enable on that modulator. Device and channel indices must be verified on the target host.</p>
+        <label class="express-only">Express level (0–44)<input id="explevel" type="number" min="0" max="44" step="1"></label>
+        <label class="pluto-only" hidden>Pluto attenuation (0–71)<input id="plutopwr" type="number" min="0" max="71" step="1"></label>
+        <label class="lime-only" hidden>Lime gain (0–100)<input id="limegain" type="number" min="0" max="100" step="1"></label>
         <button type="submit">Save configuration</button>
       </form>
       <div class="presets" aria-label="Portsdown presets">

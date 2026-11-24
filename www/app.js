@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain'];
+const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate'];
 const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
@@ -26,10 +26,27 @@ function refreshMode() {
   const cap = capabilities[$('modeoutput').value];
   choices('modulation', (cap?.modulation || []).map(mode => [mode,mode]), current.modulation);
   refreshFec();
+  refreshBoardFields();
 }
 function refreshFec() {
   const selected = $('fec').value || current.fec;
-  choices('fec', ($('modulation').value==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), selected);
+  choices('fec', ($('modulation').value==='ASI' ? [] : $('modulation').value==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), selected);
+}
+function refreshBoardFields() {
+  const board = $('modeoutput').value;
+  const asi = board === 'DEKTEC_ASI';
+  for (const el of document.querySelectorAll('.asi-only')) el.hidden = !asi;
+  for (const el of document.querySelectorAll('.rf-only')) el.hidden = asi;
+  for (const el of document.querySelectorAll('.express-only')) el.hidden = !board.startsWith('DATVEXPRESS');
+  for (const el of document.querySelectorAll('.pluto-only')) el.hidden = board !== 'PLUTO';
+  for (const el of document.querySelectorAll('.lime-only')) el.hidden = !board.startsWith('LIME');
+  $('modulation-label').textContent = asi ? 'Transport output' : 'Modulation';
+  for (const id of ['freqoutput','symbolrate']) $(id).required = !asi;
+  for (const id of ['asi_device','asi_channel','asi_bitrate']) $(id).required = asi;
+  if (asi) {
+    for (const [id,value] of Object.entries({asi_device:'0',asi_channel:'0',asi_bitrate:'3071588'}))
+      if (!$(id).value) $(id).value = value;
+  }
 }
 function fill(config, updateCurrent=true) {
   if (updateCurrent) current = config;
@@ -42,9 +59,10 @@ function fill(config, updateCurrent=true) {
   ], config.modeinput);
   choices('encoding', ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'].map(v=>[v,v]), config.encoding);
   choices('format', ['4:3','16:9','720p','1080p'].map(v=>[v,v]), config.format);
-  choices('fec', (config.modulation==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), config.fec);
+  choices('fec', (config.modulation==='ASI' ? [] : config.modulation==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), config.fec);
   for (const id of fields.filter(x => !['modeoutput','modeinput','modulation','encoding','format','fec'].includes(x)))
     $(id).value = config[id] ?? '';
+  refreshBoardFields();
 }
 async function reload() {
   const result = await api('/api/config'); capabilities = result.capabilities; fill(result.config);
@@ -54,7 +72,7 @@ function showState(state) {
   $('connection').textContent = state.supervisor?.ok ? 'Supervisor connected' : 'Supervisor unavailable';
   const supervisorStatus = state.supervisor?.status || '';
   const supervisorBoard = /board=([^ ]+)/.exec(supervisorStatus)?.[1];
-  const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : null;
+  const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : state.board === 'DEKTEC_ASI' ? 'dektec_asi' : null;
   const boardReady = expectedBoard && supervisorBoard === expectedBoard;
   $('tx-status').textContent = !boardReady && state.peer_role !== 'MASTER'
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`

@@ -97,6 +97,14 @@ class SupervisorTest(unittest.TestCase):
         self.assertIn("unavailable", command(self.sock, "START_TX"))
         self.assertFalse(self.hooklog.exists())
 
+    def test_dektec_asi_requires_matching_board_and_safe_off(self):
+        self.config.write_text("modeoutput=DEKTEC_ASI\n")
+        self.start(PORTSDOWN_BOARD="dektec_asi")
+        self.assertEqual(command(self.sock, "START_TX"), "OK")
+        self.assertEqual(command(self.sock, "STOP_TX"), "OK")
+        self.config.write_text("modeoutput=PLUTO\n")
+        self.assertIn("mismatch", command(self.sock, "START_TX"))
+
     def test_second_supervisor_cannot_replace_live_socket(self):
         self.start()
         env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent)}
@@ -215,6 +223,19 @@ class UcodeTest(unittest.TestCase):
         status, body = self.request("POST", "/api/config", {"modeoutput": "DVB-S2X"})
         self.assertEqual(status, 400)
         self.assertNotIn("DVB-S2X", self.config.read_text())
+
+    def test_asi_settings_do_not_claim_rf_modulation(self):
+        settings = {"modeoutput": "DEKTEC_ASI", "modulation": "ASI",
+                    "asi_device": "0", "asi_channel": "0", "asi_bitrate": "3071588"}
+        status, body = self.request("POST", "/api/config", settings)
+        self.assertEqual(status, 200, body)
+        status, body = self.request("POST", "/api/config", {"asi_bitrate": "0"})
+        self.assertEqual(status, 400, body)
+        status, body = self.request("POST", "/api/config", {"modulation": "S2QPSK"})
+        self.assertEqual(status, 400, body)
+        status, body = self.request("POST", "/api/tx/start")
+        self.assertEqual(status, 503)
+        self.assertFalse(json.loads(body)["ok"])
 
     def test_cross_origin_form_and_dns_rebinding_are_rejected(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=2)

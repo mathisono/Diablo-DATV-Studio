@@ -9,7 +9,9 @@ export const capabilities = {
   PLUTO: { label: 'ADALM Pluto (legacy path)', modulation: ['DVB-S', 'S2QPSK'],
     min_mhz: 325, max_mhz: 3800, min_ksym: 100, max_ksym: 5000 },
   LIMEMINI: { label: 'LimeSDR Mini (legacy path)', modulation: ['DVB-S', 'S2QPSK'],
-    min_mhz: 30, max_mhz: 3500, min_ksym: 100, max_ksym: 5000 }
+    min_mhz: 30, max_mhz: 3500, min_ksym: 100, max_ksym: 5000 },
+  DEKTEC_ASI: { label: 'DekTec DTA-2145 ASI', modulation: ['ASI'],
+    transport: 'asi' }
 };
 
 const fec_s = ['12', '23', '34', '56', '78'];
@@ -19,7 +21,8 @@ const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','DESKTOP','SRT',
 const formats = ['4:3','16:9','720p','1080p'];
 const encoders = ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'];
 const mutable = ['modeoutput', 'modeinput', 'modulation', 'freqoutput', 'symbolrate',
-  'fec', 'format', 'encoding', 'explevel', 'plutopwr', 'limegain', 'streamurl', 'streamkey'];
+  'fec', 'format', 'encoding', 'explevel', 'plutopwr', 'limegain', 'streamurl', 'streamkey',
+  'asi_device', 'asi_channel', 'asi_bitrate'];
 
 export function load(path) {
   let raw = fs.readfile(path);
@@ -37,13 +40,23 @@ export function load(path) {
 export function validate(cfg) {
   let cap = capabilities[cfg.modeoutput];
   if (!cap) return 'unsupported output board';
-  let mod = cfg.modulation == 'S2QPSK' ? 'S2QPSK' :
-    cfg.modulation == 'DVB-S' || cfg.modulation == 'QPSK' ? 'DVB-S' : null;
-  if (!mod || index(cap.modulation, mod) < 0) return 'unsupported modulation for board';
-  let mhz = +cfg.freqoutput, sr = +cfg.symbolrate;
-  if (!match(cfg.freqoutput, /^[0-9]+(\.[0-9]+)?$/) || mhz < cap.min_mhz || mhz > cap.max_mhz) return 'frequency outside board range';
-  if (!match(cfg.symbolrate, /^[0-9]+$/) || sr < cap.min_ksym || sr > cap.max_ksym) return 'symbol rate outside board range';
-  if (index(mod == 'S2QPSK' ? fec_s2 : fec_s, cfg.fec) < 0) return 'unsupported FEC';
+  if (cap.transport == 'asi') {
+    if (cfg.modulation != 'ASI') return 'ASI output requires ASI mode';
+    if (!match(cfg.asi_device ?? '', /^[0-9]{1,2}$/) || +cfg.asi_device > 15)
+      return 'ASI device index outside 0-15';
+    if (!match(cfg.asi_channel ?? '', /^[0-9]{1,2}$/) || +cfg.asi_channel > 15)
+      return 'ASI channel index outside 0-15';
+    if (!match(cfg.asi_bitrate ?? '', /^[0-9]+$/) || +cfg.asi_bitrate < 100000 || +cfg.asi_bitrate > 214000000)
+      return 'ASI transport bitrate outside 100000-214000000 bit/s';
+  } else {
+    let mod = cfg.modulation == 'S2QPSK' ? 'S2QPSK' :
+      cfg.modulation == 'DVB-S' || cfg.modulation == 'QPSK' ? 'DVB-S' : null;
+    if (!mod || index(cap.modulation, mod) < 0) return 'unsupported modulation for board';
+    let mhz = +cfg.freqoutput, sr = +cfg.symbolrate;
+    if (!match(cfg.freqoutput, /^[0-9]+(\.[0-9]+)?$/) || mhz < cap.min_mhz || mhz > cap.max_mhz) return 'frequency outside board range';
+    if (!match(cfg.symbolrate, /^[0-9]+$/) || sr < cap.min_ksym || sr > cap.max_ksym) return 'symbol rate outside board range';
+    if (index(mod == 'S2QPSK' ? fec_s2 : fec_s, cfg.fec) < 0) return 'unsupported FEC';
+  }
   if (cfg.modeinput != null && index(sources, cfg.modeinput) < 0) return 'unsupported source';
   if (cfg.format != null && index(formats, cfg.format) < 0) return 'unsupported format';
   if (cfg.encoding != null && index(encoders, cfg.encoding) < 0) return 'unsupported encoder';

@@ -14,6 +14,12 @@ Captured from an isolated local run with all five SRT listeners enabled and
 waiting for video. TX was disabled (`PORTSDOWN_BOARD=none`); no RF or physical
 Portsdown display was involved.
 
+![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
+
+The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
+device 0/channel 0 and 3,071,588 bit/s values are **example settings**, not
+enumerated hardware. SRT port numbers shown are temporary test ports.
+
 ## Implemented
 
 - `control/tx-super.c`: Unix socket commands `START_TX`, `STOP_TX`, `START_RX`,
@@ -35,6 +41,14 @@ Portsdown display was involved.
   numbered **NO SRT INPUT** test card while its listener has no valid video,
   then returns to the card after input loss. The test card is **preview-only**:
   it never generates TS or satisfies a transmitter's live-input gate.
+- A **DekTec DTA-2145 ASI** output-hardware choice is available for an
+  x86-64/PCIe host. It exposes device index, output channel, and MPEG-TS/ASI
+  bitrate. It does **not** offer RF frequency, symbol rate, or FEC controls:
+  those belong to the external modulator. `control/dektec-asi-file.sh` is a
+  finite-file TSDuck playout launcher for hardware bring-up, not a verified
+  live encoder or an RF safety interlock. `PORTSDOWN_BOARD=dektec_asi` must
+  match `modeoutput=DEKTEC_ASI`, and the supervisor still requires an
+  independently verified safe-off hook before it will start TX.
 - `systemd/`: uninstalled service templates. `portsdown-tx-super.service`
   uses `ExecStopPost` as a second attempt to invoke the safe-off hook if the
   supervisor dies while systemd is alive.
@@ -56,6 +70,16 @@ an explicit private-interface address.
   programs. With either unset, `START_TX` fails closed. The C supervisor
   compares `PORTSDOWN_BOARD` with `modeoutput` on every start. Changing boards
   in the web UI requires reconfiguring/restarting the supervisor before TX.
+- **ASI is not DVB-S/S2 modulation.** The DTA-2145 delivers MPEG-TS packets
+  over ASI to an external modulator. The SRT slots' local UDP TS outputs are
+  not yet wired to this ASI launcher; the launcher plays one analyzed TS file
+  and stops. FFmpeg/QSV live encoding, TS remultiplexing/stuffing, output
+  timing, driver/DTAPI/TSDuck installation, card enumeration, physical ASI
+  waveform, downstream receive, and reboot persistence all need verification
+  on the actual DekTec host. The historical device 0/channel 0/port 2 and
+  7,621,339 bit/s are reference observations, not assumed current settings.
+  Keep external modulator RF disabled during bring-up. TANK is ARM64 and has
+  no DekTec card; it is not a hardware acceptance target for this path.
 - Existing DATV-Express, Pluto, and LimeSDR code remains in the repository,
   including legacy DVB-S/S2 paths. The new control plane does **not yet**
   drive all their source/encoder/RF paths. Existing Python interlock scripts

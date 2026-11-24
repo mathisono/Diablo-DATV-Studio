@@ -46,7 +46,8 @@ function cfg_subset() {
   let cfg = config.load(cfgpath);
   if (!cfg) return null;
   let keys = ['modeoutput','modeinput','modulation','freqoutput','symbolrate','fec',
-    'format','encoding','explevel','plutopwr','limegain'];
+    'format','encoding','explevel','plutopwr','limegain',
+    'asi_device','asi_channel','asi_bitrate'];
   let values = {};
   for (let key in keys) if (cfg[key] != null) values[key] = cfg[key];
   return values;

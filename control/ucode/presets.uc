@@ -11,7 +11,8 @@ export function load(path) {
 export function save(path, store, slot, values) {
   if (!match(slot, /^[1-4]$/) || type(values) != 'object') return 'invalid preset';
   let allowed = ['modeoutput','modeinput','modulation','freqoutput','symbolrate','fec',
-    'format','encoding','explevel','plutopwr','limegain'];
+    'format','encoding','explevel','plutopwr','limegain',
+    'asi_device','asi_channel','asi_bitrate'];
   let clean = {};
   for (let key, value in values) {
     if (index(allowed, key) < 0 || type(value) != 'string' && type(value) != 'number') return `unsupported field: ${key}`;

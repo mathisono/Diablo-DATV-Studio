@@ -64,6 +64,7 @@ static bool board_config_matches(void)
   if (strcmp(board, "pluto") == 0) return strcmp(configured, "PLUTO") == 0;
   if (strcmp(board, "lime") == 0)
     return strcmp(configured, "LIMEMINI") == 0 || strcmp(configured, "LIMEUSB") == 0 || strcmp(configured, "LIMEDVB") == 0;
+  if (strcmp(board, "dektec_asi") == 0) return strcmp(configured, "DEKTEC_ASI") == 0;
   return false;
 }
 
@@ -132,7 +133,8 @@ static bool start_role(enum role role)
   const char *execpath = executables[role];
   if (!execpath || execpath[0] != '/' || access(execpath, X_OK) != 0) return false;
   if (role == TX) {
-    if (strcmp(board, "express") != 0 && strcmp(board, "pluto") != 0 && strcmp(board, "lime") != 0) return false;
+    if (strcmp(board, "express") != 0 && strcmp(board, "pluto") != 0 &&
+        strcmp(board, "lime") != 0 && strcmp(board, "dektec_asi") != 0) return false;
     if (!safe_off_exec || safe_off_exec[0] != '/' || access(safe_off_exec, X_OK)) return false;
     (void)stop_role(PREVIEW); /* Release /dev/video0 before starting TX. */
     if (!safe_off()) { (void)start_role(PREVIEW); return false; }
