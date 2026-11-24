@@ -77,6 +77,9 @@ trap 'status=$?; if [ "$status" -ne 0 ] && [ -n "$BRIDGE_PID" ]; then
   "$PATHSCRIPT/ipts_srt_stop.sh" >/dev/null 2>&1 || true; fi' EXIT
 CALL=$(get_config_var call $PCONFIGFILE)
 CHANNEL="Portsdown_4"
+SERVICE_PROVIDER=$CALL
+SERVICE_NAME=$(get_config_var service_name "$PCONFIGFILE")
+SERVICE_NAME=${SERVICE_NAME:-$CALL}
 FREQ_OUTPUT=$(get_config_var freqoutput $PCONFIGFILE)
 STREAM_URL=$(get_config_var streamurl $PCONFIGFILE)
 STREAM_KEY=$(get_config_var streamkey $PCONFIGFILE)
@@ -383,7 +386,7 @@ case "$MODE_OUTPUT" in
       # live bridge remuxes it to SRT; RTMP Streamer is not changed.
       [[ "$IPTS_LOCAL_PORT" =~ ^[0-9]+$ ]] &&
         (( IPTS_LOCAL_PORT >= 1024 && IPTS_LOCAL_PORT <= 65535 )) || exit 2
-      "$PATHSCRIPT/ipts_srt_bridge.sh" --send --remote "$UDPOUTADDR" \
+      PORTSDOWN_CONFIG="$PCONFIGFILE" "$PATHSCRIPT/ipts_srt_bridge.sh" --send --remote "$UDPOUTADDR" \
         --srt-port "$UDPOUTPORT" --udp-port "$IPTS_LOCAL_PORT" \
         >/tmp/portsdown-ipts-srt.log 2>&1 &
       BRIDGE_PID=$!
@@ -791,7 +794,7 @@ if [ "$H264_BACKEND" == "ffmpeg" ]; then
       CAPTURE_ARGS=(--source "$CAPTURE_SOURCE" --codec "$CAPTURE_CODEC" --output "$CAPTURE_TS_OUTPUT"
         --size "${VIDEO_WIDTH}x${VIDEO_HEIGHT}" --video-bitrate "$BITRATE_VIDEO"
         --muxrate "$BITRATE_TS" --pmt-pid "$PIDPMT" --video-pid "$PIDVIDEO"
-        --audio-pid "$PIDAUDIO" --service-id "$SERVICEID" --service-name "$CALL"
+        --audio-pid "$PIDAUDIO" --service-id "$SERVICEID" --service-provider "$SERVICE_PROVIDER" --service-name "$SERVICE_NAME"
         --video-encoder "$H264_ENCODER" "${CAPTURE_INPUT_ARGS[@]}")
       if [ "$AUDIO_CARD" != 0 ]; then
         CAPTURE_ARGS+=(--audio-device "plughw:$AUDIO_CARD_NUMBER,0"
@@ -1109,7 +1112,7 @@ fi
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y $OUTPUT &
 
         elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
@@ -1129,7 +1132,7 @@ fi
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y $OUTPUT &
 
         else
@@ -1152,7 +1155,7 @@ fi
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y $OUTPUT &
         fi
       ;;
@@ -1520,7 +1523,7 @@ fi
       H264_ARGS=(--source "$ANALOGCAMNAME" --output "$H264_OUTPUT"
         --standard "$VIDEO_STANDARD" --size "${VIDEO_WIDTH}x${VIDEO_HEIGHT}"
         --video-bitrate "$BITRATE_VIDEO" --muxrate "$BITRATE_TS"
-        --pmt-pid "$PIDPMT" --service-id "$SERVICEID" --service-name "$CALL"
+        --pmt-pid "$PIDPMT" --service-id "$SERVICEID" --service-provider "$SERVICE_PROVIDER" --service-name "$SERVICE_NAME"
         --gop "$IDRPERIOD" --video-encoder "$H264_ENCODER")
       if [ "$MODE_INPUT" == "ANALOGCAM" ]; then
         H264_ARGS+=(--deinterlace)
@@ -1933,7 +1936,7 @@ fi
           -i udp:\\\\@:"$UDPINPORT" -ss 2 \
           -c:v copy -muxrate $BITRATE_TS \
           -c:a copy -f mpegts \
-          -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
           -mpegts_service_type "0x19" -mpegts_flags system_b \
           -muxrate $BITRATE_TS -y $OUTPUT &
@@ -1943,7 +1946,7 @@ fi
           -i udp:\\\\@:"$UDPINPORT" -ss 2 \
           -c:v copy -muxrate $BITRATE_TS \
           -c:a copy -f mpegts \
-          -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
           -mpegts_service_type "0x1f" -mpegts_flags system_b \
           -muxrate $BITRATE_TS -y $OUTPUT &
@@ -2249,7 +2252,7 @@ exit
           -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
           -mpegts_service_id $SERVICEID \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-          -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -muxrate $BITRATE_TS -y $OUTPUT &
 
       elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
@@ -2270,7 +2273,7 @@ exit
           -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
           -mpegts_service_id $SERVICEID \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-          -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -muxrate $BITRATE_TS -y $OUTPUT &
 
       else
@@ -2299,7 +2302,7 @@ exit
           -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
           -mpegts_service_id $SERVICEID \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-          -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -muxrate $BITRATE_TS -y -f mpegts pipe:1 > "$OUTPUT" &
 
 #          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
@@ -2459,7 +2462,7 @@ exit
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y $OUTPUT &
 
         elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
@@ -2479,7 +2482,7 @@ exit
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y $OUTPUT &
 
         else
@@ -2504,7 +2507,7 @@ exit
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
             -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-            -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+            -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
             -muxrate $BITRATE_TS -y  &
         fi
       ;;
@@ -2674,7 +2677,7 @@ Echo  "line 2232"
           -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
           -mpegts_service_id $SERVICEID \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-          -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+          -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -muxrate $BITRATE_TS -y -f mpegts $OUTPUT &
         '
 
@@ -2743,7 +2746,7 @@ Echo  "line 2232"
           -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
           -mpegts_service_id $SERVICEID \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-                    -metadata service_provider=$CHANNEL -metadata service_name=$CALL \
+                    -metadata "service_provider=$SERVICE_PROVIDER" -metadata "service_name=$SERVICE_NAME" \
           -muxrate $BITRATE_TS -y -f mpegts $OUTPUT &
         '
 

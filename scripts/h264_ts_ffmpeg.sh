@@ -47,6 +47,7 @@ audio_rate=48000
 pmt_pid=255
 service_id=1
 service_name=Portsdown
+service_provider=Portsdown
 gop=60
 video_encoder=software
 input_format=
@@ -57,7 +58,7 @@ deinterlace=false
 
 while (($#)); do
   case "$1" in
-    --source|--output|--standard|--size|--video-bitrate|--muxrate|--audio-device|--audio-bitrate|--audio-channels|--audio-rate|--pmt-pid|--service-id|--service-name|--gop|--video-encoder|--input-format|--capture-size|--capture-rate|--duration)
+    --source|--output|--standard|--size|--video-bitrate|--muxrate|--audio-device|--audio-bitrate|--audio-channels|--audio-rate|--pmt-pid|--service-id|--service-name|--service-provider|--gop|--video-encoder|--input-format|--capture-size|--capture-rate|--duration)
       need_value "$@"
       case "$1" in
         --source) source_device=$2;;
@@ -73,6 +74,7 @@ while (($#)); do
         --pmt-pid) pmt_pid=$2;;
         --service-id) service_id=$2;;
         --service-name) service_name=$2;;
+        --service-provider) service_provider=$2;;
         --gop) gop=$2;;
         --video-encoder) video_encoder=$2;;
         --input-format) input_format=$2;;
@@ -180,7 +182,7 @@ if [[ -n "$audio_device" ]]; then
 else
   ffmpeg_args+=(-an)
 fi
-ffmpeg_args+=(-metadata "service_provider=Portsdown" -metadata "service_name=$service_name"
+ffmpeg_args+=(-metadata "service_provider=$service_provider" -metadata "service_name=$service_name"
   -mpegts_original_network_id 1 -mpegts_transport_stream_id 1
   -mpegts_service_id "$service_id" -mpegts_pmt_start_pid "$pmt_pid"
   -streamid "0:$((pmt_pid + 1))" -muxrate "$muxrate" -f mpegts)

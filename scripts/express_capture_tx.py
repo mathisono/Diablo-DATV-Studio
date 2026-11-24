@@ -18,6 +18,7 @@ import sys
 import time
 
 from srt_interlocked_tx import FEC as S2_FEC, config, release_legacy_express, stop_child, write_packet
+from ts_service_metadata import values as service_metadata_values
 
 STOP = False
 PACKET = 188
@@ -30,6 +31,7 @@ def request_stop(_signum, _frame):
 
 
 def capture_command(cfg, helper, muxrate, video_rate):
+    service_provider, service_name = service_metadata_values(cfg)
     mode = cfg.get("modeinput", "")
     fmt = cfg.get("format", "4:3")
     size = {"720p": "1280x720", "1080p": "1920x1080", "16:9": "854x480"}.get(fmt, "720x480")
@@ -40,7 +42,7 @@ def capture_command(cfg, helper, muxrate, video_rate):
             "--video-pid", cfg.get("pidvideo", "256"),
             "--audio-pid", cfg.get("pidaudio", "257"),
             "--service-id", cfg.get("serviceid", "1"),
-            "--service-name", cfg.get("call", "Portsdown"),
+            "--service-provider", service_provider, "--service-name", service_name,
             "--video-encoder", cfg.get("h264encoder", "auto")]
 
     if mode.startswith("CAM"):

@@ -21,6 +21,7 @@ import time
 from express_capture_tx import S_FEC, dvbs_server, ptt_receive
 from ipts_preview_return import start_preview
 from srt_interlocked_tx import FEC as S2_FEC, config, release_legacy_express, stop_child, write_packet
+from ts_service_metadata import ffmpeg_args as service_metadata_args
 
 PACKET = 188
 STOP = False
@@ -70,6 +71,7 @@ def input_command(cfg, muxrate, pmt_pid, video_pid, input_port=None):
         command += ["-c", "copy"]
     command += [
                "-mpegts_pmt_start_pid", str(pmt_pid), "-streamid", f"0:{video_pid}",
+               *service_metadata_args(cfg),
                "-muxrate", str(muxrate), "-muxdelay", "0", "-muxpreload", "0",
                "-f", "mpegts", "pipe:1"]
     return command, transport, port

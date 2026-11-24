@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice'];
+const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice','call','service_name'];
 const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
@@ -78,6 +78,8 @@ function fill(config, updateCurrent=true) {
   choices('fec', (config.modulation==='ASI' ? [] : config.modulation==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), config.fec);
   for (const id of fields.filter(x => !['modeoutput','modeinput','modulation','encoding','format','fec'].includes(x)))
     $(id).value = config[id] ?? '';
+  if (!/^[A-Z0-9/]{3,20}$/.test($('call').value) || !/[0-9]/.test($('call').value))
+    $('call').value = ''; // Old generic values such as BATC are not a station callsign.
   refreshBoardFields();
 }
 async function reload() {
@@ -153,10 +155,19 @@ for (const [id,path] of Object.entries({
 })) $(id).addEventListener('click',()=>command(path));
 $('modeoutput').addEventListener('change',refreshMode);
 $('modeinput').addEventListener('change',refreshSourceFields);
+$('call').addEventListener('input', () => { $('call').value = $('call').value.toUpperCase(); });
+$('service_name').addEventListener('input', () => {
+  $('service_name').setCustomValidity(new TextEncoder().encode($('service_name').value).length > 64
+    ? 'Service name must be at most 64 UTF-8 bytes' : '');
+});
 $('encoding').addEventListener('change',refreshSourceFields);
 $('modulation').addEventListener('change',refreshFec);
 $('settings').addEventListener('submit',async event => {
   event.preventDefault();
+  $('call').value = $('call').value.trim().toUpperCase();
+  $('service_name').value = $('service_name').value.trim();
+  $('service_name').dispatchEvent(new Event('input'));
+  if (!$('settings').reportValidity()) return;
   const changed = Object.fromEntries(fields.map(id => [id,$(id).value]).filter(([id,value])=>(value!=='' || id==='expressaudiodevice') && value!==(current[id]??'')));
   try { await api('/api/config','POST',changed); log('Configuration saved'); await reload(); }
   catch (error) { log(`Save failed: ${error.message}`); }

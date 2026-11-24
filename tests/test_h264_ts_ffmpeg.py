@@ -25,7 +25,8 @@ class H264TsTest(unittest.TestCase):
             str(ENCODER), "--source", "testsrc", "--output", str(output),
             "--standard", standard, "--video-bitrate", "800000",
             "--muxrate", "1200000", "--duration", "2",
-            "--pmt-pid", "4095", "--service-name", "NTSC Test",
+            "--pmt-pid", "4095", "--service-provider", "KG6MDW",
+            "--service-name", "NTSC Test",
         ]
         if audio:
             args += ["--audio-device", "testtone", "--audio-bitrate", "48000"]
@@ -83,6 +84,7 @@ class H264TsTest(unittest.TestCase):
         self.assertEqual(program["pmt_pid"], 4095)
         self.assertEqual(program["pcr_pid"], 4096)
         self.assertEqual(program["tags"]["service_name"], "NTSC Test")
+        self.assertEqual(program["tags"]["service_provider"], "KG6MDW")
         video, audio = program["streams"]
         self.assertEqual((video["codec_name"], video["width"], video["height"]),
                          ("h264", 720, 480))

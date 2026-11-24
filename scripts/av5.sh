@@ -38,7 +38,7 @@ VLCVOLUME=$(get_config_var vlcvolume $PCONFIGFILE)
 if [ "$IP_TRANSPORT" = "srt" ]; then
   # The touchscreen IPTS Monitor receives live SRT, then VLC views only a
   # localhost UDP TS. The RF IPTSIN transmitter remains a separate path.
-  /home/pi/rpidatv/scripts/ipts_srt_bridge.sh --receive \
+  PORTSDOWN_CONFIG="$PCONFIGFILE" /home/pi/rpidatv/scripts/ipts_srt_bridge.sh --receive \
     --srt-port "$UDPINPORT" --udp-port "$IPTS_LOCAL_PORT" \
     --pid-file /tmp/portsdown-ipts-srt-rx.pid \
     >/tmp/portsdown-ipts-srt-rx.log 2>&1 &
@@ -102,4 +102,3 @@ sleep 1
 printf "volume "$VLCVOLUME"\nlogout\n" | nc 127.0.0.1 1111 >/dev/null 2>/dev/null
 
 exit
-

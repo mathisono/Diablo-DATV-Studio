@@ -25,7 +25,8 @@ enumerated hardware. SRT port numbers shown are temporary test ports.
 This **configuration example** selects Elgato HDMI video (`/dev/video2`),
 optional ALSA audio (`hw:1,0`), H.264 at 720p, and DekTec ASI output at
 3,071,588 bit/s. The device names and indices are illustrative, not detected
-on the current host. The screenshot's 320×240 preview is a **synthetic test
+on the current host. `KG6MDW` and `Trevor` are unsaved placeholder examples
+in the screenshot; the operator must enter their own values. The screenshot's 320×240 preview is a **synthetic test
 feed**, not an Elgato capture or physical ASI test. When HDMI is selected,
 the GUI shows the separate V4L2 and ALSA fields and live preview when frames
 arrive; it falls back to **NO HDMI INPUT** when they stop. The five SRT slots
@@ -58,6 +59,17 @@ capture, audio, and RF remain unverified.
 - `www/`: no-framework responsive dashboard, four server-side presets,
   320×240 preview with a **NO IP INPUT** placeholder, and an E-Stop button.
   An optional remote-slave preview URL can be configured separately.
+- The Output settings form asks for **CALLSIGN** and **Service name**. The
+  callsign becomes MPEG-TS `service_provider`; the service name becomes
+  MPEG-TS `service_name`. `KG6MDW` / `Trevor` are example placeholders, **not**
+  saved defaults. Enter the actual transmitting station's callsign (3–20
+  uppercase letters, digits, or `/`, with a digit) and a printable service
+  name of 1–64 UTF-8 bytes. These settings are saved in
+  `portsdown_config.txt`, included in presets and peer configuration, and
+  passed to FFmpeg on the current SRT/IPTS and local Express TS-producing
+  paths. An older config without both values must be completed in the GUI
+  before those new paths will generate TS. This metadata is not itself a
+  substitute for any required on-air station identification.
 - Five independently enabled SRT source slots (`control/srt-slot.sh`) each
   accept MPEG-TS over SRT, encode live video/audio to a local source-resolution
   H.264/AAC MPEG-TS output, and provide a 320×240 aspect-preserving MJPEG
@@ -73,6 +85,12 @@ capture, audio, and RF remain unverified.
   live encoder or an RF safety interlock. `PORTSDOWN_BOARD=dektec_asi` must
   match `modeoutput=DEKTEC_ASI`, and the supervisor still requires an
   independently verified safe-off hook before it will start TX.
+  The ASI file launcher passes existing TS packets through unchanged. It
+  checks every detected program's `service_provider` and `service_name`
+  against the saved GUI settings and **refuses playout on a mismatch**;
+  changing the GUI fields does not rewrite an existing file. Generate or
+  remultiplex the file with matching metadata first. Offline validation uses
+  a fake `tsp`, not a DekTec card.
 - `systemd/`: uninstalled service templates. `portsdown-tx-super.service`
   uses `ExecStopPost` as a second attempt to invoke the safe-off hook if the
   supervisor dies while systemd is alive.
@@ -109,6 +127,10 @@ an explicit private-interface address.
   drive all their source/encoder/RF paths. Existing Python interlock scripts
   are still in the legacy transmitter; this branch has no Python/Node runtime
   in the **new** control plane, but is not yet a Python-free Portsdown tree.
+  Legacy `avc2ts` and unchanged pass-through tools may preserve their original
+  service descriptors rather than use the new GUI fields. Inspect their TS
+  with `ffprobe -show_programs` before sending it to a modulator; the ASI
+  launcher rejects a mismatch but other legacy outputs are not yet gated.
 - A native DVB-S2 QPSK experimental DATV-Express backend exists; no
   DVB-S2X backend was found in this branch. DVB-S2X is therefore **not**
   offered by the capability map.

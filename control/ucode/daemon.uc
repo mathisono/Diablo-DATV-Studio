@@ -86,6 +86,18 @@ function api(peer, method, path, body) {
     if (type(changes) != 'object') return response(peer, '400 Bad Request', 'application/json', '{"error":"JSON object required"}');
     let error = config.update(cfgpath, store, changes);
     if (error) return response(peer, '400 Bad Request', 'application/json', sprintf('%J', { error: error }));
+    if (changes.call != null || changes.service_name != null) {
+      /* SRT slots capture service metadata at process start. Restart only
+       * enabled listeners so no stale provider/name remains on TS output. */
+      for (let slot = 1; slot <= 5; slot++) {
+        if (index(running, `srt${slot}=running`) < 0) continue;
+        let stopped = super.request(sockpath, `STOP_SRT${slot}`);
+        let started = stopped.ok ? super.request(sockpath, `START_SRT${slot}`) : stopped;
+        if (!started.ok)
+          return response(peer, '503 Service Unavailable', 'application/json',
+            sprintf('%J', { error: `Configuration saved but SRT ${slot} restart failed: ${started.message}` }));
+      }
+    }
     if (changes.modeinput != null || changes.expresshdmidevice != null) {
       /* The standby FFmpeg process reads the saved capture source at launch. */
       super.request(sockpath, 'STOP_PREVIEW');

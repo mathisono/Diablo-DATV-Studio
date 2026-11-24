@@ -16,6 +16,7 @@ video_pid=256
 audio_pid=257
 service_id=1
 service_name=Portsdown
+service_provider=Portsdown
 audio_device=
 audio_bitrate=48000
 audio_channels=1
@@ -47,6 +48,7 @@ while (($#)); do
     --audio-pid) audio_pid=$2;;
     --service-id) service_id=$2;;
     --service-name) service_name=$2;;
+    --service-provider) service_provider=$2;;
     --audio-device) audio_device=$2;;
     --audio-bitrate) audio_bitrate=$2;;
     --audio-channels) audio_channels=$2;;
@@ -176,7 +178,7 @@ if [[ -n "$audio_device" ]]; then
 else
   ffmpeg_args+=(-an)
 fi
-ffmpeg_args+=(-metadata service_provider=Portsdown -metadata "service_name=$service_name"
+ffmpeg_args+=(-metadata "service_provider=$service_provider" -metadata "service_name=$service_name"
   -mpegts_original_network_id 1 -mpegts_transport_stream_id 1
   -mpegts_service_id "$service_id" -mpegts_pmt_start_pid "$pmt_pid"
   -streamid "0:$video_pid")

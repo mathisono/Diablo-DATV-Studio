@@ -25,11 +25,21 @@ case "$device:$channel:$bitrate" in *[!0-9:]*|'') echo 'Invalid ASI numeric sett
 }
 command -v tsp >/dev/null 2>&1 || { echo 'TSDuck tsp is not installed' >&2; exit 1; }
 command -v ffprobe >/dev/null 2>&1 || { echo 'ffprobe is not installed' >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo 'jq is not installed' >&2; exit 1; }
+# shellcheck source=../scripts/ts_service_metadata.sh
+. "$(dirname "$0")/../scripts/ts_service_metadata.sh"
+ts_service_metadata_load "$PORTSDOWN_CONFIG"
 format=$(ffprobe -v error -show_entries format=format_name \
     -of default=noprint_wrappers=1:nokey=1 "$PORTSDOWN_ASI_TS_FILE") || {
     echo 'Cannot probe TS file' >&2; exit 1;
 }
 case ",$format," in *,mpegts,*) ;; *) echo 'Input is not MPEG-TS' >&2; exit 1;; esac
+# ASI passes the file's TS packets through unchanged. Never claim GUI metadata
+# was applied unless every program in that file actually carries it.
+ffprobe -v error -show_programs -of json "$PORTSDOWN_ASI_TS_FILE" |
+    jq -e --arg provider "$TS_SERVICE_PROVIDER" --arg name "$TS_SERVICE_NAME" \
+      '.programs | length > 0 and all(.[]; .tags.service_provider == $provider and .tags.service_name == $name)' \
+      >/dev/null || { echo 'TS service metadata differs from configured CALLSIGN/service name' >&2; exit 1; }
 # Exact device/channel and plugin options must be confirmed against the target
 # host's tsdektec and tsp -O dektec --help before hardware use.
 exec tsp -I file "$PORTSDOWN_ASI_TS_FILE" -O dektec \

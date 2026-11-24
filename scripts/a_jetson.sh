@@ -12,6 +12,11 @@ JETSONROOTPW=$(get_config_var jetsonrootpw $JCONFIGFILE)
   ENCODING=$(get_config_var encoding $PCONFIGFILE)
   CMDFILE="/home/pi/tmp/jetson_command.txt"
   CHANNEL="Portsdown_Jetson"
+  # This script writes a second Bash program for the remote Jetson. Quote the
+  # GUI text for that later parse; ordinary double quotes here would allow
+  # arbitrary service-name characters to become remote shell syntax.
+  SERVICE_PROVIDER_SHELL=$(printf %q "service_provider=$SERVICE_PROVIDER")
+  SERVICE_NAME_SHELL=$(printf %q "service_name=$SERVICE_NAME")
 
   # Set the video format
   if [ "$FORMAT" == "1080p" ]; then
@@ -164,7 +169,7 @@ EOM
         | ffmpeg -i - -ss 8 \
           -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
           -c:a copy -f mpegts \
-          -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+          -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
           -mpegts_service_type "0x1f" -mpegts_flags system_b - \
         | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -184,7 +189,7 @@ EOM
         | ffmpeg -i - -ss 5 \
           -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
           -c:a copy -f mpegts \
-          -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+          -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
           -mpegts_service_type "0x1f" -mpegts_flags system_b - \
         | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -203,7 +208,7 @@ EOM
         | ffmpeg -i - -ss 8 \
           -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
           -c:a copy -f mpegts \
-          -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+          -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
           -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
           -mpegts_flags system_b - \
         | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -236,7 +241,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
         -mpegts_service_type "0x1f" -mpegts_flags system_b - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -280,7 +285,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
         -mpegts_service_type "0x1f" -mpegts_flags system_b - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -302,7 +307,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
         -mpegts_flags system_b - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -330,7 +335,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
         -mpegts_flags system_b - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
@@ -361,7 +366,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
         -t "$FREQ_OUTPUT"e6 -g $LIME_GAINF -q 1
@@ -387,7 +392,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
         -t "$FREQ_OUTPUT"e6 -g $LIME_GAINF -q 1
@@ -414,7 +419,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
         -t "$FREQ_OUTPUT"e6 -g $LIME_GAINF -q 1
@@ -439,7 +444,7 @@ EOM
       | ffmpeg -i - -ss 8 \
         -c:v copy -max_delay 200000 -muxrate $BITRATE_TS \
         -c:a copy -f mpegts \
-        -metadata service_provider="$CHANNEL" -metadata service_name="$CALL" \
+        -metadata $SERVICE_PROVIDER_SHELL -metadata $SERVICE_NAME_SHELL \
         -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" - \
       | ../bin/limesdr_dvb -s "$SYMBOLRATE_K"000 -f $FECNUM/$FECDEN -r $UPSAMPLE -m $MODTYPE -c $CONSTLN $PILOTS $FRAMES \
         -t "$FREQ_OUTPUT"e6 -g $LIME_GAINF -q 1

@@ -14,6 +14,7 @@ import signal
 import subprocess
 import sys
 import time
+from ts_service_metadata import ffmpeg_args as service_metadata_args
 
 
 PACKET = 188
@@ -107,6 +108,7 @@ def main():
     args = parser.parse_args()
     try:
         cfg = config(args.config)
+        metadata = service_metadata_args(cfg)
         args.port = args.port if args.port is not None else int(cfg.get("srtinport", "9000"))
         if not 1024 <= args.port <= 65535:
             parser.error("invalid SRT port")
@@ -163,7 +165,8 @@ def main():
               "-b:v", str(video_rate), "-maxrate:v", str(video_rate),
               "-bufsize:v", str(video_rate // 2), "-c:a", "aac", "-b:a", "48000",
               "-ac", "1", "-ar", "48000", "-mpegts_pmt_start_pid", str(PMT_PID),
-              "-streamid", f"0:{VIDEO_PID}", "-muxrate", str(muxrate), "-f", "mpegts", "pipe:1"]
+              "-streamid", f"0:{VIDEO_PID}", *metadata,
+              "-muxrate", str(muxrate), "-f", "mpegts", "pipe:1"]
     backend = [str(args.backend), "--input", "-", "--symbol-rate", str(symbol_rate), "--fec", fec]
     if not args.dry_run:
         backend += ["--tx", "--frequency", str(frequency)]

@@ -35,6 +35,7 @@ class IPTSInterlockOfflineTest(unittest.TestCase):
             f"modulation={'S2QPSK' if s2 else 'DVB-S'}\n"
             f"fec={'12' if s2 else '1'}\n"
             "symbolrate=1200\nfreqoutput=437\npidpmt=4095\npidvideo=256\n"
+            "call=KG6MDW\nservice_name=Trevor\n"
             f"udpinport={self.port}\niptransport={transport}\n"
         )
         return path

@@ -152,7 +152,7 @@ class UcodeTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name)
         self.config = self.path / "config.txt"
-        self.config.write_text("modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nfreqoutput=437\nsymbolrate=333\nfec=12\n")
+        self.config.write_text("modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nfreqoutput=437\nsymbolrate=333\nfec=12\ncall=KG6MDW\nservice_name=Trevor\n")
         self.sock = self.path / "run" / "tx.sock"
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0)); self.port = probe.getsockname()[1]
@@ -165,6 +165,7 @@ class UcodeTest(unittest.TestCase):
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0)); self.srt_preview_port = probe.getsockname()[1]
         env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent),
+                            "PORTSDOWN_DIR": str(ROOT), "PORTSDOWN_CONFIG": str(self.config),
                             "PORTSDOWN_SRT_EXEC": str(CONTROL / "srt-slot.sh"),
                             "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
                             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
@@ -223,6 +224,22 @@ class UcodeTest(unittest.TestCase):
         status, body = self.request("POST", "/api/config", {"modeoutput": "DVB-S2X"})
         self.assertEqual(status, 400)
         self.assertNotIn("DVB-S2X", self.config.read_text())
+
+    def test_service_metadata_validation_and_persistence(self):
+        for changes in ({"call": "BATC"}, {"call": "kg6mdw"},
+                        {"service_name": " "}, {"service_name": "A" * 65},
+                        {"service_name": "é" * 33},
+                        {"service_name": "bad\tname"}):
+            status, body = self.request("POST", "/api/config", changes)
+            self.assertEqual(status, 400, body)
+        status, body = self.request("POST", "/api/config",
+                                    {"call": "K6SOE", "service_name": "DATV test 720p"})
+        self.assertEqual(status, 200, body)
+        saved = json.loads(self.request("GET", "/api/config")[1])["config"]
+        self.assertEqual((saved["call"], saved["service_name"]),
+                         ("K6SOE", "DATV test 720p"))
+        self.assertEqual(self.request("POST", "/api/config",
+                                      {"service_name": "é" * 32})[0], 200)
 
     def test_asi_settings_do_not_claim_rf_modulation(self):
         settings = {"modeoutput": "DEKTEC_ASI", "modulation": "ASI",
@@ -381,6 +398,11 @@ class UcodeTest(unittest.TestCase):
                 receivers.append(receiver)
                 status, body = self.request("POST", f"/api/srt/{slot}/enable")
                 self.assertEqual(status, 200, body)
+            # Updating saved metadata restarts enabled listeners before
+            # callers arrive; otherwise they would retain the old TS labels.
+            status, body = self.request("POST", "/api/config",
+                                        {"service_name": "Trevor Live"})
+            self.assertEqual(status, 200, body)
             for slot, raster, fps in sources:
                 senders.append(subprocess.Popen([
                     "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
@@ -404,6 +426,13 @@ class UcodeTest(unittest.TestCase):
                 self.assertEqual(json.loads(probe.stdout)["streams"][0],
                                  {"codec_name": "h264", "width": width, "height": height,
                                   "r_frame_rate": f"{fps}/1"}, raster)
+                service = subprocess.run([
+                    "ffprobe", "-v", "error", "-show_entries",
+                    "program_tags=service_provider,service_name", "-of", "json", str(capture),
+                ], capture_output=True, text=True, timeout=10, check=True)
+                tags = json.loads(service.stdout)["programs"][0]["tags"]
+                self.assertEqual(tags["service_provider"], "KG6MDW")
+                self.assertEqual(tags["service_name"], "Trevor Live")
             slots = json.loads(self.request("GET", "/api/srt")[1])["slots"]
             self.assertTrue(all(slot["live"] for slot in slots[:3]))
         finally:

@@ -37,6 +37,9 @@ if [[ $mode == send ]]; then
   done
 fi
 command -v ffmpeg >/dev/null || { echo 'FFmpeg is required' >&2; exit 127; }
+# shellcheck source=ts_service_metadata.sh
+source "$(dirname "$0")/ts_service_metadata.sh"
+ts_service_metadata_load "${PORTSDOWN_CONFIG:-/home/pi/rpidatv/scripts/portsdown_config.txt}"
 ffmpeg -hide_banner -protocols | grep -qx '  srt' || {
   echo 'FFmpeg lacks SRT protocol support' >&2; exit 2;
 }
@@ -72,6 +75,7 @@ while (( ! stopping )); do
   ffmpeg -hide_banner -loglevel warning -nostdin -fflags +genpts \
     -probesize 1000000 -analyzeduration 1000000 -i "$input" \
     -map 0:v:0 -map '0:a:0?' -c copy -f mpegts \
+    -metadata "service_provider=$TS_SERVICE_PROVIDER" -metadata "service_name=$TS_SERVICE_NAME" \
     -muxdelay 0 -muxpreload 0 -flush_packets 1 "$output" &
   child=$!
   wait "$child" || true

@@ -47,7 +47,8 @@ function cfg_subset() {
   if (!cfg) return null;
   let keys = ['modeoutput','modeinput','modulation','freqoutput','symbolrate','fec',
     'format','encoding','explevel','plutopwr','limegain',
-    'asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice'];
+    'asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice',
+    'call','service_name'];
   let values = {};
   for (let key in keys) if (cfg[key] != null) values[key] = cfg[key];
   return values;
@@ -90,6 +91,15 @@ function handle_line(line) {
   if (message.cmd == 'cfg') {
     if (tx_active) { send({ cmd: 'fault', reason: 'stop TX before configuration update' }); return; }
     let error = config.update(cfgpath, store, message.data);
+    if (!error && (message.data.call != null || message.data.service_name != null)) {
+      let running = super.request(sockpath, 'STATUS').status ?? '';
+      for (let slot = 1; slot <= 5; slot++) {
+        if (index(running, `srt${slot}=running`) < 0) continue;
+        let stopped = super.request(sockpath, `STOP_SRT${slot}`);
+        let started = stopped.ok ? super.request(sockpath, `START_SRT${slot}`) : stopped;
+        if (!started.ok) { error = `SRT ${slot} restart failed after configuration save`; break; }
+      }
+    }
     cfg_acked = !error;
     send(error ? { cmd: 'fault', reason: error } : { cmd: 'cfg_ok' });
     on_event(status());
