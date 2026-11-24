@@ -64,6 +64,12 @@ def capture_command(cfg, helper, muxrate, video_rate):
         if not device.startswith("/dev/video"):
             raise ValueError("set expresshdmidevice to the HDMI capture V4L2 device")
         args += ["--source", device]
+        preview_port = os.environ.get("PORTSDOWN_MJPEG_PORT")
+        if preview_port:
+            port = int(preview_port)
+            if not 1024 <= port <= 65535:
+                raise ValueError("invalid PORTSDOWN_MJPEG_PORT")
+            args += ["--preview-tcp", f"127.0.0.1:{port}"]
     elif mode.startswith("CARD") or mode == "PATERNAUDIO":
         default_card = "tcf1080.jpg" if fmt == "1080p" else "tcfw.jpg" if fmt in ("16:9", "720p") else "tcf.jpg"
         card = cfg.get("expresstestcard", str(helper.parent / "images" / default_card))

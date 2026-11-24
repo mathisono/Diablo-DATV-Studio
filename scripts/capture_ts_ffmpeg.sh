@@ -27,6 +27,7 @@ capture_size=
 capture_rate=
 deinterlace=false
 loop_image=false
+preview_tcp=
 
 while (($#)); do
   if [[ "$1" == --deinterlace ]]; then deinterlace=true; shift; continue; fi
@@ -55,6 +56,7 @@ while (($#)); do
     --input-format) input_format=$2;;
     --capture-size) capture_size=$2;;
     --capture-rate) capture_rate=$2;;
+    --preview-tcp) preview_tcp=$2;;
     *) fail "unknown option: $1";;
   esac
   shift 2
@@ -66,6 +68,11 @@ done
 [[ "$rotation" == 0 || "$rotation" == 180 ]] || fail 'rotation must be 0 or 180'
 [[ -z "$capture_size" || "$capture_size" =~ ^[0-9]+x[0-9]+$ ]] || fail 'capture size must be WIDTHxHEIGHT'
 [[ -z "$capture_rate" || "$capture_rate" =~ ^[0-9]+(/[0-9]+)?$ ]] || fail 'capture rate must be a positive integer or fraction'
+[[ -z "$preview_tcp" || "$preview_tcp" =~ ^127\.0\.0\.1:([0-9]{4,5})$ ]] || fail 'preview must target loopback TCP host:port'
+if [[ -n "$preview_tcp" ]]; then
+  preview_port=${preview_tcp#*:}
+  (( preview_port >= 1024 && preview_port <= 65535 )) || fail 'preview port out of range'
+fi
 [[ -n "$output" ]] || fail 'output is required'
 for value in "$video_bitrate" "$muxrate" "$pmt_pid" "$video_pid" "$audio_pid" "$service_id" "$audio_bitrate" "$audio_channels" "$audio_rate"; do
   [[ "$value" =~ ^[0-9]+$ ]] || fail 'bitrate, PID, service, and audio values must be unsigned integers'
@@ -177,6 +184,14 @@ if [[ -n "$audio_device" ]]; then ffmpeg_args+=(-streamid "1:$audio_pid"); fi
 ffmpeg_args+=(-muxrate "$muxrate" -f mpegts)
 if [[ -n "$duration" ]]; then ffmpeg_args+=(-t "$duration"); fi
 ffmpeg_args+=(-y "$output")
+if [[ -n "$preview_tcp" ]]; then
+  # The same capture input fans out to TS and MJPEG; never reopen /dev/videoN.
+  # If preview disappears, FFmpeg exits and the Express TX interlock drops RF.
+  ffmpeg_args+=(-map 0:v:0 -vf 'fps=5,scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2'
+    -c:v mjpeg -q:v 10 -an -f mjpeg)
+  if [[ -n "$duration" ]]; then ffmpeg_args+=(-t "$duration"); fi
+  ffmpeg_args+=("tcp://$preview_tcp")
+fi
 
 if [[ "$source_input" == rpicam ]]; then
   # The pipeline propagates camera acquisition errors and FFmpeg failures.

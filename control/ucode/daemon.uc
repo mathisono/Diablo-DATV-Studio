@@ -86,6 +86,11 @@ function api(peer, method, path, body) {
     if (type(changes) != 'object') return response(peer, '400 Bad Request', 'application/json', '{"error":"JSON object required"}');
     let error = config.update(cfgpath, store, changes);
     if (error) return response(peer, '400 Bad Request', 'application/json', sprintf('%J', { error: error }));
+    if (changes.modeinput != null || changes.expresshdmidevice != null) {
+      /* The standby FFmpeg process reads the saved capture source at launch. */
+      super.request(sockpath, 'STOP_PREVIEW');
+      super.request(sockpath, 'START_PREVIEW');
+    }
     emit('config', { changed: true });
     if (peer_role == 'MASTER') peerctl.push_config();
     return response(peer, '200 OK', 'application/json', '{"ok":true}');

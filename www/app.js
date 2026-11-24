@@ -58,12 +58,14 @@ function refreshSourceFields() {
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
   const codec = $('encoding').value === 'H264' ? 'H.264' : $('encoding').value;
   route.textContent = `Elgato HDMI → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
-  const placeholder = $('video-placeholder');
-  placeholder.src = hdmi ? '/no-hdmi-input.svg' : '/no-ip-input.svg';
-  placeholder.alt = hdmi ? 'NO HDMI INPUT' : 'NO IP INPUT';
 }
 function fill(config, updateCurrent=true) {
-  if (updateCurrent) current = config;
+  if (updateCurrent) {
+    current = config;
+    const hdmi = config.modeinput === 'HDMI';
+    $('video-placeholder').src = hdmi ? '/no-hdmi-input.svg' : '/no-ip-input.svg';
+    $('video-placeholder').alt = hdmi ? 'NO HDMI INPUT' : 'NO IP INPUT';
+  }
   choices('modeoutput', Object.entries(capabilities).map(([id,cap])=>[id,cap.label]), config.modeoutput);
   choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,mode]), config.modulation);
   choices('modeinput', [
@@ -91,7 +93,9 @@ function showState(state) {
   $('tx-status').textContent = !boardReady && state.peer_role !== 'MASTER'
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`
     : supervisorStatus || state.supervisor?.message || 'Unknown';
-  $('video-status').textContent = state.video?.producer ? `MJPEG live · ${state.video.frames} frames` : 'Waiting for MJPEG source';
+  $('video-status').textContent = state.video?.producer
+    ? `${current.modeinput === 'HDMI' ? 'HDMI' : 'MJPEG'} preview live · ${state.video.frames} frames`
+    : current.modeinput === 'HDMI' ? 'Waiting for HDMI capture' : 'Waiting for MJPEG source';
   $('video-placeholder').hidden = !!state.video?.producer;
   $('peer-status').textContent = `${state.peer_role || 'STANDALONE'} · ${state.peer?.connected ? 'linked' : 'not linked'}${state.peer?.config_ready ? ' · config ready' : ''}`;
   if (!logInitialized && state.logs) {
@@ -172,4 +176,4 @@ events.addEventListener('log', event=>{ try { log(JSON.parse(event.data).line); 
 events.onerror=()=>{ $('connection').textContent='Event link reconnecting'; };
 reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
-setInterval(async () => { try { showSrt((await api('/api/srt')).slots); } catch {} }, 1000);
+setInterval(async () => { try { showState(await api('/api/state')); } catch {} }, 1000);

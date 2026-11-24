@@ -275,6 +275,27 @@ class UcodeTest(unittest.TestCase):
                     result += chunk
                 self.assertIn(b"multipart/x-mixed-replace", result)
                 self.assertIn(b"Content-Type: image/jpeg", result)
+        self.assertTrue(wait_for(lambda: not json.loads(self.request("GET", "/api/state")[1])["video"]["producer"]))
+
+    def test_hdmi_preview_uses_saved_device(self):
+        fake = self.path / "ffmpeg-args"
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$PORTSDOWN_ARGS_OUT"\n')
+        fake.chmod(0o755)
+        args = self.path / "args.txt"
+        self.config.write_text("modeinput=HDMI\nexpresshdmidevice=/dev/video2\n")
+        result = subprocess.run([str(CONTROL / "idle-preview.sh")],
+            env=os.environ | {"PORTSDOWN_CONFIG": str(self.config),
+                              "PORTSDOWN_FFMPEG": str(fake), "PORTSDOWN_ARGS_OUT": str(args)},
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        argv = args.read_text().splitlines()
+        self.assertEqual(argv[argv.index("-i") + 1], "/dev/video2")
+        self.assertIn("fps=5,scale=320:240:force_original_aspect_ratio=decrease", argv[argv.index("-vf") + 1])
+        self.config.write_text("modeinput=HDMI\nexpresshdmidevice=/tmp/recording.ts\n")
+        result = subprocess.run([str(CONTROL / "idle-preview.sh")],
+            env=os.environ | {"PORTSDOWN_CONFIG": str(self.config), "PORTSDOWN_FFMPEG": str(fake)},
+            capture_output=True)
+        self.assertEqual(result.returncode, 2)
 
     def test_five_srt_slots_are_independent_and_offer_test_card(self):
         status, body = self.request("GET", "/api/srt")

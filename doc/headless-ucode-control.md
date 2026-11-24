@@ -20,18 +20,29 @@ The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
 device 0/channel 0 and 3,071,588 bit/s values are **example settings**, not
 enumerated hardware. SRT port numbers shown are temporary test ports.
 
-![Elgato HDMI capture to DekTec ASI configuration example; TX disabled](images/headless-web-gui-elgato-asi.png)
+![Elgato HDMI configuration with a low-resolution synthetic preview; TX disabled](images/headless-web-gui-elgato-asi.png)
 
 This **configuration example** selects Elgato HDMI video (`/dev/video2`),
 optional ALSA audio (`hw:1,0`), H.264 at 720p, and DekTec ASI output at
 3,071,588 bit/s. The device names and indices are illustrative, not detected
-on the current host. When HDMI is selected, the GUI shows the separate V4L2
-and ALSA fields and a **NO HDMI INPUT** preview card; the five SRT slots
+on the current host. The screenshot's 320×240 preview is a **synthetic test
+feed**, not an Elgato capture or physical ASI test. When HDMI is selected,
+the GUI shows the separate V4L2 and ALSA fields and live preview when frames
+arrive; it falls back to **NO HDMI INPUT** when they stop. The five SRT slots
 remain available in a collapsed section. The legacy Express capture path
 recognizes `modeinput=HDMI`, `expresshdmidevice`, and `expressaudiodevice`,
 but this headless ASI route is **not yet a live encoder or playout path**.
-The standalone MJPEG preview launcher still needs its `PORTSDOWN_VIDEO_DEVICE`
-set to the actual HDMI device and restarted after device changes.
+The standby MJPEG preview launcher reads the saved `expresshdmidevice` for
+HDMI, scales to 320×240 at 5 fps, and restarts when the saved source/device
+changes. It does not play a saved TS file. `PORTSDOWN_VIDEO_DEVICE` remains
+the fallback for non-HDMI standby preview. Set `PORTSDOWN_HDMI_INPUT_FORMAT`
+to `mjpeg` or `yuyv422` only when the capture device requires a format
+override. The Express HDMI capture helper can also send a low-resolution
+MJPEG tap from the **same FFmpeg capture process** while it generates TS when
+`PORTSDOWN_MJPEG_PORT` is set; it never opens the V4L2 device a second time.
+That tap was checked with a synthetic source only. The new headless supervisor
+does not yet install or select the Express TX launcher, and physical Elgato
+capture, audio, and RF remain unverified.
 
 ## Implemented
 
@@ -101,10 +112,12 @@ an explicit private-interface address.
 - A native DVB-S2 QPSK experimental DATV-Express backend exists; no
   DVB-S2X backend was found in this branch. DVB-S2X is therefore **not**
   offered by the capability map.
-- The optional idle-preview launcher is provided. A **dual-output TX FFmpeg
-  launcher** must still be built for each capture/backend combination to
-  maintain preview during TX. It must be interlocked so RF stays off until
-  valid live TS is received and stops when that input disappears.
+- The optional idle-preview launcher is provided. The Express HDMI capture
+  helper has an opt-in same-input TS/MJPEG fan-out for preview during TX,
+  exercised with a synthetic source; other capture/backend combinations
+  still need their own TX preview integration. The headless supervisor does
+  not yet route its TX command into these legacy Express paths. RF must stay
+  off until valid live TS is received and stop when that input disappears.
 - The five SRT encoders are **not** connected to a board or the RF TX gate.
   Their enable/disable state is held by the running supervisor (not persisted
   across its restart). Real ATEM sources and five-way on-board CPU/thermal
