@@ -43,11 +43,16 @@ Do not assume the module is usable merely because DKMS reports `installed`.
 For a fresh, matching x86-64 installation, from this repository run:
 
 ```sh
-bash scripts/install-dektec-dta.sh
+bash scripts/install-dektec-asi-env.sh
 bash scripts/install-dektec-dta.sh --status
 ```
 
-The script requires the card to enumerate, installs build dependencies and
+The environment script invokes the driver installer, installs the pinned
+official TSDuck package and FFmpeg, verifies device enumeration and performs
+finite QSV and `libx264` probes. QSV failure is recorded but does not reject
+the software fallback. Both scripts never start ASI output.
+
+The driver script requires the card to enumerate, installs build dependencies and
 matching headers, verifies the pinned official SDK archive, installs only
 the `Dta`/`DtaNw` DKMS modules, attempts to load `Dta`, and replaces the
 vendor's world-writable device-node mode with a `dektec` group rule (`0660`).
@@ -77,8 +82,43 @@ the same PCR-derived 3,071,588 bit/s rate, service `ASI Test`/`KJ6DZB`, and
 FFmpeg decoded it without error. These checks validate file compatibility,
 **not physical ASI output**.
 
+The installed `svrename` processor also changed the copied TANK file's
+service name to `DATV Test` **offline** while retaining all 6,135 packets,
+zero unexpected discontinuities, and successful FFmpeg decode. This checks
+the metadata operation used by the ASI-file launcher without opening the card.
+
 Intel Jasper Lake QSV was not yet demonstrated: the first short H.264 QSV
 encode failed before GPU group access was granted; after adding the account
 to `render` and `video`, it reached the QSV runtime but rejected the selected
-rate-control modes. Software `libx264` worked for the finite TS and remains
-the fallback.
+rate-control modes (`Selected ratecontrol mode is unsupported`). The actual
+finite probe is included in `scripts/install-dektec-asi-env.sh`; its stderr is
+saved at `/home/mat/dektec-asi/logs/qsv-h264-test.log`. The host already has
+`intel-media-va-driver` 24.1.0, `i965-va-driver` 2.4.1, `libmfx1` 22.5.4,
+and `libvpl2` 2023.3.0. Software `libx264` worked for the finite TS and
+remains the fallback. Listing `h264_qsv` in FFmpeg is not proof that encoding
+works.
+
+## Isolated web-control build
+
+The `headless-ucode-control` branch was shallow-cloned under
+`/home/mat/dektec-asi/src/portsdown4_NTSC` at commit `aba3ac8`. Both C
+utilities built natively with `make -C control`. The host had no packaged
+`ucode`; `libubox` commit `a396f38a8568a1d670c240465cd8d24fdfdf6463`
+and `ucode` commit `a2c42eac6369a0bba0315007c7dc7b7130275340` were
+built with CMake into `/home/mat/dektec-asi/opt` without system installation.
+The working ucode Git URL is `https://github.com/jow-/ucode.git` (the earlier
+`https://git.openwrt.org/project/ucode.git` attempt returned 404). Required
+system build packages were `cmake` and `libjson-c-dev`. Run the hardware-free
+control tests with:
+
+```sh
+cd /home/mat/dektec-asi/src/portsdown4_NTSC
+LD_LIBRARY_PATH=/home/mat/dektec-asi/opt/lib \
+UCODE=/home/mat/dektec-asi/opt/bin/ucode \
+UCODE_MODULE_DIR=/home/mat/dektec-asi/opt/lib/ucode \
+python3 -m unittest tests/test_headless_control.py -v
+```
+
+All **30** tests passed, including the ASI board/safe-off fail-closed checks.
+No web service or TX launcher was installed or enabled. This is software
+validation on the actual x86-64 host, not a physical ASI playout test.
