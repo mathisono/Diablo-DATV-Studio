@@ -45,15 +45,17 @@ function disconnect() {
 function cfg_subset() {
   let cfg = config.load(cfgpath);
   if (!cfg) return null;
-  let keys = ['modeoutput','modeinput','source_layout','srt_source_slot',
-    'multiview_1','multiview_2','multiview_3','multiview_4',
-    'ipts_input_port','ipts_bind_scope','picam_index',
-    'modulation','freqoutput','symbolrate','fec',
-    'format','encoding','explevel','plutopwr','limegain',
-    'asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice',
-    'call','service_name'];
+  /* The MASTER owns production. Never mirror its capture/mixer selection
+   * onto the remote transmitter: the only SLAVE source is IPTS over SRT. */
+  let keys = ['modeoutput','modulation','freqoutput','symbolrate','fec',
+    'format','explevel','plutopwr','limegain',
+    'asi_device','asi_channel','asi_bitrate','call','service_name'];
   let values = {};
   for (let key in keys) if (cfg[key] != null) values[key] = cfg[key];
+  values.modeinput = 'IPTSIN';
+  values.source_layout = 'DIRECT';
+  values.encoding = 'IPTS in';
+  values.iptransport = 'srt';
   return values;
 }
 
@@ -93,6 +95,12 @@ function handle_line(line) {
   }
   if (message.cmd == 'cfg') {
     if (tx_active) { send({ cmd: 'fault', reason: 'stop TX before configuration update' }); return; }
+    if (message.data?.modeinput != 'IPTSIN' || message.data?.source_layout != 'DIRECT' ||
+        message.data?.encoding != 'IPTS in' || message.data?.iptransport != 'srt') {
+      cfg_acked = false;
+      send({ cmd: 'fault', reason: 'SLAVE accepts only IPTS over SRT from MASTER' });
+      return;
+    }
     let error = config.update(cfgpath, store, message.data);
     if (!error) {
       /* Producers and the selected TS route read configuration at start. */

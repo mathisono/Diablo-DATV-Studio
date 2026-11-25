@@ -203,7 +203,7 @@ function showState(state) {
   const boardReady = expectedBoard && supervisorBoard === expectedBoard;
   const localRoute = current.source_layout === 'MULTIVIEW' ||
     (current.source_layout === 'DIRECT' && ['SRT','IPCAM1','IPCAM2'].includes(current.modeinput));
-  $('tx-status').textContent = localRoute
+  $('tx-status').textContent = localRoute && state.peer_role !== 'MASTER'
     ? 'RF TX unavailable for this source route; local MPEG-TS output is separate.'
     : !boardReady && state.peer_role !== 'MASTER'
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`
@@ -219,6 +219,13 @@ function showState(state) {
   $('remote-preview-box').hidden = !remote;
   if (remote && $('remote-preview').src !== remote) $('remote-preview').src = remote;
   const locked = state.peer_role === 'SLAVE';
+  if (locked) {
+    choices('modeinput', [['IPTSIN','IPTS over SRT (from MASTER)']], 'IPTSIN');
+    choices('source_layout', [['DIRECT','MASTER-produced transport stream']], 'DIRECT');
+    choices('encoding', [['IPTS in','IPTS pass-through (no re-encode)']], 'IPTS in');
+    for (const el of document.querySelectorAll('.ipts-only')) el.hidden = true;
+    $('peer-status').textContent += ` · IPTS over SRT · UDP port ${state.peer_input?.port || 9000}`;
+  }
   const monitorRunning = /source_ts=running/.test(supervisorStatus);
   const outputSelected = current.source_layout === 'MULTIVIEW' ||
     (current.source_layout === 'DIRECT' && ['SRT','IPCAM1','IPCAM2'].includes(current.modeinput));
@@ -229,7 +236,7 @@ function showState(state) {
     current.source_layout === 'DIRECT' && current.modeinput?.startsWith('IPCAM') ? `${current.modeinput} selected · output starts on request` : 'Local MPEG-TS output stopped';
   $('source-ts-start').disabled = locked || !outputSelected || !state.source_ts_available || monitorRunning;
   $('source-ts-stop').disabled = locked || !monitorRunning;
-  $('tx-start').disabled = locked || localRoute || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
+  $('tx-start').disabled = locked || (localRoute && state.peer_role !== 'MASTER') || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
   for (const id of fields) $(id).disabled = locked;
   for (let n=1;n<=2;n++) for (const action of ['url','save']) $(`ipcam-${action}-${n}`).disabled = locked;

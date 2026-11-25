@@ -134,12 +134,23 @@ class SupervisorTest(unittest.TestCase):
         self.assertIn("tx=stopped", command(self.sock, "STATUS"))
 
     def test_slave_heartbeat_timeout(self):
+        with self.config.open('a') as cfg:
+            cfg.write('modeinput=IPTSIN\nsource_layout=DIRECT\nencoding=IPTS in\niptransport=srt\n')
         self.start(PORTSDOWN_PEER_ROLE="SLAVE")
         self.assertIn("heartbeat stale", command(self.sock, "START_TX"))
         self.assertEqual(command(self.sock, "PEER_HB"), "OK")
         self.assertEqual(command(self.sock, "START_TX"), "OK")
         self.assertTrue(wait_for(lambda: "tx=stopped" in command(self.sock, "STATUS"), 2.5))
         self.assertGreaterEqual(self.hooklog.read_text().count("off"), 2)
+
+    def test_slave_rejects_local_source_and_udp(self):
+        self.start(PORTSDOWN_PEER_ROLE="SLAVE")
+        for values in ('modeinput=CARDH264\nsource_layout=DIRECT\nencoding=IPTS in\niptransport=srt\n',
+                       'modeinput=IPTSIN\nsource_layout=DIRECT\nencoding=IPTS in\niptransport=udp\n'):
+            self.config.write_text('modeoutput=DATVEXPRESS\n' + values)
+            self.assertEqual(command(self.sock, "PEER_HB"), "OK")
+            self.assertIn("SLAVE requires IPTS over SRT", command(self.sock, "START_TX"))
+        self.assertIn("unavailable", command(self.sock, "START_RX"))
 
     def test_preview_releases_capture_before_tx_and_returns(self):
         preview = self.path / "preview"

@@ -26,7 +26,7 @@ const mutable = ['modeoutput', 'modeinput', 'modulation', 'freqoutput', 'symbolr
   'asi_device', 'asi_channel', 'asi_bitrate', 'expresshdmidevice', 'expressaudiodevice',
   'call', 'service_name', 'source_layout', 'srt_source_slot',
   'multiview_1', 'multiview_2', 'multiview_3', 'multiview_4',
-  'ipts_input_port', 'ipts_bind_scope', 'picam_index'];
+  'ipts_input_port', 'ipts_bind_scope', 'picam_index', 'iptransport', 'udpinport'];
 
 export function load(path) {
   let raw = fs.readfile(path);
@@ -79,6 +79,10 @@ export function validate(cfg) {
   if (cfg.expressaudiodevice != null && cfg.expressaudiodevice != '' &&
       !match(cfg.expressaudiodevice, /^(default|hw:[A-Za-z0-9_,.:=-]+|plughw:[A-Za-z0-9_,.:=-]+)$/))
     return 'unsupported HDMI audio device';
+  if (cfg.iptransport != null && index(['udp','srt'], cfg.iptransport) < 0)
+    return 'IPTS transport must be udp or srt';
+  if (cfg.udpinport != null && (!match(cfg.udpinport, /^[0-9]{4,5}$/) || +cfg.udpinport < 1024 || +cfg.udpinport > 65535))
+    return 'IPTS transport port outside 1024-65535';
   if (cfg.ipts_input_port != null && (!match(cfg.ipts_input_port, /^[0-9]{4,5}$/) ||
       +cfg.ipts_input_port < 1024 || +cfg.ipts_input_port > 65535))
     return 'IPTS UDP input port outside 1024-65535';

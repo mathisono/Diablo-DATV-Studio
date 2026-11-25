@@ -68,6 +68,26 @@ static bool board_config_matches(void)
   return false;
 }
 
+/* Separate from the source choice on MASTER. No local capture or UDP-only
+ * input is allowed to key a remote SLAVE, including direct socket commands. */
+static bool slave_input_matches(void)
+{
+  if (!config_path) return false;
+  FILE *file = fopen(config_path, "r");
+  if (!file) return false;
+  char line[512];
+  bool input = false, layout = false, encoding = false, transport = false;
+  while (fgets(line, sizeof(line), file)) {
+    line[strcspn(line, "\r\n")] = 0;
+    if (strncmp(line, "modeinput=", 10) == 0) input = strcmp(line + 10, "IPTSIN") == 0;
+    if (strncmp(line, "source_layout=", 14) == 0) layout = strcmp(line + 14, "DIRECT") == 0;
+    if (strncmp(line, "encoding=", 9) == 0) encoding = strcmp(line + 9, "IPTS in") == 0;
+    if (strncmp(line, "iptransport=", 12) == 0) transport = strcmp(line + 12, "srt") == 0;
+  }
+  fclose(file);
+  return input && layout && encoding && transport;
+}
+
 static bool source_ts_selected(void)
 {
   if (!config_path) return false;
@@ -149,6 +169,7 @@ static bool stop_role(enum role role)
 
 static bool start_role(enum role role)
 {
+  if (slave_mode && role != TX) return false; /* Receiver/TX pipeline owns any preview tap. */
   if (children[role].pid > 0) return true;
   if (role == PREVIEW && (children[TX].pid > 0 || children[RX].pid > 0)) return false;
   const char *execpath = executables[role];
@@ -223,6 +244,9 @@ static void command(int fd, const char *line)
     if (strcmp(line, start) == 0) {
       if (role == TX && slave_mode && (last_peer_hb == 0 || monotonic_ms() - last_peer_hb >= 1500)) {
         send_client(fd, "ERR peer heartbeat stale\n"); return;
+      }
+      if (role == TX && slave_mode && !slave_input_matches()) {
+        send_client(fd, "ERR SLAVE requires IPTS over SRT\n"); return;
       }
       if (role == TX && children[RX].pid) { send_client(fd, "ERR RX active\n"); return; }
       if (role == TX && !board_config_matches()) { send_client(fd, "ERR config board mismatch or unavailable\n"); return; }

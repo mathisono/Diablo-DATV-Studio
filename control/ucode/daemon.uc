@@ -71,6 +71,7 @@ function srt_state(status) {
 const local_sources = { HDMI: 6, CAMH264: 7, IPTSIN: 8, IPCAM1: 9, IPCAM2: 10 };
 let source_attempts = {};
 function wants_source(cfg, source) {
+  if (peer_role == 'SLAVE') return false; /* Preview must come from the SRT receiver, not a second UDP/camera capture. */
   if (!cfg) return false;
   if ((cfg.source_layout ?? 'DIRECT') != 'MULTIVIEW')
     return cfg.modeinput == source ||
@@ -204,7 +205,7 @@ function api(peer, method, path, body) {
     let cfg = config.load(cfgpath);
     return response(peer, '200 OK', 'application/json', sprintf('%J', {
       supervisor: result, board: cfg?.modeoutput ?? 'unknown', modulation: cfg?.modulation ?? 'unknown',
-      peer_role: peer_role, peer: peerctl.status(), logs: logs, video: video.stats(),
+      peer_role: peer_role, peer_input: peer_role == 'SLAVE' ? { transport: 'SRT', port: +(getenv('PORTSDOWN_PEER_SRT_PORT') ?? '9000') } : null, peer: peerctl.status(), logs: logs, video: video.stats(),
       srt: srt_state(result.status), sources: source_state(cfg),
       source_preview_available: !!getenv('PORTSDOWN_SOURCE_PREVIEW_EXEC'),
       source_ts_available: !!getenv('PORTSDOWN_SOURCE_TS_EXEC'),
@@ -283,7 +284,7 @@ function api(peer, method, path, body) {
     if (peer_role == 'SLAVE' && path != '/api/tx/stop')
       return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only except E-Stop"}');
     let route = config.load(cfgpath);
-    if (path == '/api/tx/start' &&
+    if (path == '/api/tx/start' && peer_role != 'MASTER' &&
         (route?.source_layout == 'MULTIVIEW' ||
          route?.source_layout == 'DIRECT' &&
          (route?.modeinput == 'SRT' || route?.modeinput == 'IPCAM1' || route?.modeinput == 'IPCAM2')))
@@ -384,6 +385,13 @@ function api(peer, method, path, body) {
 uloop.init();
 if (peer_role == 'SLAVE' && index(super.request(sockpath, 'STATUS').status ?? '', 'peer=slave') < 0)
   die('Slave mode requires tx-super PORTSDOWN_PEER_ROLE=SLAVE');
+if (peer_role == 'SLAVE') {
+  let error = config.update(cfgpath, store, {
+    modeinput: 'IPTSIN', source_layout: 'DIRECT', encoding: 'IPTS in', iptransport: 'srt',
+    udpinport: getenv('PORTSDOWN_PEER_SRT_PORT') ?? '9000'
+  });
+  if (error) die(`Invalid SLAVE IPTS/SRT configuration: ${error}`);
+}
 if (!peerctl.start({ role: peer_role, token: getenv('PORTSDOWN_PEER_TOKEN'),
   host: getenv('PORTSDOWN_PEER_HOST'), bind: getenv('PORTSDOWN_PEER_BIND'),
   port: +(getenv('PORTSDOWN_PEER_PORT') ?? '8181'),
