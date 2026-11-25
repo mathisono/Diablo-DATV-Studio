@@ -7,6 +7,7 @@ let capabilities = {}, current = {};
 let logInitialized = false;
 let srtLocked = false;
 let lastState = null;
+let ipcamConfigured = {1:false, 2:false};
 const multiviewOptions = [
   ['HDMI','Elgato HDMI'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
   ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
@@ -34,10 +35,21 @@ async function api(path, method='GET', data) {
 }
 async function refreshIpCamStatus() {
   try {
-    const saved = (await api('/api/ipcam')).configured;
-    for (let n=1;n<=2;n++) $('ipcam-status-'+n).textContent =
-      saved[String(n)] ? `IP CAM ${n} configured · URL hidden` : `IP CAM ${n} not configured`;
+    ipcamConfigured = (await api('/api/ipcam')).configured;
+    if (lastState) showIpCam(lastState);
   } catch { for (let n=1;n<=2;n++) $('ipcam-status-'+n).textContent = 'Camera configuration unavailable'; }
+}
+function showIpCam(state) {
+  for (let n=1;n<=2;n++) {
+    const configured = !!ipcamConfigured[String(n)];
+    const live = configured && !!state.sources?.[`IPCAM${n}`]?.preview?.producer;
+    const image = $(`ipcam-live-${n}`);
+    if (configured && !image.getAttribute('src')) image.src = `/api/video/source/ipcam${n}`;
+    if (!configured && image.getAttribute('src')) image.removeAttribute('src');
+    $(`ipcam-placeholder-${n}`).hidden = live;
+    $(`ipcam-status-${n}`).textContent = !configured ? `IP CAM ${n} not configured` :
+      live ? `IP CAM ${n} · live preview · URL hidden` : `IP CAM ${n} · awaiting video · URL hidden`;
+  }
 }
 function choices(id, items, selected) {
   $(id).replaceChildren(...items.map(([value,label]) => {
@@ -90,7 +102,6 @@ function refreshSourceFields() {
   const hdmi = multi ? selected.includes('HDMI') : $('modeinput').value === 'HDMI';
   const picam = multi ? selected.includes('CAMH264') : $('modeinput').value === 'CAMH264';
   const ipts = multi ? selected.includes('IPTSIN') : $('modeinput').value.startsWith('IPTSIN');
-  const ipcam = multi ? selected.some(s=>s==='IPCAM1'||s==='IPCAM2') : $('modeinput').value.startsWith('IPCAM');
   $('srt-details').open = multi ? selected.some(s=>s.startsWith('SRT')) : $('modeinput').value === 'SRT';
   for (const el of document.querySelectorAll('.direct-only')) el.hidden = multi;
   for (const el of document.querySelectorAll('.srt-direct-only')) el.hidden = multi || $('modeinput').value !== 'SRT';
@@ -102,7 +113,6 @@ function refreshSourceFields() {
   for (const el of document.querySelectorAll('.hdmi-only')) el.hidden = !hdmi;
   for (const el of document.querySelectorAll('.picam-only')) el.hidden = !picam;
   for (const el of document.querySelectorAll('.ipts-only')) el.hidden = !ipts;
-  for (const el of document.querySelectorAll('.ipcam-only')) el.hidden = !ipcam;
   $('expresshdmidevice').required = hdmi;
   const route = $('route-summary');
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
@@ -198,6 +208,7 @@ function showState(state) {
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`
     : supervisorStatus || state.supervisor?.message || 'Unknown';
   updatePreview(state);
+  showIpCam(state);
   $('peer-status').textContent = `${state.peer_role || 'STANDALONE'} · ${state.peer?.connected ? 'linked' : 'not linked'}${state.peer?.config_ready ? ' · config ready' : ''}`;
   if (!logInitialized && state.logs) {
     $('log').textContent = state.logs.join('\n');
@@ -241,14 +252,23 @@ function showSrt(slots) {
     if (!slot.enabled && live.getAttribute('src')) live.removeAttribute('src');
     placeholder.hidden = !!slot.live;
     status.textContent = !slot.enabled ? 'Disabled' : slot.live ? 'Live SRT video' : 'Enabled · awaiting video';
-    $(`srt-meta-${n}`).textContent = `SRT UDP ${slot.srt_port} → live TS UDP 127.0.0.1:${slot.ts_port}`;
+    const link = $(`srt-url-${n}`);
+    link.textContent = slot.caller_url || 'LAN address unavailable';
+    if (slot.caller_url) link.href = slot.caller_url;
+    else link.removeAttribute('href');
+    $(`srt-copy-${n}`).disabled = !slot.caller_url;
+    $(`srt-meta-${n}`).textContent = `Live TS output: UDP 127.0.0.1:${slot.ts_port}`;
   }
 }
 for (let n=1;n<=5;n++) {
   const card=document.createElement('article');
   card.className='srt-card';
-  card.innerHTML=`<h3>SRT input ${n}</h3><div class="preview"><img id="srt-live-${n}" alt="Live SRT input ${n} preview"><img id="srt-placeholder-${n}" class="placeholder" src="/no-srt-input-${n}.jpg" alt="NO SRT INPUT ${n} test pattern"></div><p id="srt-status-${n}" class="status" role="status">Disabled</p><p id="srt-meta-${n}" class="meta"></p><button id="srt-toggle-${n}" type="button">Enable listener</button>`;
+  card.innerHTML=`<h3>SRT input ${n}</h3><div class="preview"><img id="srt-live-${n}" alt="Live SRT input ${n} preview"><img id="srt-placeholder-${n}" class="placeholder" src="/no-srt-input-${n}.jpg" alt="NO SRT INPUT ${n} test pattern"></div><p id="srt-status-${n}" class="status" role="status">Disabled</p><p class="meta">Caller URL: <a id="srt-url-${n}"></a></p><p id="srt-meta-${n}" class="meta"></p><button id="srt-copy-${n}" type="button">Copy caller URL</button><button id="srt-toggle-${n}" type="button">Enable listener</button>`;
   $('srt-slots').append(card);
+  $(`srt-copy-${n}`).addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($(`srt-url-${n}`).textContent); log(`SRT ${n} caller URL copied`); }
+    catch { log(`SRT ${n}: clipboard unavailable; select the displayed URL to copy it`); }
+  });
   $(`srt-toggle-${n}`).addEventListener('click', async () => {
     const action=$(`srt-toggle-${n}`).dataset.enabled==='1'?'disable':'enable';
     try { await api(`/api/srt/${n}/${action}`,'POST'); showSrt((await api('/api/srt')).slots); }

@@ -21,13 +21,15 @@ tiles have synthetic MJPEG frames, while Pi Camera displays its waiting card.
 No Elgato, Pi Camera, IP transmitter, ASI card, or RF path was used. The GUI
 shows how source-specific settings appear together for a mixed-source layout.
 
-![Real RTSP IP CAM 1 feed in the multiview, with IP CAM 2 and the other sources showing waiting cards](images/headless-web-gui-ipcam-multiview.png)
+![Real RTSP IP CAM 1 feed, dedicated IP CAM input encoder cards, and complete SRT caller links](images/headless-web-gui-ipcam-multiview.png)
 
 This second multiview capture uses a **real LAN RTSP feed** for IP CAM 1
 (profile3: 320×240 MJPEG at 1 fps). IP CAM 2 is selected but unconfigured,
 so its waiting card remains visible; IPTS and SRT are also waiting. The
 camera login URL and password are not displayed or committed. This is a GUI
-preview demonstration, not an RF test.
+preview demonstration, not an RF test. The SRT caller links in this isolated
+capture show the development host's LAN IP and temporary test ports, not
+TANK's production listener ports.
 
 ![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
 
@@ -91,16 +93,21 @@ capture, audio, and RF remain unverified.
   selection is included in presets and Master/Slave configuration. HDMI V4L2
   device, Pi Camera index, IPTS UDP port, and loopback/LAN listen scope appear
   whenever that source type is selected in either direct or multiview mode.
-  Selecting either IP CAM reveals both RTSP URL setup fields. The GUI accepts
+  The separate **IP CAM input encoders** section always shows both RTSP URL
+  controls and independent low-resolution previews, even before either camera
+  is selected as an output source. Saving a URL starts that camera's preview;
+  clearing it returns its card to the waiting pattern. The GUI accepts
   usernames/passwords and percent-encodes special characters in their URL
   components; saved URLs are never returned to the browser. They live in
   `/var/lib/portsdown/ip-cameras.conf` (mode 0600), or the path selected by
   `PORTSDOWN_IPCAM_CONFIG`, not in presets, peer config, or the legacy config.
   Use HTTPS at any reverse proxy for remote GUI access to credential fields.
-  The five SRT listeners remain independently enabled below the main controls.
-- `control/source-preview.sh` runs selected HDMI, Pi Camera, IPTS, and two
-  independent IP CAM previews
-  independently at 320×240/5 fps. HDMI uses the configured V4L2 device, Pi
+  The **SRT input encoders** section keeps five independently enabled listeners
+  below the camera controls and displays a copyable, complete caller URL for
+  each slot.
+- `control/source-preview.sh` runs selected HDMI, Pi Camera, and IPTS previews,
+  plus each configured IP CAM preview, at 320×240/5 fps. HDMI uses the
+  configured V4L2 device, Pi
   Camera uses `rpicam-vid` (or `libcamera-vid`), and IPTS decodes MPEG-TS on
   the configured UDP port. Each RTSP IP CAM uses TCP transport, decodes its
   source raster (including HD/UHD), and scales/pads to 320×240 at 5 fps.
@@ -265,11 +272,16 @@ To make the five software-only SRT listeners available, export
 
 | Slot | SRT caller destination | Live TS output (loopback UDP) | MJPEG preview |
 | --- | --- | --- | --- |
-| 1 | `srt://TANK:9101?mode=caller` | `127.0.0.1:12001` | `/api/video/srt/1` |
-| 2 | `srt://TANK:9102?mode=caller` | `127.0.0.1:12002` | `/api/video/srt/2` |
-| 3 | `srt://TANK:9103?mode=caller` | `127.0.0.1:12003` | `/api/video/srt/3` |
-| 4 | `srt://TANK:9104?mode=caller` | `127.0.0.1:12004` | `/api/video/srt/4` |
-| 5 | `srt://TANK:9105?mode=caller` | `127.0.0.1:12005` | `/api/video/srt/5` |
+| 1 | `srt://<receiver-LAN-IP>:9101?mode=caller&latency=200000` | `127.0.0.1:12001` | `/api/video/srt/1` |
+| 2 | `srt://<receiver-LAN-IP>:9102?mode=caller&latency=200000` | `127.0.0.1:12002` | `/api/video/srt/2` |
+| 3 | `srt://<receiver-LAN-IP>:9103?mode=caller&latency=200000` | `127.0.0.1:12003` | `/api/video/srt/3` |
+| 4 | `srt://<receiver-LAN-IP>:9104?mode=caller&latency=200000` | `127.0.0.1:12004` | `/api/video/srt/4` |
+| 5 | `srt://<receiver-LAN-IP>:9105?mode=caller&latency=200000` | `127.0.0.1:12005` | `/api/video/srt/5` |
+
+The GUI shows a full link using `PORTSDOWN_SRT_ADVERTISE_HOST` when set, or
+the first non-loopback IPv4 from `hostname -I`. On a multi-interface system,
+set the environment value to the IP address reachable from the SRT sender.
+This only changes the displayed link; listeners still bind on all interfaces.
 
 The SRT input accepts a live MPEG-TS carrying video (audio optional). Its
 **IPTS output retains the caller's raster**: synthetic H.264 inputs at

@@ -218,6 +218,7 @@ class UcodeTest(unittest.TestCase):
             "PORTSDOWN_HTTP_PORT": str(self.port),
             "PORTSDOWN_MJPEG_PORT": str(self.video_port),
             "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
+            "PORTSDOWN_SRT_ADVERTISE_HOST": "192.0.2.55",
             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
             "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
@@ -333,15 +334,22 @@ class UcodeTest(unittest.TestCase):
         self.assertEqual(json.loads(self.request("GET", "/api/ipcam")[1])["configured"],
                          {"1": False, "2": False})
         self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 1, "url": "file:///tmp/video.ts"})[0], 400)
-        self.assertEqual(self.request("POST", "/api/config", {
-            "source_layout": "MULTIVIEW", "multiview_1": "IPCAM1",
-            "multiview_2": "IPCAM2", "multiview_3": "SRT3", "multiview_4": "IPTSIN"})[0], 200)
         urls = {1: "rtsp://user:p%40ss@127.0.0.1:8554/first",
                 2: "rtsp://user:other@127.0.0.1:8554/second"}
         for slot, url in urls.items():
             status, body = self.request("POST", "/api/ipcam", {"slot": slot, "url": url})
             self.assertEqual(status, 200, body)
             self.assertEqual(self.request("GET", f"/no-ipcam{slot}-input.jpg")[0], 200)
+        # Camera cards show waiting previews even when neither camera is selected for output.
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+            viewer.settimeout(3)
+            viewer.sendall(f"GET /api/video/source/ipcam1 HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+            data = b""
+            while b"\xff\xd9" not in data: data += viewer.recv(8192)
+            self.assertIn((ROOT / "www/no-ipcam1-input.jpg").read_bytes(), data)
+        self.assertEqual(self.request("POST", "/api/config", {
+            "source_layout": "MULTIVIEW", "multiview_1": "IPCAM1",
+            "multiview_2": "IPCAM2", "multiview_3": "SRT3", "multiview_4": "IPTSIN"})[0], 200)
         self.assertEqual(self.ipcam_config.stat().st_mode & 0o777, 0o600)
         self.assertIn(urls[1], self.ipcam_config.read_text())
         for endpoint in ("/api/config", "/api/state", "/api/ipcam"):
@@ -649,6 +657,9 @@ class UcodeTest(unittest.TestCase):
         self.assertEqual(status, 200, body)
         slots = json.loads(body)["slots"]
         self.assertEqual([s["slot"] for s in slots], list(range(1, 6)))
+        self.assertEqual([s["caller_url"] for s in slots], [
+            f"srt://192.0.2.55:{self.srt_port+n}?mode=caller&latency=200000"
+            for n in range(5)])
         self.assertTrue(all(not s["enabled"] and not s["live"] for s in slots))
         status, body = self.request("GET", "/no-srt-input-3.jpg")
         self.assertEqual(status, 200)

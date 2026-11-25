@@ -62,16 +62,6 @@
         <label class="ipts-only" hidden>IPTS UDP input port<input id="ipts_input_port" type="number" min="1024" max="65535" step="1" value="10000"></label>
         <label class="ipts-only" hidden>IPTS listen scope<select id="ipts_bind_scope"><option value="LOCAL">Loopback only</option><option value="LAN">LAN interfaces</option></select></label>
         <p class="ipts-only hdmi-note" hidden>IPTS preview listens for MPEG-TS over UDP on this port. Use an upstream bridge when the TS arrives over SRT.</p>
-        <div class="ipcam-only wide" hidden>
-          <h3>RTSP IP cameras</h3>
-          <p class="hdmi-note">Configure two independent cameras. Each selected camera is decoded to a 320×240, 5 fps preview; a waiting card appears when its feed is unavailable. URLs are saved in a private file, not in presets or the main Portsdown config.</p>
-          <label>IP CAM 1 RTSP URL<input id="ipcam-url-1" type="text" inputmode="url" placeholder="rtsp://user:password@host:554/path" autocomplete="off" spellcheck="false"></label>
-          <p id="ipcam-status-1" role="status">IP CAM 1 not configured</p>
-          <div class="multiview-actions"><button id="ipcam-save-1" type="button">Save IP CAM 1</button><button id="ipcam-clear-1" type="button">Clear IP CAM 1</button></div>
-          <label>IP CAM 2 RTSP URL<input id="ipcam-url-2" type="text" inputmode="url" placeholder="rtsp://user:password@host:554/path" autocomplete="off" spellcheck="false"></label>
-          <p id="ipcam-status-2" role="status">IP CAM 2 not configured</p>
-          <div class="multiview-actions"><button id="ipcam-save-2" type="button">Save IP CAM 2</button><button id="ipcam-clear-2" type="button">Clear IP CAM 2</button></div>
-        </div>
         <p id="route-summary" class="route-summary" hidden></p>
         <label class="rf-only">Frequency (MHz)<input id="freqoutput" type="number" step="0.001" required></label>
         <label class="rf-only">Symbol rate (ksym/s)<input id="symbolrate" type="number" step="1" required></label>
@@ -91,9 +81,31 @@
         <div id="presets"></div>
       </div>
     </section>
+    <section class="ipcam-section">
+      <details id="ipcam-details" open>
+      <summary>IP CAM input encoders</summary>
+      <p>Configure either RTSP camera independently. Saved URLs stay private; each configured camera has a 320×240 preview or a waiting card. Select IP CAM 1/2 as a direct source or a multiview tile for output.</p>
+      <div class="ipcam-grid">
+        <article class="ipcam-card">
+          <h3>IP CAM 1</h3>
+          <div class="preview"><img id="ipcam-live-1" alt="Live IP CAM 1 preview"><img id="ipcam-placeholder-1" class="placeholder" src="/no-ipcam1-input.jpg" alt="NO IP CAM 1 INPUT test pattern"></div>
+          <p id="ipcam-status-1" class="status" role="status">IP CAM 1 not configured</p>
+          <label>RTSP URL<input id="ipcam-url-1" type="text" inputmode="url" placeholder="rtsp://user:password@host:554/path" autocomplete="off" spellcheck="false"></label>
+          <div class="multiview-actions"><button id="ipcam-save-1" type="button">Save IP CAM 1</button><button id="ipcam-clear-1" type="button">Clear IP CAM 1</button></div>
+        </article>
+        <article class="ipcam-card">
+          <h3>IP CAM 2</h3>
+          <div class="preview"><img id="ipcam-live-2" alt="Live IP CAM 2 preview"><img id="ipcam-placeholder-2" class="placeholder" src="/no-ipcam2-input.jpg" alt="NO IP CAM 2 INPUT test pattern"></div>
+          <p id="ipcam-status-2" class="status" role="status">IP CAM 2 not configured</p>
+          <label>RTSP URL<input id="ipcam-url-2" type="text" inputmode="url" placeholder="rtsp://user:password@host:554/path" autocomplete="off" spellcheck="false"></label>
+          <div class="multiview-actions"><button id="ipcam-save-2" type="button">Save IP CAM 2</button><button id="ipcam-clear-2" type="button">Clear IP CAM 2</button></div>
+        </article>
+      </div>
+      </details>
+    </section>
     <section class="srt-section">
       <details id="srt-details" open>
-      <summary>Five optional SRT input encoders</summary>
+      <summary>SRT input encoders</summary>
       <p>Enable each listener independently. Its TS output contains live input only; waiting cards appear in previews and the separate multiview monitor output. These slots do not key RF.</p>
       <div id="srt-slots" class="srt-grid"></div>
       </details>

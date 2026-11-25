@@ -28,6 +28,31 @@ let last_status = '';
 let logs = [];
 let log_subscription = null;
 
+function valid_ipv4(host) {
+  if (!match(host ?? '', /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) return false;
+  let octets = split(host, '.');
+  if (length(octets) != 4) return false;
+  for (let octet in octets)
+    if (+octet > 255 || length(octet) > 3) return false;
+  return host != '0.0.0.0' && !match(host, /^127\./);
+}
+
+function advertised_srt_host() {
+  let configured = getenv('PORTSDOWN_SRT_ADVERTISE_HOST');
+  if (configured) {
+    if (!valid_ipv4(configured)) die('PORTSDOWN_SRT_ADVERTISE_HOST must be a non-loopback IPv4 address');
+    return configured;
+  }
+  let proc = fs.popen(['hostname', '-I'], 'r');
+  if (!proc) return null;
+  let addresses = proc.read(1024) ?? '';
+  proc.close();
+  for (let address in split(trim(addresses), ' '))
+    if (valid_ipv4(address)) return address;
+  return null;
+}
+const srt_advertise_host = advertised_srt_host();
+
 function srt_state(status) {
   let slots = [];
   let base = +(getenv('PORTSDOWN_SRT_PORT_BASE') ?? '9101');
@@ -36,7 +61,9 @@ function srt_state(status) {
     let enabled = index(status ?? '', `srt${slot}=running`) >= 0;
     let preview = video.stats(slot);
     push(slots, { slot: slot, enabled: enabled, live: enabled && preview.producer,
-      srt_port: base + slot - 1, ts_port: ts_base + slot - 1, preview: preview });
+      srt_port: base + slot - 1, ts_port: ts_base + slot - 1,
+      caller_url: srt_advertise_host ? `srt://${srt_advertise_host}:${base + slot - 1}?mode=caller&latency=200000` : null,
+      preview: preview });
   }
   return slots;
 }
@@ -66,8 +93,8 @@ function sync_sources(cfg, status) {
   let cameras = ipcam.load(ipcampath);
   for (let source, slot in local_sources) {
     let role = source == 'CAMH264' ? 'PICAM' : source == 'IPTSIN' ? 'IPTS' : source;
-    let wanted = wants_source(cfg, source) &&
-      (source != 'IPCAM1' && source != 'IPCAM2' || !!cameras[substr(source, -1)]);
+    let is_ipcam = source == 'IPCAM1' || source == 'IPCAM2';
+    let wanted = is_ipcam ? !!cameras[substr(source, -1)] : wants_source(cfg, source);
     let key = source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : lc(source);
     let running = index(status ?? '', `${key}=running`) >= 0;
     if (!wanted || !can_run) {
@@ -457,8 +484,10 @@ uloop.timer(200, function() {
       cfg?.modeinput == 'SRT' && (cfg.srt_source_slot ?? '1') == '' + slot.slot;
     video.tick(slot.slot, slot.enabled || selected);
   }
+  let cameras = ipcam.load(ipcampath);
   for (let source, slot in local_sources)
-    video.tick(slot, wants_source(cfg, source));
+    video.tick(slot, source == 'IPCAM1' || source == 'IPCAM2' ?
+      !!cameras[substr(source, -1)] : wants_source(cfg, source));
   this.set(200);
 });
 
