@@ -12,7 +12,7 @@ fi
 if [[ $(getconf LONG_BIT) != 64 ]]; then
     echo 'NOTE: 32-bit userspace remains experimental; a 64-bit kernel alone does not make this a 64-bit install.'
 fi
-for tool in git cmake make cc pkg-config ffmpeg ffprobe flock; do
+for tool in git cmake make cc pkg-config ffmpeg ffprobe flock curl; do
     command -v "$tool" >/dev/null || missing "$tool"
 done
 if command -v pkg-config >/dev/null; then

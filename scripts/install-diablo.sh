@@ -52,7 +52,7 @@ if ((packages)); then
         *) echo 'Install build dependencies manually, then use --skip-system-packages.' >&2; exit 2;;
     esac
     sudo apt-get update
-    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev git ca-certificates ffmpeg util-linux v4l-utils alsa-utils
+    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev git ca-certificates curl ffmpeg util-linux v4l-utils alsa-utils
 fi
 bash "$repo/scripts/check-diablo-host.sh"
 
@@ -136,5 +136,6 @@ printf '\nInstalled. Start manually: %q\n' "$prefix/bin/diablo-studio"
 } > "$prefix/logs/installed-version.txt"
 echo 'Start the launcher for its configured browser URL. Stop with Ctrl+C.'
 echo "First-start guide: $repo/doc/FIRST_START.md"
+printf 'Guided configuration: bash %q --configure-only --prefix %q\n' "$repo/scripts/first-start.sh" "$prefix"
 echo 'Enter your CALLSIGN and service name in the GUI before generating TS.'
 echo 'No service enabled, driver installed, ASI playout started, or RF keyed.'

@@ -4,6 +4,89 @@ This guide gets the **web GUI, source preview and a software TS test** running.
 It does not configure an RF transmitter or automatically play ASI. Start with one
 source; add the other inputs only after that source is stable.
 
+## Automated setup — recommended
+
+Once you have Linux, a normal user with sudo access, and this repository cloned:
+
+```sh
+cd Diablo-DATV-Studio
+bash scripts/first-start.sh
+```
+
+This single guided command:
+
+1. Runs the installer and dependency checks (no Python/Node runtime needed).
+2. Prompts for **CALLSIGN**, **service name**, initial direct source and web port.
+3. Configures the selected SRT slot/LAN address, USB HDMI capture format/audio,
+   Pi Camera index, or UDP IPTS port/scope. IP CAM selection is supported; enter
+   its private RTSP URL later in the GUI, not in command-line history.
+4. Offers targeted device-group grants. Existing credentials and unrelated
+   settings are retained, with private backups before changing config/env.
+5. Runs a short real GUI/API startup/shutdown check and confirms TX, RX and
+   output TS are idle. If opted in, it checks the selected SRT listener process.
+6. Prints the actual local browser URL, SSH tunnel command and SRT caller URL,
+   then offers to keep the GUI running in the foreground.
+
+Choose **yes** at the SRT listener question to receive video automatically when
+Diablo is launched. This starts only the selected listener, not RF/ASI or output
+TS. It applies only in STANDALONE with that matching Direct SRT source selected.
+Disabling it in the GUI lasts until the next launch; use `--disable-srt` in setup
+to remove the launch-time behavior. No service is enabled at boot.
+
+If a web port is already occupied (for example TANK's existing port 8080 service),
+choose another unused port such as **18880**. Do not reuse the preview ports.
+The startup check fails with a log path instead of stopping the other service.
+
+### Unattended setup
+
+Replace `N0CALL`, the service name and address with your own values:
+
+```sh
+bash scripts/first-start.sh --non-interactive \
+  --callsign N0CALL --service-name "My DATV station" \
+  --source SRT --srt-slot 1 --enable-srt \
+  --advertise-ip 192.168.3.33 --http-port 18880 --start
+```
+
+Without `--start`, unattended setup verifies startup, stops its instance and
+returns. `--start` stays in the foreground; Ctrl+C stops it. For an installed
+runtime, add `--configure-only`; `--skip-system-packages` only skips the installer's
+apt step. Repeated runs retain saved values unless overridden; an explicit source
+selection changes the layout to Direct. Stop the running GUI before rerunning.
+Existing armed or MASTER/SLAVE installs are deliberately left unchanged: use their
+normal GUI/config workflow rather than resetting them through first-start.
+
+Example USB capture setup (use the actual video/audio nodes):
+
+```sh
+bash scripts/first-start.sh --configure-only --non-interactive \
+  --callsign N0CALL --service-name "HDMI test" \
+  --source HDMI --video-device /dev/video0 --input-format mjpeg \
+  --audio-device hw:1,0 --device-groups video,audio --start
+```
+
+**Host changes are opt-in:** `--enable-ssh` installs and enables OpenSSH without
+changing its authentication policy; `--device-groups video,audio,render` grants
+only those named device groups; `--pi-camera-packages` selects an available distro
+rpicam package only on a detected Raspberry Pi. These use sudo. Log out/back in
+after group changes. Firewall rules, GPU/DekTec drivers, OS images, reboot and
+boot-autostart are not changed. Use `--help` for all options.
+
+Backups: `<prefix>/backups/first-start-*/`. Check logs:
+`<prefix>/logs/first-start-*.log`. Restore config/env from the same backup while
+stopped if needed; host package/group/SSH changes are separate and are not undone
+by restoring those files. The default prefix is
+`~/.local/share/diablo-datv-studio`.
+
+**The automated check verifies the control application and listener process, not
+live video, audio, RF or physical ASI.** Complete the source-arrival/loss and
+software TS checks below with your actual sender/device. `--no-verify` skips the
+startup check; it does not mean the installation has passed.
+
+[Recorded two-host setup tests](testing/first-start-2026-11-25.md).
+
+## Manual steps / what setup automates
+
 ## 1. Choose the OS and prepare access
 
 - **Raspberry Pi:** use a 64-bit Raspberry Pi OS Trixie installation. Lite is

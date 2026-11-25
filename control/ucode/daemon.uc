@@ -21,6 +21,8 @@ const port = +(getenv('PORTSDOWN_HTTP_PORT') ?? '8080');
 const extra_host = getenv('PORTSDOWN_ALLOWED_HOST');
 const peer_role = getenv('PORTSDOWN_PEER_ROLE') ?? 'STANDALONE';
 if (port < 1024 || port > 65535) die('Invalid PORTSDOWN_HTTP_PORT');
+const start_srt_slot = getenv('PORTSDOWN_START_SRT_SLOT') ?? '0';
+if (!match(start_srt_slot, /^[0-5]$/)) die('Invalid PORTSDOWN_START_SRT_SLOT');
 
 let sessions = [];
 let event_id = 0;
@@ -519,6 +521,18 @@ uloop.timer(200, function() {
 });
 
 uloop.timer(15000, function() { emit('heartbeat', { alive: true }); this.set(15000); });
+
+/* Explicit first-start opt-in: a listener only, never TX or TS output. Apply
+ * once per process start; a GUI Disable remains disabled for this session. */
+if (start_srt_slot != '0' && peer_role == 'STANDALONE') {
+  let cfg = config.load(cfgpath);
+  if ((cfg?.source_layout ?? 'DIRECT') == 'DIRECT' && cfg?.modeinput == 'SRT' &&
+      (cfg?.srt_source_slot ?? '1') == start_srt_slot) {
+    let result = super.request(sockpath, `START_SRT${start_srt_slot}`);
+    printf('Initial SRT listener %s: %s\n', start_srt_slot,
+      result.ok ? 'started' : (result.message ?? 'failed'));
+  }
+}
 
 printf('portsdown-ucd listening on 127.0.0.1:%d\n', port);
 uloop.run();

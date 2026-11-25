@@ -149,7 +149,10 @@ processes. **Reverse-role testing is cleared**, not the complete D-06 issue.
 passed fresh user-local bootstrap, API/config/stop, active-update exclusion,
 read-only feature checks and settings-preserving reruns on Pi 4 ARM64 Trixie and
 VideoLP3D x86-64 Mint. Core OS dependencies were already installed; this is not a
-fresh OS-image or non-Pi ARM64 hardware qualification.
+fresh OS-image or non-Pi ARM64 hardware qualification. The subsequent
+[automated first-start workflow](testing/first-start-2026-11-25.md) also passed on
+both hosts, including selected SRT listener startup, validated station/source
+configuration, backups and GUI/API/stop checks.
 
 **Remaining scope:** fresh armhf Pi image, full arm64 platform checks,
 network delay/loss/endurance, service-account/device
@@ -161,7 +164,10 @@ Authenticate replacement connections before displacing an active peer.
 
 **Done when:** recorded fresh installs and real-network dead-man's-switch tests
 pass without disturbing existing applications. Clean-checkout software tests are
-not a full OS-image qualification. SRT enable state is currently runtime-only.
+not a full OS-image qualification. SRT enable state is normally runtime-only;
+the first-start wizard now offers an explicit selected-listener-on-launch option
+(`PORTSDOWN_START_SRT_SLOT`), restricted to the matching standalone Direct SRT
+source. It never starts output TS or TX.
 
 ### D-07 — Receiver and remaining legacy operations
 

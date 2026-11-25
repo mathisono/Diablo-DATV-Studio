@@ -1,6 +1,8 @@
 # Installing Diablo DATV Studio
 
-Start with the [first-start walkthrough](FIRST_START.md) for a new machine.
+For a new machine, run `bash scripts/first-start.sh`: it wraps this installer,
+guides station/source setup and verifies GUI startup. See the
+[first-start walkthrough](FIRST_START.md) for automated and manual options.
 
 ## Scope
 
@@ -32,7 +34,7 @@ cd Diablo-DATV-Studio
 bash scripts/install-diablo.sh
 ```
 
-The script installs distribution build tools, FFmpeg, JSON-C headers and V4L2/ALSA diagnostics; builds
+The script installs distribution build tools, FFmpeg, curl, JSON-C headers and V4L2/ALSA diagnostics; builds
 pinned libubox and ucode with fs/socket/uloop; builds the C supervisor/config
 writer; creates private initial configuration; and installs a foreground launcher.
 It does not change apt sources, upgrade the OS/kernel, reboot, alter Secure Boot,

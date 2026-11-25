@@ -48,15 +48,17 @@ sudo apt-get update
 sudo apt-get install -y git
 git clone --branch Trixie https://github.com/mathisono/Diablo-DATV-Studio.git
 cd Diablo-DATV-Studio
-bash scripts/install-diablo.sh
-"$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
+bash scripts/first-start.sh
 ```
 
-The installer uses sudo only for build packages, builds pinned ucode/libubox
-locally, and leaves services and hardware outputs off. Open
+The setup wizard installs the pinned runtime, asks for station/source settings,
+checks GUI startup and shutdown, and offers foreground launch. Device permissions,
+SSH enablement and Pi camera packages are explicit options; hardware outputs stay
+off. Choose listener-on-start if you want the selected SRT input ready at launch.
+Open
 **http://127.0.0.1:8080/** on that machine, or use an SSH tunnel as described in
-[INSTALL.md](doc/INSTALL.md). Enter your **CALLSIGN** and **service name** before
-starting TS generation. Stop the foreground application with **Ctrl+C**.
+[INSTALL.md](doc/INSTALL.md). The wizard saves your **CALLSIGN** and **service name** using the same validation
+as the GUI. Stop the foreground application with **Ctrl+C**.
 
 Keep the checkout in place: the installed launcher uses it. Updating is an
 explicit `git pull --ff-only` on **Trixie**, followed by rerunning the installer;
