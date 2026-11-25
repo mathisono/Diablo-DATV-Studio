@@ -24,7 +24,8 @@ Run this in Terminal **on the Linux computer running Diablo**:
 ```
 
 Leave it running and open the browser address from setup, normally
-**http://127.0.0.1:8080/**. From another computer, use the SSH tunnel described in
+**https://YOUR_LINUX_IP:8443/**. Sign in with the shared password you chose during
+setup; no SSH tunnel is needed. See
 [First start, step 4](FIRST_START.md#4-open-the-web-page).
 
 To stop: return to the Diablo terminal and press **Ctrl+C**. Settings are saved.
@@ -46,6 +47,9 @@ backup="$HOME/diablo-backup-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$backup" &&
 cp -a "$HOME/.local/share/diablo-datv-studio/state" \
       "$HOME/.local/share/diablo-datv-studio/diablo.env" "$backup/" &&
+if [ -d "$HOME/.local/share/diablo-datv-studio/security" ]; then
+  cp -a "$HOME/.local/share/diablo-datv-studio/security" "$backup/"
+fi &&
 git -C "$HOME/Diablo-DATV-Studio" rev-parse HEAD > "$backup/source-commit.txt" &&
 echo "Backup saved in $backup"
 ```
@@ -69,7 +73,17 @@ put `sudo` before `bash scripts/install-diablo.sh`.
 If Git reports local changes, conflicts or “cannot fast-forward,” **stop and ask
 for help**. Do not delete files or use a force/reset command to get past it.
 
-**4. Start Diablo** using the Everyday start command above. Run the
+**4. Enable protected LAN access if upgrading an older installation.** While
+Diablo is stopped, run:
+
+```sh
+bash scripts/setup-access.sh
+```
+
+Choose the role and a shared password. Existing protected installs may skip this;
+updates preserve their password and certificate. See [password/peer setup](LAN_ACCESS.md).
+
+**5. Start Diablo** using the Everyday start command above. Run the
 [first-picture test](FIRST_START.md#5-show-a-test-picture--no-extra-hardware)
 again if you still use SRT input 1. Other source users should check their saved
 source, its preview and stop behavior.
@@ -106,7 +120,7 @@ setup instead. `--configure-only` is for a successfully installed runtime.
 
 ## SSH help
 
-Only needed when the browser/keyboard is on another computer. On a new Pi, use
+Only needed for remote Linux installation/maintenance, not browser access. On a new Pi, use
 Raspberry Pi Imager's SSH option. On an already running supported Linux machine,
 open a terminal **on that machine** and run:
 
@@ -119,7 +133,7 @@ hostname -I
 
 The last line shows network addresses. Use that machine's LAN address and Linux
 username to connect. Do not forward router ports or expose it to the Internet
-for this test. Once connected, follow the tunnel command printed by first-start.
+for this test. Browser access uses the printed HTTPS address directly.
 
 ## More help, only when needed
 

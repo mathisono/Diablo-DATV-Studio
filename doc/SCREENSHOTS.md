@@ -11,6 +11,7 @@ documentation-only address. Random test ports are not the installation defaults.
 
 | Screenshot | What it demonstrates | Use in docs |
 | --- | --- | --- |
+| [Shared-password sign-in](#shared-password-sign-in) | Real HTTPS login screen; password field empty | First start / LAN access |
 | [Direct SRT](#direct-srt-and-five-input-encoders) | Selected SRT slot, preview in TX column, waiting cards, caller links | README / first SRT setup |
 | [ASI settings](#asi-output-and-metadata-flag) | ASI bitrate/device/channel, advisory metadata mismatch | ASI guide |
 | [Elgato HDMI](#elgato-hdmi-configuration) | V4L2/ALSA controls, low-resolution preview | Capture setup |
@@ -19,6 +20,16 @@ documentation-only address. Random test ports are not the installation defaults.
 | [Peer control](#two-host-peer-control-and-link-loss) | Real two-host MASTER/SLAVE, IPTS/SRT-only SLAVE, locked controls, heartbeat loss/disconnect | Peer control guide |
 | [Real Pi Camera / SRT](#real-pi-camera-to-srt-and-peer-control) | Real IMX708 source, standalone live/loss, MASTER/SLAVE previews and E-Stop acknowledgement | README / Pi setup |
 | [Mobile](#mobile-layout) | Single-column responsive controls at 390 px viewport | UI/device support |
+
+## Shared-password sign-in
+
+![Diablo shared-password sign-in over HTTPS](images/diablo-login.png)
+
+Real Chromium capture of an isolated HTTPS fixture, 2026-11-25. The password field
+is empty. Browser sign-in, protected dashboard access, HttpOnly cookies and
+Sign out were exercised; no hardware or personal password was used. This is the
+new LAN entry screen; older dashboard captures below predate the Sign out button.
+See [LAN setup](LAN_ACCESS.md).
 
 ## Real Pi Camera to SRT and peer control
 

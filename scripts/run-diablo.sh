@@ -15,19 +15,33 @@ mkdir -p "$PORTSDOWN_RUN_DIR"
 }
 exec 9>"$PORTSDOWN_RUN_DIR/launcher.lock"
 flock -n 9 || { echo 'Diablo DATV Studio is already running.' >&2; exit 2; }
-super_pid= daemon_pid=
+super_pid= daemon_pid= tls_pid=
 cleanup() {
     trap - EXIT INT TERM HUP
-    for child in "$daemon_pid" "$super_pid"; do
+    for child in "$tls_pid" "$daemon_pid" "$super_pid"; do
         [[ -z $child ]] || kill -TERM "$child" 2>/dev/null || true
     done
-    for child in "$daemon_pid" "$super_pid"; do
+    for child in "$tls_pid" "$daemon_pid" "$super_pid"; do
         [[ -z $child ]] || wait "$child" 2>/dev/null || true
     done
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
+if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+    stunnel=${PORTSDOWN_STUNNEL:-$(command -v stunnel4 || command -v stunnel || true)}
+    [[ -x $stunnel ]] || { echo 'Install stunnel4 for protected LAN access.' >&2; exit 2; }
+    export PORTSDOWN_PEER_TOKEN=$("$PORTSDOWN_DIR/control/auth-store" peer-key "$PORTSDOWN_AUTH_FILE")
+    [[ $PORTSDOWN_PEER_TOKEN =~ ^[0-9a-f]{64}$ ]] || exit 2
+    # Plain control stays on loopback; TLS authenticates before reaching SLAVE.
+    export PORTSDOWN_PEER_BIND=127.0.0.1
+    if [[ ${PORTSDOWN_PEER_ROLE:-STANDALONE} == MASTER ]]; then
+        export PORTSDOWN_PEER_HOST=127.0.0.1 PORTSDOWN_PEER_PORT=18182
+    else
+        export PORTSDOWN_PEER_PORT=18181
+    fi
+    bash "$PORTSDOWN_DIR/scripts/tls-config.sh" > "$PORTSDOWN_RUN_DIR/stunnel.conf"
+fi
 "$PORTSDOWN_DIR/control/tx-super" 9>&- & super_pid=$!
 for ((attempt=0; attempt<100; attempt++)); do
     kill -0 "$super_pid" 2>/dev/null || { wait "$super_pid"; exit 1; }
@@ -37,5 +51,11 @@ done
 [[ -S $PORTSDOWN_TX_SOCKET ]] || { echo 'Supervisor did not create its socket.' >&2; exit 1; }
 "$DIABLO_RUNTIME/bin/ucode" -L "$DIABLO_RUNTIME/lib/ucode" \
     -L "$PORTSDOWN_DIR/control/ucode" "$PORTSDOWN_DIR/control/ucode/daemon.uc" 9>&- & daemon_pid=$!
-echo "Diablo DATV Studio: http://127.0.0.1:${PORTSDOWN_HTTP_PORT:-8080}/ (Ctrl+C to stop)"
-wait -n "$super_pid" "$daemon_pid"
+if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+    "$stunnel" "$PORTSDOWN_RUN_DIR/stunnel.conf" 9>&- & tls_pid=$!
+    echo "Diablo DATV Studio: https://${PORTSDOWN_TLS_HOST}:${PORTSDOWN_HTTPS_PORT:-8443}/ (shared password; Ctrl+C to stop)"
+    wait -n "$super_pid" "$daemon_pid" "$tls_pid"
+else
+    echo "Diablo DATV Studio: http://127.0.0.1:${PORTSDOWN_HTTP_PORT:-8080}/ (local-only; run setup-access.sh for LAN login)"
+    wait -n "$super_pid" "$daemon_pid"
+fi

@@ -86,6 +86,36 @@ def worker():
                    PORTSDOWN_SOURCE_MJPEG_PORT_BASE='28220',
                    PORTSDOWN_SRT_PORT_BASE='28300', PORTSDOWN_SRT_TS_PORT_BASE='28400',
                    LD_LIBRARY_PATH=str(runtime/'lib'))
+        secure = bool(spec.get('secure'))
+        tls_config = None
+        api_port = spec['http_port']
+        if secure:
+            # Exercise the real password setup and stunnel config generator.
+            (root/'run').mkdir(exist_ok=True)
+            env['DIABLO_RUNTIME'] = str(runtime)
+            envfile = root/'diablo.env'
+            envfile.write_text(''.join('export '+k+'='+shlex.quote(v)+'\n' for k,v in env.items()
+                                      if k.startswith(('PORTSDOWN_', 'DIABLO_'))))
+            envfile.chmod(0o600)
+            password = root/'password-input'; password.write_text(spec['password']); password.chmod(0o600)
+            subprocess.run(['bash',str(repo/'scripts/setup-access.sh'),'--prefix',str(root),
+                            '--password-file',str(password),'--host',spec['bind'],
+                            '--role',spec['role'],'--peer-host',spec['host'],
+                            '--https-port',str(spec['https_port']),'--non-interactive'],
+                           check=True,stdout=subprocess.DEVNULL)
+            password.unlink()
+            loaded = subprocess.check_output(['bash','-c','source "$1"; env -0','_',str(envfile)])
+            env.update(item.decode().split('=',1) for item in loaded.split(b'\0') if item.startswith(b'PORTSDOWN_'))
+            env['PORTSDOWN_PEER_TOKEN'] = subprocess.check_output([str(repo/'control/auth-store'),'peer-key',env['PORTSDOWN_AUTH_FILE']],text=True).strip()
+            env['PORTSDOWN_PEER_BIND'] = '127.0.0.1'
+            env['PORTSDOWN_PEER_HOST'] = '127.0.0.1'
+            env['PORTSDOWN_PEER_PORT'] = '18182' if spec['role']=='MASTER' else '18181'
+            env['PORTSDOWN_PEER_TLS_PORT'] = str(spec['peer_port'])
+            api_port = spec['http_port']+2
+            env['PORTSDOWN_INTERNAL_HTTP_PORT'] = str(api_port)
+            tls_config = root/'stunnel.conf'
+            tls_config.write_bytes(subprocess.check_output(['bash',str(repo/'scripts/tls-config.sh')],env=env))
+            tls_config.chmod(0o600)
         logs = open(root/'process.log', 'w+')
         def spawn(args):
             p = subprocess.Popen(args, env=env, stdout=logs, stderr=logs)
@@ -100,14 +130,15 @@ def worker():
             supervisor = spawn([str(repo/'control/tx-super')])
             until(lambda: (root/'run/tx.sock').exists())
             control_process = daemon()
-            until(lambda: api(spec['http_port'])['code'] == 200)
+            if secure: tls_process = spawn([spec['stunnel'],str(tls_config)])
+            until(lambda: api(api_port)['code'] == 200)
             emit({'ready': True, 'hostname': socket.gethostname(), 'arch': os.uname().machine,
                   'commit': subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()})
             for line in sys.stdin:
                 req = json.loads(line)
                 cmd = req['cmd']
                 if cmd == 'api':
-                    emit(api(spec['http_port'], req.get('path', '/api/state'), req.get('method', 'GET'), req.get('body')))
+                    emit(api(api_port, req.get('path', '/api/state'), req.get('method', 'GET'), req.get('body')))
                 elif cmd == 'freeze':
                     control_process.send_signal(signal.SIGSTOP); emit({'ok': True})
                 elif cmd == 'resume':
@@ -116,7 +147,7 @@ def worker():
                     control_process.terminate(); control_process.wait(timeout=4); emit({'ok': True})
                 elif cmd == 'reconnect':
                     control_process = daemon()
-                    until(lambda: api(spec['http_port'])['code'] == 200)
+                    until(lambda: api(api_port)['code'] == 200)
                     emit({'ok': True})
                 elif cmd == 'exit_tx':
                     os.kill(int((root/'mock.pid').read_text()), signal.SIGTERM)
@@ -152,6 +183,10 @@ def worker():
                     probe = subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format',
                                                      '-of','json',str(root/'received.ts')],text=True)
                     emit({'exit_code':media.returncode,'probe':json.loads(probe)})
+                elif cmd == 'certificate':
+                    emit({'pem':Path(env['PORTSDOWN_TLS_CERT']).read_text()})
+                elif cmd == 'drop_tls':
+                    tls_process.terminate(); tls_process.wait(timeout=4); emit({'ok':True})
                 elif cmd == 'evidence':
                     logs.flush()
                     emit({'off_count': len((root/'off.log').read_text().splitlines()),

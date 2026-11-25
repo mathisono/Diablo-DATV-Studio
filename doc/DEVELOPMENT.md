@@ -90,3 +90,23 @@ Do not put private RTSP URLs in fixtures or committed shell commands.
 
 See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for defined completion criteria rather
 than leaving old “next step” prose as an ambiguous task list.
+
+## LAN authentication and peer transport
+
+The recommended deployment uses `scripts/setup-access.sh` (also called by
+first-start), OpenSSL's `control/auth-store` and user-local stunnel configuration.
+Browser HTTP and peer NDJSON stay loopback-only behind HTTPS and peer TLS-PSK.
+`control/ucode/auth.uc` owns expiring sessions; its single bounded password worker
+must not block uloop's peer timers. Raw loopback harnesses are retained for
+hardware-free regression compatibility, not LAN deployment.
+
+`tests/test_access.py` exercises real TLS, unauthenticated denial, cookies,
+CSRF/Origin checks, logout, expiry and secure first-start. Set
+`DIABLO_TEST_RUNTIME` to the installed native runtime and optionally
+`PORTSDOWN_STUNNEL` to a private stunnel4 binary. The opt-in
+`scripts/dev/test-access-two-host.py --help` harness checks HTTPS on both hosts,
+TLS-PSK pairing, wrong-password rejection, controller ownership, login during
+mock TX, E-Stop telemetry and loss stops. It never starts physical output.
+`capture-login.py` records the actual empty login page and browser sign-in/out.
+
+[Access boundaries](LAN_ACCESS.md) · [recorded tests](testing/shared-password-2026-11-25.md)

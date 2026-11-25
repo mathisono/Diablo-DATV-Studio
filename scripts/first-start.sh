@@ -6,6 +6,7 @@ prefix=${DIABLO_PREFIX:-"$HOME/.local/share/diablo-datv-studio"}
 source_selected=0
 interactive=1 configure_only=0 packages=1 start=0 verify=1 ssh_enable=0 pi_packages=0
 call= service= source= slot= device= input_format= advertise= groups= http_port= audio_device= picam_index= ipts_port= ipts_scope=
+password_file= local_only=0
 enable_srt=keep
 usage() {
 cat <<'HELP'
@@ -28,6 +29,8 @@ Default: install, prompt for initial settings, verify GUI, offer foreground star
   --enable-ssh                Install openssh-server and enable/start ssh; no auth edits
   --pi-camera-packages        Install distro rpicam package on a detected Raspberry Pi
   --start                    Continue into foreground GUI after setup
+  --password-file PATH        Mode-600 file for unattended shared-password setup
+  --local-only                Development only: retain loopback access without LAN TLS
   --no-verify                Skip bounded GUI startup/API/shutdown check
 No RF/ASI/TS start, firewall edits, reboot, lingering or boot autostart.
 HELP
@@ -56,6 +59,8 @@ while (($#)); do
         --enable-ssh) ssh_enable=1; shift;;
         --pi-camera-packages) pi_packages=1; shift;;
         --start) start=1; shift;;
+        --password-file) password_file=${2:?}; shift 2;;
+        --local-only) local_only=1; shift;;
         --no-verify) verify=0; shift;;
         --help|-h) usage; exit 0;;
         *) usage >&2; exit 2;;
@@ -202,11 +207,17 @@ cp -p "$PORTSDOWN_CONFIG" "$backup/portsdown_config.txt"
     esac
     printf '# END DIABLO FIRST START\n'
 } | "$repo/control/config-store" "$prefix/diablo.env"
+if ((!local_only)); then
+    access_args=(--prefix "$prefix" --first-start-managed --role STANDALONE --host "$advertise")
+    ((interactive)) || access_args+=(--non-interactive)
+    [[ -z $password_file ]] || access_args+=(--password-file "$password_file")
+    bash "$repo/scripts/setup-access.sh" "${access_args[@]}"
+fi
 # Release both locks before the bounded verification or foreground launch.
 flock -u 8; exec 8>&-
 flock -u 9; exec 9>&-
 source "$prefix/diablo.env"
-port=${PORTSDOWN_HTTP_PORT:-8080}
+port=${PORTSDOWN_INTERNAL_HTTP_PORT:-${PORTSDOWN_HTTP_PORT:-8080}}
 if ((verify)); then
     command -v curl >/dev/null || fail 'Verification requires curl; install curl or use --no-verify.'
     log="$prefix/logs/first-start-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
@@ -240,16 +251,26 @@ if ((verify)); then
               index(status, `srt${slot}=running`) < 0)
             die("Configured SRT listener did not start\n");'
     fi
+    if ((ready)) && [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+        # Exercise the public TLS front door, not only the internal helper API.
+        code=$(curl --noproxy '*' --cacert "$PORTSDOWN_TLS_CERT" -sS --max-time 3 \
+            -o /dev/null -w '%{http_code}' "https://127.0.0.1:${PORTSDOWN_HTTPS_PORT:-8443}/api/state") || ready=0
+        [[ $code == 401 ]] || ready=0
+    fi
     cleanup; child=
     trap - EXIT INT TERM HUP
     ((ready)) || fail "GUI startup check failed; see $log"
     echo 'GUI startup/API/shutdown check passed; no TS/ASI/RF output started.'
 fi
-printf 'Settings saved; private backup: %s\nBrowser: http://127.0.0.1:%s/\n' "$backup" "$port"
-printf 'Remote browser: ssh -N -L %s:127.0.0.1:%s %s@%s\n' "$port" "$port" "$(id -un)" "${advertise:-$(hostname)}"
+printf 'Settings saved; private backup: %s\n' "$backup"
+if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+    printf 'Browser: https://%s:%s/ (use your shared password; no SSH tunnel)\n' "$PORTSDOWN_TLS_HOST" "${PORTSDOWN_HTTPS_PORT:-8443}"
+else
+    printf 'Browser: http://127.0.0.1:%s/ (local-only development)\n' "$port"
+fi
 if [[ $source == SRT ]]; then
     printf 'SRT caller: srt://%s:%s?mode=caller&latency=200000\n' "${advertise:-ENCODER_LAN_IP}" "$(( ${PORTSDOWN_SRT_PORT_BASE:-9101} + slot - 1 ))"
-    echo 'Send MPEG-TS; UDP access must be allowed from the intended sender. The SSH tunnel carries the GUI only.'
+    echo 'Send MPEG-TS; UDP access must be allowed from the intended sender. The HTTPS browser connection does not carry this video stream.'
 fi
 [[ $source != IPCAM* ]] || echo 'Save the private RTSP URL in IP CAM input encoders, then Restart; never pass camera passwords on this command line.'
 if ((interactive && !start)); then

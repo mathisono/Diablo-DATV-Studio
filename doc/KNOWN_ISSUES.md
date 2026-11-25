@@ -9,7 +9,7 @@ card output and receiver/RF acceptance.
 
 | Capability | Current evidence | Limit |
 | --- | --- | --- |
-| Persistent C/ucode web control | Native x86-64 and AArch64 C/ucode runtimes; both peer roles tested | Linux only; loopback HTTP needs tunnel/authenticated TLS proxy |
+| Persistent C/ucode web control | Native x86-64 and AArch64 C/ucode runtimes; both peer roles tested | Linux only; shared-password HTTPS/TLS-PSK LAN access; local OS accounts remain trusted |
 | Five SRT source encoders | Synthetic callers; real IMX708 720p24 camera into slot 1, arrival/loss/recovery | Five-way hardware CPU/thermal endurance and actual ATEM pending |
 | Direct SRT local TS | Selected-slot live relay tests | No headless RF/ASI connection yet |
 | Two IP CAM configurations | Private URL handling and restart tests; one real camera previously checked | Two physical cameras together not tested |
@@ -23,6 +23,16 @@ card output and receiver/RF acceptance.
 | Service metadata | GUI validation, TS generation, best-effort ASI svrename | Legacy passthrough may retain input tags; mismatch never blocks ASI |
 | Intel QSV | CQP H.264 and finite 720p TS work | Tested CBR/VBR/ICQ rejected; CQP can exceed TS budget |
 | DVB-S2X | No implementation found | Not advertised or selectable |
+
+## Shared-password LAN access
+
+The install wizard now sets a shared password for direct HTTPS GUI access and
+Master/Slave TLS control, with no SSH tunnel. See [LAN setup](LAN_ACCESS.md) and
+[bounded two-host acceptance](testing/shared-password-2026-11-25.md). This closes
+the missing built-in LAN-login requirement, not all D-06 platform or physical
+output acceptance. SRT/UDP media security is separate; shared-password access
+has no per-user permissions, and optional cross-host preview cookies may require
+opening the Slave GUI directly. No independent penetration test is claimed.
 
 ## Closed during migration
 

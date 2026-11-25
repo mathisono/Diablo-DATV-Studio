@@ -5,7 +5,7 @@ set -euo pipefail
 dir=${PORTSDOWN_DIR:-$(cd "$(dirname "$0")/.." && pwd)}
 config=${PORTSDOWN_CONFIG:-$dir/scripts/portsdown_config.txt}
 ffmpeg=${PORTSDOWN_FFMPEG:-ffmpeg}
-http_port=${PORTSDOWN_HTTP_PORT:-8080}
+http_port=${PORTSDOWN_INTERNAL_HTTP_PORT:-${PORTSDOWN_HTTP_PORT:-8080}}
 output=${PORTSDOWN_SOURCE_TS_URL:-udp://127.0.0.1:12010?pkt_size=1316}
 duration=${PORTSDOWN_SOURCE_TS_DURATION:-}
 if [[ -n $duration && ! $duration =~ ^[1-9][0-9]{0,3}$ ]]; then

@@ -7,9 +7,10 @@ import * as video from 'video';
 import * as peerctl from 'peer';
 import * as presets from 'presets';
 import * as ipcam from 'ipcam';
+import * as auth from 'auth';
 
-/* Persistent, loopback-only development server. Put authentication at a
- * reverse proxy before exposing this control API on a LAN. */
+/* Persistent loopback HTTP behind the managed TLS listener.
+ * A separate trusted loopback-only endpoint serves local encoder helpers. */
 const dir = getenv('PORTSDOWN_DIR');
 if (!dir || substr(dir, 0, 1) != '/') die('PORTSDOWN_DIR must be absolute');
 const cfgpath = getenv('PORTSDOWN_CONFIG') ?? `${dir}/scripts/portsdown_config.txt`;
@@ -19,6 +20,11 @@ const ipcampath = getenv('PORTSDOWN_IPCAM_CONFIG') ?? '/var/lib/portsdown/ip-cam
 const sockpath = getenv('PORTSDOWN_TX_SOCKET') ?? '/run/portsdown/tx.sock';
 const port = +(getenv('PORTSDOWN_HTTP_PORT') ?? '8080');
 const extra_host = getenv('PORTSDOWN_ALLOWED_HOST');
+const internal_port = +(getenv('PORTSDOWN_INTERNAL_HTTP_PORT') ?? '0');
+const tls_host = getenv('PORTSDOWN_TLS_HOST');
+const tls_port = +(getenv('PORTSDOWN_HTTPS_PORT') ?? '8443');
+auth.start(getenv('PORTSDOWN_AUTH_FILE'), `${dir}/control/auth-store`);
+if (internal_port && (!auth.enabled() || internal_port < 1024 || internal_port > 65535 || internal_port == port)) die('Invalid internal HTTP port');
 const peer_role = getenv('PORTSDOWN_PEER_ROLE') ?? 'STANDALONE';
 if (port < 1024 || port > 65535) die('Invalid PORTSDOWN_HTTP_PORT');
 const start_srt_slot = getenv('PORTSDOWN_START_SRT_SLOT') ?? '0';
@@ -150,9 +156,9 @@ function emit(event, data) {
   sessions = live;
 }
 
-function response(peer, status, ctype, body, keep) {
+function response(peer, status, ctype, body, keep, headers) {
   let packet = `HTTP/1.1 ${status}\r\nContent-Type: ${ctype}\r\n` +
-    'Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n' +
+    'Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nX-Frame-Options: DENY\r\nReferrer-Policy: no-referrer\r\n' + (headers ?? '') +
     (keep ? '' : `Content-Length: ${length(body)}\r\nConnection: close\r\n`) +
     `\r\n${body}`;
   let sent = peer.send(packet, socket.MSG_DONTWAIT);
@@ -436,7 +442,8 @@ if (getenv('PORTSDOWN_PREVIEW_EXEC')) uloop.timer(2000, function() {
       index(state, 'preview=stopped') >= 0) super.request(sockpath, 'START_PREVIEW');
   this.set(2000);
 });
-let server = socket.listen('127.0.0.1', port, { family: socket.AF_INET, socktype: socket.SOCK_STREAM }, 32, true);
+function http_server(listen_port, trusted) {
+let server = socket.listen('127.0.0.1', listen_port, { family: socket.AF_INET, socktype: socket.SOCK_STREAM }, 32, true);
 if (!server) die(`Cannot bind loopback HTTP port ${port}`);
 
 uloop.handle(server, () => {
@@ -444,44 +451,90 @@ uloop.handle(server, () => {
   if (!peer) return;
   let input = '';
   let handle;
+  let deadline = uloop.timer(5000, () => { handle.delete(); peer.close(); });
   handle = uloop.handle(peer, () => {
     let chunk = peer.recv(4096, socket.MSG_DONTWAIT);
-    if (!chunk) { handle.delete(); peer.close(); return; }
+    if (!chunk) { handle.delete(); deadline.cancel(); peer.close(); return; }
     input += chunk;
-    if (length(input) > 16384) { handle.delete(); response(peer, '413 Content Too Large', 'text/plain', 'Too large'); return; }
+    if (length(input) > 16384) { handle.delete(); deadline.cancel(); response(peer, '413 Content Too Large', 'text/plain', 'Too large'); return; }
     let end = index(input, '\r\n\r\n');
     if (end < 0) return;
     let lines = split(substr(input, 0, end), '\r\n');
     let first = split(lines[0], ' ');
     if (length(first) != 3 || first[2] != 'HTTP/1.1' && first[2] != 'HTTP/1.0') {
-      handle.delete(); response(peer, '400 Bad Request', 'text/plain', 'Bad request'); return;
+      handle.delete(); deadline.cancel(); response(peer, '400 Bad Request', 'text/plain', 'Bad request'); return;
     }
     let size = 0;
-    let host = null, control_header = null;
+    let host = null, control_header = null, cookie = null, origin = null;
+    let seen = {};
     for (let line in lines) {
       let colon = index(line, ':');
       if (colon < 1) continue;
       let name = lc(trim(substr(line, 0, colon)));
       let value = trim(substr(line, colon + 1));
-      if (name == 'content-length') size = +value;
+      if (seen[name] || name == 'transfer-encoding') { handle.delete(); peer.close(); deadline.cancel(); return; }
+      seen[name] = true;
+      if (name == 'content-length') {
+        if (!match(value, /^[0-9]+$/)) { handle.delete(); peer.close(); deadline.cancel(); return; }
+        size = +value;
+      }
+      if (name == 'cookie') cookie = value;
+      if (name == 'origin') origin = value;
       if (name == 'host') host = value;
       if (name == 'x-portsdown-control') control_header = value;
     }
-    if (host != `127.0.0.1:${port}` && host != `localhost:${port}` &&
-        (!extra_host || host != extra_host)) {
-      handle.delete(); response(peer, '421 Misdirected Request', 'text/plain', 'Untrusted Host'); return;
+    if (host != `127.0.0.1:${listen_port}` && host != `localhost:${listen_port}` &&
+        (!extra_host || host != extra_host) &&
+        !(auth.enabled() && !trusted && (host == `${tls_host}:${tls_port}` || host == `localhost:${tls_port}` || host == `127.0.0.1:${tls_port}`))) {
+      handle.delete(); deadline.cancel(); response(peer, '421 Misdirected Request', 'text/plain', 'Untrusted Host'); return;
+    }
+    if (first[0] == 'POST' && origin && origin != `${auth.enabled() && !trusted ? 'https' : 'http'}://${host}`) {
+      handle.delete(); deadline.cancel(); response(peer, '403 Forbidden', 'text/plain', 'Origin rejected'); return;
     }
     if (first[0] == 'POST' && control_header != '1') {
-      handle.delete(); response(peer, '403 Forbidden', 'text/plain', 'Control header required'); return;
+      handle.delete(); deadline.cancel(); response(peer, '403 Forbidden', 'text/plain', 'Control header required'); return;
     }
     if (size < 0 || size > 8192 || (first[0] == 'POST' && first[1] == '/api/config' && size == 0)) {
-      handle.delete(); response(peer, '400 Bad Request', 'text/plain', 'Invalid body length'); return;
+      handle.delete(); deadline.cancel(); response(peer, '400 Bad Request', 'text/plain', 'Invalid body length'); return;
     }
     if (length(input) < end + 4 + size) return;
-    handle.delete();
-    api(peer, first[0], first[1], substr(input, end + 4, size));
+    handle.delete(); deadline.cancel();
+    let method = first[0], path = first[1], body = substr(input, end + 4, size);
+    if (auth.enabled() && !trusted) {
+      let id = auth.identity(cookie);
+      if (method == 'POST' && path == '/api/auth/login') {
+        let request;
+        try { request = json(body); } catch(e) { request = {}; }
+        return auth.login(request?.password, (result) => response(peer, result.status, 'application/json', sprintf('%J',
+          result.error ? {error:result.error} : {ok:true}), false,
+          result.cookie ? `Set-Cookie: ${result.cookie}\r\n` : ''));
+      }
+      if (method == 'POST' && path == '/api/auth/logout') {
+        auth.logout(id);
+        return response(peer, '200 OK', 'application/json', '{"ok":true}', false,
+          'Set-Cookie: diablo_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0\r\n');
+      }
+      if (!id) {
+        if (method == 'GET' && path == '/')
+          return response(peer, '200 OK', 'text/html; charset=utf-8', fs.readfile(`${dir}/www/login.html`));
+        if (method == 'GET' && (path == '/login.js' || path == '/style.css'))
+          return response(peer, '200 OK', path == '/login.js' ? 'text/javascript' : 'text/css', fs.readfile(`${dir}/www${path}`));
+        return response(peer, '401 Unauthorized', 'application/json', '{"error":"Sign in required"}');
+      }
+      if ((path == '/api/events' || index(path, '/api/video') == 0) && !auth.retain(id, peer))
+        return response(peer, '503 Service Unavailable', 'application/json', '{"error":"Too many streams"}');
+    }
+    try { api(peer, method, path, body); }
+    catch(e) { response(peer, '400 Bad Request', 'application/json', '{"error":"Invalid request"}'); }
+
   }, uloop.ULOOP_READ);
 }, uloop.ULOOP_READ);
+
+return server;
+}
+let server = http_server(port, false);
+let internal_server = internal_port ? http_server(internal_port, true) : null;
+uloop.timer(1000, function() { auth.expire(); this.set(1000); });
 
 uloop.timer(1000, function() {
   let result = super.request(sockpath, 'STATUS');

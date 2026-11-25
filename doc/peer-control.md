@@ -14,46 +14,35 @@ SRT/UDP contribution and an optional remote MJPEG preview use separate connectio
 
 ## Configuration
 
-Stop the paired launcher, edit its operator-owned `diablo.env`, then restart both
-ucode and tx-super through `diablo-studio`. Do not change just one process's role.
-There is no role-selection form in the web GUI yet. The default user-local env is
-`~/.local/share/diablo-datv-studio/diablo.env`; custom install prefixes place it
-at `<prefix>/diablo.env` instead.
+Stop Diablo on both computers. In the Diablo source folder on each, run:
 
-Generate a shared token with `openssl rand -hex 32` and privately place the same
-value on both hosts. The implementation requires at least 16 characters. The
-following documentation values are placeholders, not usable deployed credentials.
-
-MASTER:
-
-```bash
-export PORTSDOWN_PEER_ROLE=MASTER
-export PORTSDOWN_PEER_HOST=192.0.2.20  # replace with SLAVE's reachable address
-export PORTSDOWN_PEER_PORT=8181
-export PORTSDOWN_PEER_TOKEN='REPLACE_WITH_THE_SHARED_RANDOM_TOKEN'
+```sh
+bash scripts/setup-access.sh
 ```
 
-SLAVE:
+Choose **SLAVE** on the remote transmitter and **MASTER** on the producing
+computer. On MASTER, enter SLAVE's LAN IPv4 address. Enter **exactly the same
+shared password** on both; it also signs into each computer's web GUI.
+Restart both with `diablo-studio`. [Step-by-step LAN access](LAN_ACCESS.md).
 
-```bash
-export PORTSDOWN_PEER_ROLE=SLAVE
-export PORTSDOWN_PEER_BIND=192.0.2.20  # replace with SLAVE's own LAN address
-export PORTSDOWN_PEER_SRT_PORT=9000  # SRT media, separate from TCP control
-export PORTSDOWN_PEER_PORT=8181
-export PORTSDOWN_PEER_TOKEN='REPLACE_WITH_THE_SHARED_RANDOM_TOKEN'
-```
+Peer control uses **TLS-PSK on TCP 8181**, with a key derived from that password.
+Authentication happens before the SLAVE control socket is reached. There is no
+second token to copy. Only one MASTER owns a SLAVE at a time: stop the old MASTER
+before handing control to another matching-password MASTER. Neither a wrong
+password nor a second authenticated connection displaces an active controller.
+A handover or reconnection never starts TX automatically.
 
-The peer listener defaults to loopback unless an explicit bind address is set.
-Allow TCP 8181 from the MASTER on the private network, not the public Internet.
-The token and control frames are **not TLS-encrypted**; use a trusted LAN, VPN,
-or protected tunnel. HTTP is independently loopback-only. Access it through SSH
-forwarding or an authenticated reverse proxy. If the browser's forwarded port
-changes the HTTP Host header, set `PORTSDOWN_ALLOWED_HOST` to that exact host:port;
-do not remove the Host check.
+Allow TCP 8443 for HTTPS and TCP 8181 to SLAVE from intended LAN computers, plus
+the separate SRT media port. No SSH tunnel is required. The internal HTTP and
+NDJSON sockets remain loopback-only. Existing raw-token/loopback developer
+harnesses are legacy test paths, not the recommended LAN deployment.
+`PORTSDOWN_PEER_SRT_PORT` (default 9000) remains SLAVE's independent media setting.
 
 Optional on MASTER: `PORTSDOWN_SLAVE_PREVIEW_URL` can point at the separately
-protected SLAVE MJPEG URL reachable from the browser. Peer authentication does
-not authenticate that video URL. Remote preview was not exercised in this test.
+protected SLAVE MJPEG URL reachable from the browser. Sign into SLAVE
+in the same browser to authorize its preview cookie; peer authentication does
+not create browser sessions. Cross-origin cookie restrictions can prevent that
+optional remote preview. No authentication bypass is supplied for it.
 
 ## MASTER production versus SLAVE input
 
@@ -64,7 +53,7 @@ MASTER: camera / HDMI / SRT inputs / multiview → encode and mux MPEG-TS
                                                ▼
 SLAVE:                  IPTS pass-through → transmitter/modulator
 
-MASTER ───── authenticated TCP settings + TX + heartbeat ─────► SLAVE
+MASTER ───── password-authenticated TLS settings + TX + heartbeat ─────► SLAVE
 ```
 
 MASTER's camera, mixer, selected SRT encoder and encoding selections stay local.
@@ -129,6 +118,12 @@ stopping its process if its ucode daemon or the return/control path is stalled.
 This is a process-control fail-safe, not physical RF-off measurement. Both peers
 must run the telemetry-aware version; an older peer without state frames cannot
 authorize a new start.
+
+## Shared-password LAN acceptance — 2026-11-25
+
+See [HTTPS and peer TLS tests](testing/shared-password-2026-11-25.md).
+The older captures below predate password/TLS access and retain their original
+loopback/SSH test setup for reproducibility; they are not current setup instructions.
 
 ## Recorded two-host acceptance — 2026-11-24
 

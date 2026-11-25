@@ -29,6 +29,7 @@ function log(message) {
 async function api(path, method='GET', data) {
   const reply = await fetch(path, { method, headers: { 'Content-Type':'application/json', 'X-Portsdown-Control':'1' },
     body: data ? JSON.stringify(data) : undefined });
+  if (reply.status === 401) { location.replace('/'); throw Error('Sign in required'); }
   const result = await reply.json();
   if (!reply.ok) throw Error(result.error || result.message || `HTTP ${reply.status}`);
   return result;
@@ -361,3 +362,7 @@ reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
 setInterval(async () => { try { showState(await api('/api/state')); } catch {} }, 1000);
 setInterval(refreshAsiFileStatus, 10000);
+
+document.querySelector('#sign-out').addEventListener('click', async () => {
+  try { await api('/api/auth/logout','POST'); } finally { location.replace('/'); }
+});

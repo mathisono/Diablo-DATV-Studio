@@ -64,7 +64,7 @@ class FirstStartTest(unittest.TestCase):
 
     def setup(self, *args, env=None):
         return subprocess.run(['bash', str(ROOT / 'scripts/first-start.sh'),
-                               '--configure-only', '--non-interactive', '--prefix', str(self.path),
+                               '--configure-only', '--local-only', '--non-interactive', '--prefix', str(self.path),
                                *args], env=env, capture_output=True, text=True, timeout=20)
 
     def good(self, *args, env=None):

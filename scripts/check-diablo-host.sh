@@ -12,10 +12,12 @@ fi
 if [[ $(getconf LONG_BIT) != 64 ]]; then
     echo 'NOTE: 32-bit userspace remains experimental; a 64-bit kernel alone does not make this a 64-bit install.'
 fi
-for tool in git cmake make cc pkg-config ffmpeg ffprobe flock curl; do
+for tool in git cmake make cc pkg-config ffmpeg ffprobe flock curl openssl; do
     command -v "$tool" >/dev/null || missing "$tool"
 done
+command -v "${PORTSDOWN_STUNNEL:-stunnel4}" >/dev/null || missing 'stunnel4 (protected LAN access)'
 if command -v pkg-config >/dev/null; then
+    pkg-config --exists openssl || missing 'OpenSSL development headers (libssl-dev)'
     pkg-config --exists json-c || missing 'json-c development headers (libjson-c-dev)'
 fi
 ffmpeg=${PORTSDOWN_FFMPEG:-/usr/bin/ffmpeg}

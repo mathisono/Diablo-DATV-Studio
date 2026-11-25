@@ -47,7 +47,7 @@ bash scripts/install-diablo.sh --prefix "$HOME/diablo-local" --jobs 2
 # Read-only platform/dependency/capture-access report:
 bash scripts/install-diablo.sh --check
 # If dependencies are already installed:
-bash scripts/install-diablo.sh --skip-system-packages
+bash scripts/install-diablo.sh
 ```
 
 Default prefix: `$HOME/.local/share/diablo-datv-studio`. `logs/install.log` points
@@ -70,17 +70,24 @@ logging back in. The installer does not attempt GPU driver or QSV tuning.
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
 ```
 
-Visit **http://127.0.0.1:8080/** on the host. From another computer, tunnel it:
+The recommended `first-start.sh` workflow configures password-protected HTTPS.
+If you ran the lower-level installer alone, stop Diablo and configure access:
 
 ```sh
-ssh -N -L 8080:127.0.0.1:8080 your-user@your-encoder-host
+bash scripts/setup-access.sh
 ```
 
-Then visit http://127.0.0.1:8080/ on that computer. The web daemon binds loopback;
-for LAN/public HTTP use an authenticated TLS reverse proxy with its exact
-`PORTSDOWN_ALLOWED_HOST`. Do not expose the plain control API directly.
+Open the printed `https://LAN_IP:8443/` address directly and sign in. Verify the
+locally issued certificate's fingerprint on the first visit. No SSH tunnel is
+required. [LAN/password setup](LAN_ACCESS.md) covers changing roles/passwords,
+private files, peer TLS and the local trust boundary.
 
-**Ctrl+C** stops both processes and the supervisor's owned source pipelines.
+`--local-only` on first-start is an explicit development/test option: it leaves
+an unconfigured instance's unauthenticated HTTP on loopback, not the LAN. It does
+not remove protection from an already protected install. Never expose that
+plain loopback API with a network forwarder.
+
+**Ctrl+C** stops the supervisor, daemon and TLS front end and the supervisor's owned source pipelines.
 The launcher refuses a second instance in the same runtime directory.
 No default service autostart is configured. The existing `systemd/portsdown-*`
 units are advanced templates for a dedicated account, not used by this installer.
@@ -103,7 +110,9 @@ units are advanced templates for a dedicated account, not used by this installer
 6. **Start output TS** is separate from **Arm / Start TX**. Local TS defaults to
    loopback UDP `127.0.0.1:12010`; receiving TS does not prove RF/ASI output.
 
-Default ports: HTTP 8080/TCP; preview ingress 8082–8092/TCP (loopback); SRT inputs
+Default ports: HTTPS 8443/TCP (LAN); peer TLS 8181/TCP (SLAVE LAN);
+HTTP 8080/TCP and trusted internal HTTP 18080/TCP (loopback only); peer internals
+18181/18182 TCP (loopback only); preview ingress 8082–8092/TCP (loopback); SRT inputs
 9101–9105/UDP (network); per-slot TS 12001–12005/UDP (loopback); IPTS preview
 10000/UDP (loopback by default). Restrict SRT access to intended senders. If the
 host has multiple interfaces, set `PORTSDOWN_SRT_ADVERTISE_HOST` in `diablo.env`.
@@ -111,14 +120,14 @@ Any custom port blocks must be disjoint and agree between both processes.
 
 ## Update / rollback
 
-Stop Diablo, preserve a private backup of the install prefix's `state/` and
+Stop Diablo, preserve a private backup of the install prefix's `state/`, `security/` and
 `diablo.env`, then:
 
 ```sh
 cd Diablo-DATV-Studio
 git switch Trixie
 git pull --ff-only origin Trixie
-bash scripts/install-diablo.sh --skip-system-packages
+bash scripts/install-diablo.sh
 ```
 
 Do not use the old Portsdown updater: its `master` downloads do not belong to
@@ -157,10 +166,15 @@ installer does not enable these launchers or physical playout automatically.
 
 ## Scripted first-start setup
 
-Replace `N0CALL`, the service name and address with your own values:
+Replace `N0CALL`, the service name and address with your own values. For the
+first unattended setup, supply a **private, owned mode-600 file** containing the
+password on one line, via `--password-file`. Create it with your secret manager
+or a hidden terminal prompt, not a literal password in shell history. Subsequent
+unattended runs keep the existing password if that option is omitted.
 
 ```sh
 bash scripts/first-start.sh --non-interactive \
+  --password-file "$HOME/diablo-password.private" \
   --callsign N0CALL --service-name "My DATV station" \
   --source SRT --srt-slot 1 --enable-srt \
   --advertise-ip 192.168.3.33 --http-port 18880 --start
@@ -178,6 +192,7 @@ Example USB capture setup (use the actual video/audio nodes):
 
 ```sh
 bash scripts/first-start.sh --configure-only --non-interactive \
+  --password-file "$HOME/diablo-password.private" \
   --callsign N0CALL --service-name "HDMI test" \
   --source HDMI --video-device /dev/video0 --input-format mjpeg \
   --audio-device hw:1,0 --device-groups video,audio --start
@@ -264,7 +279,7 @@ silently grant access. A listed hardware encoder does not prove it works.
 | Symptom | Next check |
 | --- | --- |
 | Installer fails | Last log in `~/.local/share/diablo-datv-studio/logs/`; run `--check` |
-| Web page unavailable | Launcher terminal errors, SSH tunnel and port conflicts |
+| Web page unavailable | Launcher terminal errors, printed HTTPS address, certificate trust and port conflicts |
 | “Already running” / update refused | Stop the existing launcher normally; do not delete its lock |
 | SRT waiting image only | Enabled slot, correct LAN IP/UDP port, MPEG-TS sender and firewall |
 | Capture preview absent | Selected capture node/format, permissions and device ownership |

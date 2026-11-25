@@ -40,7 +40,9 @@ cd Diablo-DATV-Studio &&
 bash scripts/first-start.sh
 ```
 
-When asked for your password, type your **Linux login password** and press Enter.
+When **sudo** asks for your password, type your **Linux login password** and press Enter.
+Later, Diablo asks you to **choose a shared password** for the web page and peers.
+That is a separate password; use a long phrase (12–128 bytes).
 It is normal for nothing—not even dots—to appear as you type. Building the
 software can take several minutes; keep the window open.
 
@@ -63,6 +65,8 @@ in square brackets, or type the replacement and press Enter.
 | Start selected SRT listener on each launch? | Type `yes` |
 | Loopback web GUI port | Keep `8080`; if already occupied, use `18880` |
 | Device groups to add | Leave blank and press Enter; no capture device is needed yet |
+| LAN address for browser | Keep the detected address of this Linux computer |
+| Shared password / Repeat shared password | Choose a long password; use exactly the same password on a paired Master and Slave |
 | Start GUI now in foreground? | Type `yes` |
 
 **Success looks like:** `GUI startup/API/shutdown check passed`, followed by a
@@ -71,19 +75,23 @@ terminal. Leave that terminal open. No service is started automatically at boot.
 
 ## 4. Open the web page
 
-**Browser on the same Linux computer:** open the **Browser:** address printed by
-setup. Normally it is **http://127.0.0.1:8080/**.
+On this computer **or another device on the same LAN**, open the **Browser:**
+address printed by setup. It looks like **`https://192.168.3.33:8443/`**;
+use **your own** printed address, including `https://` and `:8443`.
+**No SSH tunnel is needed.**
 
-**Browser on another computer:** open a second terminal **on the computer with
-the browser**. Paste the complete **Remote browser: ssh ...** command printed
-by setup, enter the Linux computer's password if asked, and leave that window
-open too. Then open the printed browser address. A successful tunnel may show
-no further text; that is normal. This connection is called an **SSH tunnel**.
+On the first visit, your browser will warn that the certificate is self-signed.
+Open the certificate details and compare its **SHA-256 fingerprint** with the
+one printed by setup. If they match, trust that certificate for this host and
+continue. Do not continue if they differ. The warning is about the locally
+issued certificate; the connection is still encrypted.
 
-`127.0.0.1` means “this computer”; it is not the Pi's network address. Typing the
-Pi's IP into the browser is not enough with this default setup. If the tunnel
-says **Connection refused**, SSH must first be enabled on the Linux computer;
-see [SSH help](INSTALL.md#ssh-help).
+![Shared-password sign-in](images/diablo-login.png)
+
+Enter the **shared password you chose during setup**, then click **Sign in**.
+Your Linux login password is not used here. Each browser must sign in; sessions
+expire after eight hours or when Diablo restarts. **Sign out** closes that
+browser's session and live previews; it does not stop an active transmitter.
 
 You should see **Diablo DATV Studio**, source **SRT input**, slot **1**, and a
 waiting picture. **Do not press Arm / Start TX** to see video.
@@ -91,8 +99,7 @@ waiting picture. **Do not press Arm / Start TX** to see video.
 ## 5. Show a test picture — no extra hardware
 
 Open another terminal **on the Diablo Linux computer**. If using SSH, open a
-second SSH login to that same computer. Leave Diablo and the browser tunnel
-running. Copy and run:
+second SSH login to that same computer. Leave Diablo running. Copy and run:
 
 ```sh
 cd "$HOME/Diablo-DATV-Studio" &&
@@ -122,9 +129,8 @@ from your fresh setup. The waiting image and SRT slot behavior are what to check
 
 ## 6. Stop and start again
 
-To stop Diablo, click its original terminal and press **Ctrl+C**. Stop any SSH
-tunnel with Ctrl+C too. To start Diablo another day, run this **on the Linux
-computer**, then reopen the browser/tunnel as above:
+To stop Diablo, click its original terminal and press **Ctrl+C**. To start Diablo
+another day, run this **on the Linux computer**, then open its HTTPS address:
 
 ```sh
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
@@ -140,12 +146,13 @@ Start with **one** source, after the test above works:
 - **OBS / another SRT sender:** use input 1's caller link in **SRT input encoders**.
   The sender must support **SRT with MPEG-TS**, not RTMP. The link needs the Linux
   computer's LAN address, not `127.0.0.1`. Allow UDP 9101 from your sender if a
-  firewall blocks it. The SSH browser tunnel does not carry the video stream.
+  firewall blocks it. The HTTPS connection does not carry the SRT video stream.
 - **USB HDMI capture:** follow the [USB capture guide](usb-hdmi-capture.md).
 - **RTSP camera:** use **IP CAM input encoders → Save IP**, then **Restart**;
   select that camera as the direct source. Keep its password private.
 - **Pi Camera, software TS output, permissions or scripted setup:** see the
   [advanced setup reference](INSTALL_REFERENCE.md).
+- **Master/Slave and password changes:** see [LAN access](LAN_ACCESS.md) and [peer setup](peer-control.md).
 - **ASI or a radio transmitter:** read the [current limitations](KNOWN_ISSUES.md)
   and [ASI guide](asi-output.md) first. These are separate from first start.
 
@@ -155,8 +162,10 @@ Start with **one** source, after the test above works:
 | --- | --- |
 | Install reports an error | Stop there. Copy the last error lines, not pages of scrolling output |
 | “Already running” | Return to the original Diablo terminal and press Ctrl+C; do not delete lock files |
-| “Address already in use” | Stop Diablo, rerun setup and choose web port `18880`; use its newly printed URL/tunnel |
-| Browser cannot connect | Check Diablo is still running; on another computer, also check the SSH tunnel |
+| “Address already in use” | Stop Diablo, rerun setup and choose web port `18880`; use its newly printed URL |
+| Browser cannot connect | Check Diablo is still running, use its printed HTTPS address, and allow TCP 8443 on the host firewall from your LAN if needed |
+| Forgot the web password | Stop Diablo and run `bash scripts/setup-access.sh` from its source folder; set the same new password on both peers |
+| Certificate warning changed | Check the current fingerprint using [LAN access help](LAN_ACCESS.md); do not blindly bypass it |
 | Test sender reports a connection error | Enable SRT input 1 and run the sender on the Diablo computer, not your browser computer |
 | Arm / Start TX is disabled | Expected for this basic installation; preview testing does not need TX |
 

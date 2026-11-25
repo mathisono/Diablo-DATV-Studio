@@ -100,7 +100,8 @@ export function set_tx(on) {
 
 function handle_line(line) {
   if (length(line) > 4096) { disconnect(); return; }
-  let message = json(line);
+  let message;
+  try { message = json(line); } catch(e) { disconnect(); return; }
   if (type(message) != 'object') { disconnect(); return; }
   if (!authenticated) {
     if (role == 'SLAVE' && message.cmd == 'auth' && message.token == token) {
@@ -182,6 +183,8 @@ function attach(peer) {
   link.setopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, true);
   pending = ''; authenticated = false; cfg_acked = false; tx_active = false;
   request_id = 0; applied_request = 0; remote_state = null; remote_missed = 0;
+  let attached = peer;
+  uloop.timer(2000, () => { if (link == attached && !authenticated) disconnect(); });
   link_handle = uloop.handle(link, () => {
     let chunk = link.recv(4096, socket.MSG_DONTWAIT);
     if (!chunk) { disconnect(); return; }
@@ -211,7 +214,11 @@ export function start(settings, notify) {
     if (!server) return false;
     uloop.handle(server, () => {
       let client = server.accept(null, socket.SOCK_NONBLOCK | socket.SOCK_CLOEXEC);
-      if (client) attach(client);
+      // One controller at a time. A second connection must not evict an
+      // authenticated MASTER (including automatic reconnects). Stop the old
+      // MASTER before handing control to another password-matching MASTER.
+      if (client && link) client.close();
+      else if (client) attach(client);
     }, uloop.ULOOP_READ);
     uloop.timer(500, function() {
       if (tx_active && ++missed_hb >= 3) {
