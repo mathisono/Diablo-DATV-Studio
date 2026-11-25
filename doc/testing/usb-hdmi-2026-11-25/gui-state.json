@@ -1,0 +1,8 @@
+{
+  "status": "HDMI preview live",
+  "placeholderHidden": true,
+  "source": "USB HDMI capture",
+  "width": 320,
+  "height": 240,
+  "txDisabled": true
+}

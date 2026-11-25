@@ -1,0 +1,6 @@
+{
+  "stall_detected": true,
+  "fallback_is_no_hdmi_input": true,
+  "resumed_live": true,
+  "method": "SIGSTOP/SIGCONT of owned capture process, not cable removal"
+}

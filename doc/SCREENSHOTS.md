@@ -42,6 +42,15 @@ The fixture uses `/dev/video2` and `hw:1,0` as examples; it does not open a real
 Elgato. The injected 320×240 preview demonstrates placement and source selection.
 Real HDMI capture and live HDMI-to-ASI acceptance are still needed.
 
+## Real USB HDMI capture — MacroSilicon MS2109
+
+![VideoLP3D actual USB HDMI device color bars in the low-resolution preview](images/diablo-usb-hdmi-device.png)
+
+Captured 2026-11-25 from VideoLP3D's real `/dev/video0`, not a synthetic preview
+fixture. The USB device's own delivered bars replace Diablo's placeholder.
+Preview is 320×240; TX/ASI are disabled. External HDMI lock, audio and full
+capture-to-output operation are not verified. [Device setup and test limits](usb-hdmi-capture.md).
+
 ## Mixed-source multiview
 
 ![Diablo four-quadrant HDMI Pi Camera IPTS and SRT multiview selectors](images/diablo-multiview.png)

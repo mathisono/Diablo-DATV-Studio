@@ -14,7 +14,7 @@ card output and receiver/RF acceptance.
 | Direct SRT local TS | Selected-slot live relay tests | No headless RF/ASI connection yet |
 | Two IP CAM configurations | Private URL handling and restart tests; one real camera previously checked | Two physical cameras together not tested |
 | IP CAM local TS | Earlier 4K input → 480p/720p TS test | Other cameras/rates require validation |
-| HDMI/Pi/IPTS previews | Synthetic/data-path and UDP loss tests | Physical HDMI/Pi capture and audio handoff pending |
+| HDMI/Pi/IPTS previews | Real MS2109 USB-device bars in GUI; producer stall/recovery; synthetic/Pi-path and UDP tests | External HDMI picture/audio transitions, Pi capture and audio handoff pending |
 | Four-source multiview | Browser layout and actual composite TS | Preview-derived, 5 fps, video only; not a production mixer |
 | DVB-S portable encoder | Assembly-equivalence and offline TS tests | Pi DMA/RF acceptance pending |
 | DATV-Express DVB-S2 QPSK | Native builds/offline I/Q; legacy interlock tests | USB/PTT/RF and new-GUI launcher pending |
@@ -97,6 +97,12 @@ Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/4
 
 **Scope:** actual ATEM SRT; Elgato video/audio; free Pi Camera; two physical RTSP
 cameras; five concurrent SRT encoders; source-specific reconnect behavior.
+
+**Completed subset (2026-11-25):** [MacroSilicon MS2109 USB HDMI preview](usb-hdmi-capture.md)
+on VideoLP3D: real device-generated bars displayed at 320×240, application
+placeholder hidden, producer stall/fallback/resume passed. USB audio enumerates
+but service-account ALSA permissions and audio capture remain unverified. This
+is not an external HDMI signal-lock/arrival test or an Elgato test.
 
 **Done when:** 480p25/720p24/1080p15 and high-resolution camera downsampling run
 for a recorded duration with stable CPU/temperature/latency and valid output TS.

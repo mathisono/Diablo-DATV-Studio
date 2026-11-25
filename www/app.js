@@ -9,7 +9,7 @@ let srtLocked = false;
 let lastState = null;
 let ipcamConfigured = {1:false, 2:false};
 const multiviewOptions = [
-  ['HDMI','Elgato HDMI'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
+  ['HDMI','USB HDMI capture'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
   ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
   ...[1,2,3,4,5].map(n=>[`SRT${n}`,`SRT encoder ${n}`]),['CARDH264','Test card']
 ];
@@ -119,7 +119,7 @@ function refreshSourceFields() {
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
   const codec = $('encoding').value === 'H264' ? 'H.264' : $('encoding').value;
   route.textContent = multi ? `HDMI is one multiview tile. The current low-rate composite TS is a local monitor source, not yet a live ${codec} → DekTec ASI transmitter route.` :
-    `Elgato HDMI → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
+    `USB HDMI capture → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
   if (lastState) updatePreview(lastState);
 }
 function fill(config, updateCurrent=true) {
@@ -129,7 +129,7 @@ function fill(config, updateCurrent=true) {
   choices('source_layout', [['DIRECT','Direct source'],['MULTIVIEW','Four-source multiview']], config.source_layout || 'DIRECT');
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
-    ['CARDH264','Test card'],['HDMI','Elgato HDMI'],['DESKTOP','Desktop'],['SRT','SRT input'],
+    ['CARDH264','Test card'],['HDMI','USB HDMI capture'],['DESKTOP','Desktop'],['SRT','SRT input'],
     ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
     ['IPTSIN','IP transport stream'],['IPTSIN264','IPTS H.264'],['IPTSIN265','IPTS H.265']
   ], config.modeinput);

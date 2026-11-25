@@ -73,7 +73,7 @@ units are advanced templates for a dedicated account, not used by this installer
    Use **Restart** to reconnect. Each camera is configured independently;
    saved URLs are not returned to the browser. Special characters in credentials
    are normalized by the UI backend. Keep URLs out of screenshots and shell history.
-4. For HDMI/Pi Camera/IPTS, select the source and its actual device/index/port.
+4. For [USB HDMI capture](usb-hdmi-capture.md)/Pi Camera/IPTS, select the source and its actual device/index/port.
    Access to V4L2/ALSA/DRM devices requires the appropriate host groups. This
    installer does not seize a camera used by another service.
 5. Use the selectors below the preview for four-source multiview.

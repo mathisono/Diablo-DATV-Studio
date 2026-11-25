@@ -1,0 +1,140 @@
+{
+  "supervisor": {
+    "ok": true,
+    "status": "STATUS tx=stopped rx=stopped preview=stopped board=none peer=standalone link=stale srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=running picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped"
+  },
+  "board": "DEKTEC_ASI",
+  "modulation": "ASI",
+  "peer_role": "STANDALONE",
+  "peer_input": null,
+  "peer": {
+    "role": "STANDALONE",
+    "connected": false,
+    "config_ready": false,
+    "tx_requested": false,
+    "missed_heartbeats": 0,
+    "remote": null,
+    "telemetry_fresh": false
+  },
+  "logs": [
+    "LOG HDMI [swscaler @ 0x5bfb5043b040] deprecated pixel format used, make sure you did set range correctly",
+    "LOG HDMI [swscaler @ 0x5bfb5051ce00] deprecated pixel format used, make sure you did set range correctly"
+  ],
+  "video": {
+    "frames": 0,
+    "producer": false,
+    "viewers": 0
+  },
+  "srt": [
+    {
+      "slot": 1,
+      "enabled": false,
+      "live": false,
+      "srt_port": 38300,
+      "ts_port": 38400,
+      "caller_url": "srt://192.168.3.232:38300?mode=caller&latency=200000",
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    {
+      "slot": 2,
+      "enabled": false,
+      "live": false,
+      "srt_port": 38301,
+      "ts_port": 38401,
+      "caller_url": "srt://192.168.3.232:38301?mode=caller&latency=200000",
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    {
+      "slot": 3,
+      "enabled": false,
+      "live": false,
+      "srt_port": 38302,
+      "ts_port": 38402,
+      "caller_url": "srt://192.168.3.232:38302?mode=caller&latency=200000",
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    {
+      "slot": 4,
+      "enabled": false,
+      "live": false,
+      "srt_port": 38303,
+      "ts_port": 38403,
+      "caller_url": "srt://192.168.3.232:38303?mode=caller&latency=200000",
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    {
+      "slot": 5,
+      "enabled": false,
+      "live": false,
+      "srt_port": 38304,
+      "ts_port": 38404,
+      "caller_url": "srt://192.168.3.232:38304?mode=caller&latency=200000",
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    }
+  ],
+  "sources": {
+    "HDMI": {
+      "selected": true,
+      "preview": {
+        "frames": 10,
+        "producer": true,
+        "viewers": 0
+      }
+    },
+    "CAMH264": {
+      "selected": false,
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    "IPTSIN": {
+      "selected": false,
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    "IPCAM1": {
+      "selected": false,
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    },
+    "IPCAM2": {
+      "selected": false,
+      "preview": {
+        "frames": 0,
+        "producer": false,
+        "viewers": 0
+      }
+    }
+  },
+  "source_preview_available": true,
+  "source_ts_available": false,
+  "remote_preview_url": null
+}
