@@ -159,7 +159,7 @@ restart occurred. RF/ASI were not enabled, and owned test processes were stopped
 | Actual ATEM SRT live → loss → recovery | SRT setup / reliability section | ATEM feeding supported TS and a bounded test |
 | Two simultaneous real RTSP cameras | Camera setup / performance | Second camera, private URLs kept hidden |
 | Pi Camera preview / capture handoff | Pi setup guide | Camera not owned by another application |
-| Physical ASI connection and independent analyzer | ASI acceptance guide | Port-2 hookup, modulator RF off, receiver/analyzer |
+| Physical ASI connection and independent analyzer | ASI acceptance guide | Port-2 hookup, modulator RF off, receiver/analyzer; card-only playout passed with BNC disconnected (see [ASI report](asi-output.md)) |
 | RF receiver lock, PTT-off on input loss | Board-specific transmitter guide | Interlocked launcher, board and supervised RF test setup |
 | Actual 32-bit and 64-bit Pi clean installs | Platform acceptance guide | Spare images/devices; not inferred from native builds |
 

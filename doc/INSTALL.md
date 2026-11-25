@@ -127,3 +127,7 @@ Use [lattepanda-dta-driver.md](lattepanda-dta-driver.md). The separate
 TSDuck. It is **not** the generic GUI installer. ASI output requires correct
 physical hookup, verified device/channel mapping and compatible modulator TS
 bitrate. Existing driver installs are not changed by `install-diablo.sh`.
+
+Bounded file and live IP/SRT-to-card tests are documented in [ASI output](asi-output.md),
+including the required small-FIFO batch limit and shared channel lock. The GUI
+installer does not enable these launchers or physical playout automatically.

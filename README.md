@@ -22,7 +22,7 @@ framebuffer, Node.js server, or Python server is required for the new GUI.
   **four-tile multiview** with an independent source selector per quadrant.
 - **Local MPEG-TS output** from a selected SRT encoder, an IP camera, or the
   low-rate multiview. CALLSIGN and service-name metadata are operator supplied.
-- **DekTec DTA-2145 ASI file-output integration**, driver/environment scripts,
+- **DekTec DTA-2145 ASI file/live-IP launchers**, driver/environment scripts,
   metadata correction where available, and a non-blocking metadata mismatch flag.
 - Presets, live status/log events, Master/Slave control and heartbeat shutdown.
 - The inherited **32-bit Trixie migration**, **64-bit transmitter**, DATV-Express
@@ -65,8 +65,11 @@ must not replace Diablo with an upstream `master` checkout.
 | --- | --- | --- |
 | x86-64 development host | C/ucode tests, FFmpeg TS, SRT and browser fixtures | Not a physical capture or RF test |
 | TANK, AArch64 Trixie | Native transmitter/GUI builds and bounded offline TS/interlock tests inherited from Portsdown | No DATV-Express card/display; no RF acceptance |
-| LattePanda 3 Delta, Mint 22.3 | DTA/DtaNw DKMS loaded; TSDuck enumerates DTA-2145; TS analysis; QSV CQP encode | Physical ASI, downstream receive, live ASI integration |
+| LattePanda 3 Delta, Mint 22.3 | DTA-2145 finite file and TANK SRT-to-card playout, stop/reopen; TS analysis; QSV CQP encode | BNC disconnected: downstream ASI signal/timing, full GUI source routing and endurance pending |
 | Raspberry Pi OS Trixie armhf | Ported source retained | Fresh 32-bit full-system/capture/display/RF acceptance |
+
+See [ASI card test results and commands](doc/asi-output.md) for the verified
+subset and remaining limits.
 
 The **ASI card transports MPEG-TS to an external modulator**; it does not itself
 supply DVB-S/S2 frequency, symbol rate, or FEC. QSV CQP encoding works on the tested

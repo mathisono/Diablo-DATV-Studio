@@ -47,6 +47,7 @@ class ServiceMetadataTest(unittest.TestCase):
             env = os.environ | {
                 "PORTSDOWN_CONFIG": str(config), "PORTSDOWN_ASI_TS_FILE": str(stream),
                 "PORTSDOWN_BOARD": "dektec_asi", "TSP_ARGS_OUT": str(args_file),
+                "PORTSDOWN_ASI_LOCK_DIR": str(temp / "locks"),
                 "PATH": str(temp) + os.pathsep + os.environ["PATH"],
             }
             launcher = ROOT / "control/dektec-asi-file.sh"
@@ -55,6 +56,9 @@ class ServiceMetadataTest(unittest.TestCase):
             self.assertEqual(good.returncode, 0, good.stderr)
             self.assertIn("dektec", args_file.read_text())
             self.assertIn("svrename", args_file.read_text())
+            argv = args_file.read_text().splitlines()
+            self.assertEqual(argv[argv.index("--max-output-packets") + 1], "128")
+            self.assertIn("--wait-detach", argv)
             config.write_text(config.read_text().replace("service_name=Trevor",
                                                          "service_name=Different"))
             changed = subprocess.run([str(launcher)], env=env, capture_output=True,

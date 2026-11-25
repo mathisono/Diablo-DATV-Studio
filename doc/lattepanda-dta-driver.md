@@ -1,5 +1,11 @@
 # LattePanda 3 Delta — DTA-2145 driver bring-up
 
+**2026-11-25 update:** finite file and TANK SRT-to-card playout now pass, including
+stop/reopen and single-owner locking. The owner confirmed BNC port 2 is
+**disconnected**; downstream signal reception remains unverified. See the
+[current ASI test report](asi-output.md). Earlier “no output tested” statements
+below describe the dated installation/GPU work, not this later card test.
+
 Diablo's current repository is [mathisono/Diablo-DATV-Studio](https://github.com/mathisono/Diablo-DATV-Studio),
 branch **Trixie**. For the new web GUI use [INSTALL.md](INSTALL.md); these
 hardware/environment findings are retained and remain separate from GUI setup.

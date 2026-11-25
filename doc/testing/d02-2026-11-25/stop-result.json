@@ -1,0 +1,6 @@
+{
+  "exit": 0,
+  "forced_kill": false,
+  "stop_seconds": 1.823,
+  "log": "Applying configured TS service metadata during ASI playout\n* file: initial input bitrate is 3,071,588 b/s\n* dektec: using Dektec device 0, output channel 0 (DTA-2145 port 2)\n* dektec: setting output fifo size to 262,144 bytes\n* dektec: output fifo size: 262,144 bytes, max: 16,777,216 bytes, typical: 16,777,216 bytes\n* dektec: initial output bitrate: 3,071,588 b/s\n* dektec: Will preload FIFO before starting transmission. Preload FIFO size: 38,352 bytes.\n* svrename: found service id 0x0001, PMT PID is 0x1000\n* dektec: DTA-2145 output FIFO load is 38,352 bytes, starting transmission\n* tsp: user interrupt, terminating...\n* dektec: terminating DTA-2145 output\n* dektec: DTA-2145 output terminated\n"
+}

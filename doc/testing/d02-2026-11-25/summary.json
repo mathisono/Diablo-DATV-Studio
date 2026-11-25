@@ -1,0 +1,47 @@
+{
+  "date_utc": "2026-11-25",
+  "base_revision": "912e481e866afd4123212e8612f8b2a433e6d111",
+  "output_host": "VideoLP3D",
+  "source_host": "TANK",
+  "device": 0,
+  "output_channel": 0,
+  "physical_port": 2,
+  "connection": "Output disconnected; card-only test (owner confirmed)",
+  "muxrate_and_asi_bps": 3071588,
+  "file_playout_exit": 0,
+  "live_srt_playout_exit": 0,
+  "sender_exit": 0,
+  "duplicate_request_exit": 1,
+  "reopen_exit": 0,
+  "file_stop": {
+    "exit": 0,
+    "forced_kill": false,
+    "stop_seconds": 1.823,
+    "log": "Applying configured TS service metadata during ASI playout\n* file: initial input bitrate is 3,071,588 b/s\n* dektec: using Dektec device 0, output channel 0 (DTA-2145 port 2)\n* dektec: setting output fifo size to 262,144 bytes\n* dektec: output fifo size: 262,144 bytes, max: 16,777,216 bytes, typical: 16,777,216 bytes\n* dektec: initial output bitrate: 3,071,588 b/s\n* dektec: Will preload FIFO before starting transmission. Preload FIFO size: 38,352 bytes.\n* svrename: found service id 0x0001, PMT PID is 0x1000\n* dektec: DTA-2145 output FIFO load is 38,352 bytes, starting transmission\n* tsp: user interrupt, terminating...\n* dektec: terminating DTA-2145 output\n* dektec: DTA-2145 output terminated\n"
+  },
+  "live_stop": {
+    "exit": 0,
+    "forced_kill": false,
+    "stop_seconds": 0.215,
+    "log": "* srt: connected from 127.0.0.1:56274 (local: 127.0.0.1:28910)\n* srt: initial input bitrate is 3,071,588 b/s\n* dektec: using Dektec device 0, output channel 0 (DTA-2145 port 2)\n* dektec: setting output fifo size to 262,144 bytes\n* dektec: output fifo size: 262,144 bytes, max: 16,777,216 bytes, typical: 16,777,216 bytes\n* dektec: initial output bitrate: 3,071,588 b/s\n* dektec: Will preload FIFO before starting transmission. Preload FIFO size: 38,352 bytes.\n* svrename: found service id 0x0001, PMT PID is 0x1000\n* dektec: DTA-2145 output FIFO load is 38,352 bytes, starting transmission\n* tsp: user interrupt, terminating...\n* srt: sender disconnected\n* dektec: terminating DTA-2145 output\n* dektec: DTA-2145 output terminated\n"
+  },
+  "failed_uncapped_attempts": {
+    "wait_detach_exit": 137,
+    "instant_detach_exit": 137,
+    "resolution": "128-packet output cap with reduced 256 KiB FIFO"
+  },
+  "software_tests": {
+    "live_route_and_locking": 4,
+    "service_metadata": 2,
+    "passed": 6
+  },
+  "physical_downstream_verified": false,
+  "gui_pipeline_verified": false,
+  "source_sha256": {
+    "control/dektec-asi-common.sh": "3954ac64f8d41159b21d016f8a8dd0588ef8d47d25e5f387e642b63dfa0c1870",
+    "control/dektec-asi-live.sh": "f627b2eac745464dc99299ba8aa2c2dcbeb61341e3a8d27396dfa77124b33709",
+    "control/dektec-asi-file.sh": "59fee484626c724d9abe8f1a038d0e7ee13d3a23b81ef30858d9843264184740",
+    "scripts/ts_service_metadata.sh": "58065c9c7883794a5262a03e0e5249cadb4385f169d08445b039b4a4bd7fc75f"
+  },
+  "cleanup": "No tsp/ffmpeg processes remained on VideoLP3D; TANK finite sender exited 0."
+}

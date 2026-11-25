@@ -1,0 +1,13 @@
+* file: creating file /home/mat/dektec-asi/tests/d02-20261125/live-tap.ts
+* srt: connected from 192.168.3.33:58287 (local: 192.168.3.232:28910)
+* srt: initial input bitrate is 3,071,588 b/s
+* dektec: using Dektec device 0, output channel 0 (DTA-2145 port 2)
+* dektec: setting output fifo size to 262,144 bytes
+* dektec: output fifo size: 262,144 bytes, max: 16,777,216 bytes, typical: 16,777,216 bytes
+* dektec: initial output bitrate: 3,071,588 b/s
+* dektec: Will preload FIFO before starting transmission. Preload FIFO size: 38,352 bytes.
+* svrename: found service id 0x0001, PMT PID is 0x1000
+* dektec: DTA-2145 output FIFO load is 38,352 bytes, starting transmission
+* srt: sender disconnected
+* dektec: terminating DTA-2145 output
+* dektec: DTA-2145 output terminated

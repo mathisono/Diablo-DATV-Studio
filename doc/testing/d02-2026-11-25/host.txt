@@ -1,0 +1,38 @@
+VideoLP3D
+Linux VideoLP3D 6.14.0-37-generic #37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+
+DTAPI: 6.13.0.242, Dta: 4.28.15.294, DtaNw: -1.-1.-1.-1
+
+* Device 0: DTA-2145 (DTA-2145 ASI/SDI in+out)
+  Physical ports: 2
+  Channels: input: 1, output: 1
+  Input 0: DTA-2145 port 1 (top), ASI, SDI (Genlock reference input,
+      Uni-directional input, Uni-directional output, ASI output signal can be
+      inverted, Huffman coding for SDI, SDI time-stamping, Transparent mode,
+      MPEG-2 transport stream, DVB-ASI transport stream, SD-SDI, 525i/59.94,
+      625i/50, Internal TS rate clock reference)
+  Output 0: DTA-2145 port 2, ASI, SDI (A fail-over relay is available, Locked to
+      a genlock reference, Uni-directional output, Double buffered output,
+      Loop-through of another input, ASI output signal can be inverted, Huffman
+      coding for SDI, MPEG-2 transport stream, DVB-ASI transport stream, SD-SDI,
+      525i/59.94, 625i/50, Internal TS rate clock reference)
+  Subsystem id: 0x0000 (DTA-2145)
+  Subsystem vendor id: 0x0000
+  Device id: 0x0861
+  Vendor id: 0x1A0E
+  Serial number: 000000007FDA4512
+  Firmware version: 5 (0x00000005)
+  Firmware variant: 0 (0x00000000)
+  PCI bus: 2, slot: 0
+  Customer id: 304001
+  Engineering change level: Rev 2
+  Manufacture id: 04
+  Production date: 2003.11
+  Part number: DTA-2145
+  Serial number: 2145010962
+  Crystal stability: 2ppm@-30/+75
+
+
+TSDuck version: 3.45-4798
+Final process check: no tsp or ffmpeg processes on VideoLP3D.

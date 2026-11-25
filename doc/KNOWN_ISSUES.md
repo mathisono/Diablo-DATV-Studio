@@ -19,7 +19,7 @@ card output and receiver/RF acceptance.
 | DVB-S portable encoder | Assembly-equivalence and offline TS tests | Pi DMA/RF acceptance pending |
 | DATV-Express DVB-S2 QPSK | Native builds/offline I/Q; legacy interlock tests | USB/PTT/RF and new-GUI launcher pending |
 | Pluto / Lime / Streamer | Inherited code retained | New control plane routing and safe-off not qualified |
-| DTA-2145 ASI | Dta DKMS + TSDuck card enumeration on LattePanda | Finite physical output and independent analyzer pending |
+| DTA-2145 ASI | Finite file and TANK SRT → card playout, stop/reopen and channel lock passed; pre-card TS analyzed | BNC disconnected; downstream signal/timing, full GUI routing and endurance pending |
 | Service metadata | GUI validation, TS generation, best-effort ASI svrename | Legacy passthrough may retain input tags; mismatch never blocks ASI |
 | Intel QSV | CQP H.264 and finite 720p TS work | Tested CBR/VBR/ICQ rejected; CQP can exceed TS budget |
 | DVB-S2X | No implementation found | Not advertised or selectable |
@@ -62,10 +62,23 @@ Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/2
 **Scope:** feed shaped live TS from the selected source into a single-owner
 TSDuck/DekTec pipeline; keep file playout supported and metadata mismatch advisory.
 
-**Done when:** output channel/port mapping, matched bitrate, PCR/continuity,
-start/stop release, bounded buffering and independent downstream receive are
-verified. Test alternate stuffing separately. Driver enumeration is already done;
-physical ASI output is not. External RF remains independently controlled.
+**Completed subset (2026-11-25):** [card-only test report and commands](asi-output.md).
+VideoLP3D DTA-2145 device 0/output channel 0/physical port 2 completed finite
+720p24 H.264/AAC file playout and TANK → SRT → ASI at 3,071,588 b/s. Pre-card
+TS analysis matched PCR-derived bitrate, PIDs and saved service labels, with
+zero sync/transport/continuity errors. Concurrent playout was rejected; sender
+disconnect, explicit stop and reopen passed. Live TERM detached in 0.215 s.
+Fixed a small-FIFO stall with 128-packet output batches; failed attempts and
+working logs are retained. Added shared file/live ownership and a live IP/SRT
+launcher; no automatic GUI hook or boot service was enabled.
+
+**Remaining / done when:** the owner confirmed BNC output disconnected, so
+independent downstream receive, physical signal/PCR accuracy and end-to-end
+latency remain unverified. Complete selected-source GUI lifecycle, rate
+validation/shaping, preview and valid-video/media-loss integration, then record
+longer-duration and real-source acceptance. Test alternate stuffing separately.
+Card/driver start/detach logs are not proof of downstream ASI reception.
+External RF remains independently controlled. **D-02 stays open.**
 
 ### D-03 — Full-quality multiview and capture/audio handoff
 

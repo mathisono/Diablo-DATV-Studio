@@ -1,0 +1,8 @@
+* file: initial input bitrate is 3,071,588 b/s
+* dektec: using Dektec device 0, output channel 0 (DTA-2145 port 2)
+* dektec: setting output fifo size to 262,144 bytes
+* dektec: output fifo size: 262,144 bytes, max: 16,777,216 bytes, typical: 16,777,216 bytes
+* dektec: initial output bitrate: 3,071,588 b/s
+* dektec: Will preload FIFO before starting transmission. Preload FIFO size: 38,352 bytes.
+* dektec: DTA-2145 output FIFO load is 38,352 bytes, starting transmission
+* tsp: user interrupt, terminating...
