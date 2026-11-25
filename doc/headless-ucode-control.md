@@ -21,11 +21,13 @@ tiles have synthetic MJPEG frames, while Pi Camera displays its waiting card.
 No Elgato, Pi Camera, IP transmitter, ASI card, or RF path was used. The GUI
 shows how source-specific settings appear together for a mixed-source layout.
 
-![Two RTSP IP CAM sources selected in the multiview, with private URL configuration and live/waiting tiles](images/headless-web-gui-ipcam-multiview.png)
+![Real RTSP IP CAM 1 feed in the multiview, with IP CAM 2 and the other sources showing waiting cards](images/headless-web-gui-ipcam-multiview.png)
 
-This second multiview capture uses synthetic frames for IP CAM 1 and HDMI;
-IP CAM 2 displays its waiting card. It demonstrates simultaneous independent
-camera selection and the URL-configured indicators without exposing URLs.
+This second multiview capture uses a **real LAN RTSP feed** for IP CAM 1
+(profile3: 320×240 MJPEG at 1 fps). IP CAM 2 is selected but unconfigured,
+so its waiting card remains visible; IPTS and SRT are also waiting. The
+camera login URL and password are not displayed or committed. This is a GUI
+preview demonstration, not an RF test.
 
 ![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
 
@@ -106,10 +108,12 @@ capture, audio, and RF remain unverified.
   cards when no live frames arrive and returns to them after loss. Set
   `PORTSDOWN_SOURCE_PREVIEW_EXEC` to enable these producers. Pi Camera and
   physical HDMI capture are not yet hardware-tested in this control plane.
-  One LAN RTSP camera was probed at 3840×2160 H.264/30 fps; the actual
-  `source-preview.sh` produced three MJPEG frames, and a bounded Direct
-  IP CAM encode produced a 640×480 H.264/AAC TS with service metadata.
-  This was a software/network test only; IP CAM 2 and RF were not tested.
+  One LAN RTSP camera was probed at 3840×2160 H.264/30 fps (profile2); the
+  actual `source-preview.sh` produced MJPEG frames, and bounded Direct IP CAM
+  encodes produced valid 640×480/25 and **1280×720/24 H.264/AAC TS** with
+  saved service metadata. Its 320×240 MJPEG/1 fps profile3 fed the GUI
+  screenshot above. These were software/network tests only; a second
+  physical camera and RF were not tested.
 - Direct IP CAM 1/2 can start a local live MPEG-TS encode. Saved `format`
   selects 640×480/25, 854×480/25, 1280×720/24, or 1920×1080/15;
   video is H.264 (900 kb/s target) and available camera audio becomes AAC.

@@ -63,9 +63,11 @@ function source_state(cfg) {
 function sync_sources(cfg, status) {
   let can_run = index(status ?? '', 'tx=stopped') >= 0 &&
     index(status ?? '', 'rx=stopped') >= 0;
+  let cameras = ipcam.load(ipcampath);
   for (let source, slot in local_sources) {
     let role = source == 'CAMH264' ? 'PICAM' : source == 'IPTSIN' ? 'IPTS' : source;
-    let wanted = wants_source(cfg, source);
+    let wanted = wants_source(cfg, source) &&
+      (source != 'IPCAM1' && source != 'IPCAM2' || !!cameras[substr(source, -1)]);
     let key = source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : lc(source);
     let running = index(status ?? '', `${key}=running`) >= 0;
     if (!wanted || !can_run) {
