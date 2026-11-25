@@ -23,7 +23,20 @@ bash scripts/setup-access.sh
 Choose **SLAVE** on the remote transmitter and **MASTER** on the producing
 computer. On MASTER, enter SLAVE's LAN IPv4 address. Enter **exactly the same
 shared password** on both; it also signs into each computer's web GUI.
-Restart both with `diablo-studio`. [Step-by-step LAN access](LAN_ACCESS.md).
+Start SLAVE, then MASTER, on each computer using:
+
+```sh
+"$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
+```
+
+Open MASTER's printed HTTPS address and sign in with that shared password.
+Look for **MASTER · linked**, configuration ready and fresh telemetry.
+[Full prompt-by-prompt pairing instructions](LAN_ACCESS.md#pair-a-master-and-slave).
+
+![Shared-password web sign-in on Master or Slave](images/diablo-login.png)
+
+The screenshot shows browser login; role, Slave address and shared-password
+setup are performed in Terminal with the command above.
 
 Peer control uses **TLS-PSK on TCP 8181**, with a key derived from that password.
 Authentication happens before the SLAVE control socket is reached. There is no

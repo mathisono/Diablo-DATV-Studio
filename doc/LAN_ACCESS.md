@@ -47,14 +47,78 @@ together, privately. Old backups still contain old password-derived keys.
 
 ## Pair a Master and Slave
 
-1. Stop Diablo on both computers.
-2. On the remote transmitter, run `bash scripts/setup-access.sh`, choose **SLAVE**,
-   confirm its own LAN address and set the shared password.
-3. On the computer producing the video, run the same command, choose **MASTER**,
-   confirm its own LAN address, enter **SLAVE's LAN address**, and set **exactly
-   the same password**.
-4. Start both. Sign into MASTER's HTTPS page. Peer status should become **linked**
-   with configuration ready and fresh telemetry.
+![Shared-password sign-in used on both Master and Slave](images/diablo-login.png)
+
+This is the actual web sign-in page. **Pairing is configured in Terminal, not
+on this screen.** The password entered here is the same one saved during the
+following setup on both computers. No username or separate peer token is needed.
+
+Both computers must already have Diablo installed. If updating an older version,
+complete the [Install / update steps](INSTALL.md#update-an-existing-install) first.
+
+### 1. Stop both copies of Diablo
+
+In each computer's running Diablo terminal, press **Ctrl+C**.
+
+### 2. Configure the Slave (remote transmitter)
+
+Open Terminal **on the Slave** and run:
+
+```sh
+cd "$HOME/Diablo-DATV-Studio" &&
+bash scripts/setup-access.sh
+```
+
+Answer the prompts:
+
+| Prompt | Slave answer |
+| --- | --- |
+| Role | `SLAVE` |
+| LAN address for browser | The Slave's own LAN address; keep the detected value if correct |
+| Shared password / New shared password | Enter the password you want both systems to share |
+| Repeat shared password | Enter it again |
+
+### 3. Configure the Master (video-producing computer)
+
+Open Terminal **on the Master** and run the same command:
+
+```sh
+cd "$HOME/Diablo-DATV-Studio" &&
+bash scripts/setup-access.sh
+```
+
+| Prompt | Master answer |
+| --- | --- |
+| Role | `MASTER` |
+| LAN address for browser | The Master's own LAN address |
+| Slave LAN address | The Slave's address from step 2—not the Master's address |
+| Shared password / New shared password | Enter **exactly the same password** you entered on the Slave |
+| Repeat shared password | Enter it again |
+
+Type only the address, for example `192.168.3.232`, in the address prompts—not
+`https://`, a port number, or an SRT URL. Use your actual device addresses.
+On an already protected install, a blank password keeps that computer's existing
+password; it does **not** copy the other computer's password.
+
+### 4. Start the Slave, then the Master
+
+Run this **on each computer**, leaving both terminals open:
+
+```sh
+"$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
+```
+
+Open **MASTER's printed HTTPS address** in your browser, verify its certificate
+fingerprint on the first visit, and sign in with the shared password. Peer status
+should show **MASTER · linked**, configuration ready and fresh Slave telemetry.
+You can open SLAVE's HTTPS address separately and sign in with that same password;
+its controls remain locked except for E-Stop.
+
+The computers authenticate their peer connection automatically after startup;
+browser sign-in lets you use the controls but is not what establishes the peer
+link. **Linked confirms control communication, not video reception or RF output.**
+If it does not link, check matching passwords, roles, the Slave address, and TCP
+8181 access to the Slave. No SSH tunnel is needed.
 
 There is no separate token to generate or copy. The password derives the key
 used for **TLS-authenticated peer control**. A different password cannot connect.

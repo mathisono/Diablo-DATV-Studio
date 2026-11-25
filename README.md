@@ -60,7 +60,7 @@ bash scripts/first-start.sh
 For the first test choose **SRT**, slot **1**, and **yes** to listener-on-launch.
 Choose a **shared password** during setup. Open the printed **HTTPS LAN address**,
 check the first-visit certificate fingerprint and sign in—**no SSH tunnel**.
-Use the same password on a paired Master and Slave. [LAN access help](doc/LAN_ACCESS.md).
+Use the same password on a paired Master and Slave. [Master/Slave password setup, step by step](doc/LAN_ACCESS.md#pair-a-master-and-slave).
 Leave Diablo's terminal running. In a second terminal on that same
 Linux computer, run `bash "$HOME/Diablo-DATV-Studio/scripts/test-srt-input.sh"`.
 Watch for live video, then the waiting card when the 30-second sender finishes.
