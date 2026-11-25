@@ -74,15 +74,18 @@ if [ -e /dev/dri/renderD128 ]; then
     fi
 fi
 
-# QSV is optional: some driver/runtime combinations list h264_qsv but reject
-# actual encodes. Record a real finite probe; retain libx264 as the fallback.
+# QSV is optional. Jasper Lake's driver exposes CQP but rejects the usual
+# bitrate/ICQ controls; probe a real finite CQP encode, not just the encoder
+# listing. CQP does not bound instantaneous bitrate, so keep libx264 for
+# fixed-rate transport streams unless the chosen content/QP is validated.
 if command -v ffmpeg >/dev/null 2>&1 && [ -r /dev/dri/renderD128 ]; then
     if ffmpeg -hide_banner -loglevel warning \
         -f lavfi -i 'testsrc2=size=1280x720:rate=24' -t 2 \
-        -vf format=nv12 -c:v h264_qsv -b:v 1484k \
+        -vf format=nv12 -c:v h264_qsv -low_power 1 \
+        -qscale:v 30 -b:v 0 \
         -y "$project_dir/tests/qsv-h264-test.mp4" \
         >"$project_dir/logs/qsv-h264-test.log" 2>&1; then
-        echo 'Finite QSV H.264 encode passed.'
+        echo 'Finite QSV H.264 CQP encode passed; fixed-rate TS output is not implied.'
     else
         echo 'QSV encode did not pass; see logs/qsv-h264-test.log. Using libx264 fallback.'
         rm -f "$project_dir/tests/qsv-h264-test.mp4"

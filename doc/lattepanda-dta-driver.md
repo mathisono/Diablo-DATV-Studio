@@ -87,16 +87,29 @@ service name to `DATV Test` **offline** while retaining all 6,135 packets,
 zero unexpected discontinuities, and successful FFmpeg decode. This checks
 the metadata operation used by the ASI-file launcher without opening the card.
 
-Intel Jasper Lake QSV was not yet demonstrated: the first short H.264 QSV
-encode failed before GPU group access was granted; after adding the account
-to `render` and `video`, it reached the QSV runtime but rejected the selected
-rate-control modes (`Selected ratecontrol mode is unsupported`). The actual
-finite probe is included in `scripts/install-dektec-asi-env.sh`; its stderr is
-saved at `/home/mat/dektec-asi/logs/qsv-h264-test.log`. The host already has
-`intel-media-va-driver` 24.1.0, `i965-va-driver` 2.4.1, `libmfx1` 22.5.4,
-and `libvpl2` 2023.3.0. Software `libx264` worked for the finite TS and
-remains the fallback. Listing `h264_qsv` in FFmpeg is not proof that encoding
-works.
+Intel Jasper Lake QSV **does encode H.264**, but the tested driver/runtime
+accepts constant-QP rate control, not bitrate-based CBR/VBR or ICQ. After
+adding the account to `render` and `video`, a direct VAAPI test reported
+`supported modes: CQP`; `h264_qsv -b:v 1484k` and
+`h264_qsv -global_quality 24` failed with `Selected ratecontrol mode is
+unsupported`. A short QSV encode succeeded with:
+
+```sh
+ffmpeg -hide_banner -f lavfi -i 'testsrc2=size=1280x720:rate=24' -t 2 \
+  -vf format=nv12 -c:v h264_qsv -low_power 1 -qscale:v 30 -b:v 0 \
+  -y qsv-cqp-test.mp4
+```
+
+The installer now uses this bounded CQP probe and retains `libx264` as the
+fixed-bitrate fallback. A separate 3-second QSV H.264/AAC 720p/24 TS at
+QP 30 and 3,071,588 bit/s muxrate decoded without error; `tsanalyze` reported
+6,153 valid packets, PCR-derived bitrate 3,071,588 bit/s, service `DATV
+Test`/`KJ6DZB`, and zero unexpected discontinuities. At QP 24, the same
+synthetic source exceeded the muxrate and FFmpeg warned `dts < pcr, TS is
+invalid`. **CQP is not a guaranteed bitrate limit**: tune QP and validate
+representative content before using it with a fixed-rate TS/ASI path. The
+host has `intel-media-va-driver` 24.1.0, `i965-va-driver` 2.4.1, `libmfx1`
+22.5.4, and `libvpl2` 2023.3.0. No physical ASI output was tested.
 
 ## Isolated web-control build
 
