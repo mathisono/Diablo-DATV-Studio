@@ -62,12 +62,43 @@ async def run():
                         if await value("!!document.querySelector('#settings')"):break
                     else:raise AssertionError('Browser sign-in did not reach dashboard')
                     assert await value("!document.cookie.includes('diablo_session')")
+                    await value("document.querySelector('#access-open').click(); true")
+                    await asyncio.sleep(.4)
+                    assert await value("document.querySelector('#access-dialog').open && !document.querySelector('#access-apply').disabled")
+                    await value("document.querySelector('#access-reveal').click(); true")
+                    await asyncio.sleep(.4)
+                    assert await value("document.querySelector('#access-saved-password').value === "+json.dumps(test.password))
+                    await value("document.querySelector('#access-reveal').click(); true")
+                    assert await value("document.querySelector('#access-saved-password').value === ''")
+                    await value("document.querySelector('#access-role').value='MASTER'; document.querySelector('#access-role').dispatchEvent(new Event('change')); document.querySelector('#access-host').value='192.0.2.10'; true")
+                    assert await value("!document.querySelector('#access-host-label').hidden")
+                    shot=await call('Page.captureScreenshot',{'format':'png'})
+                    (ROOT/'doc/images/diablo-access-settings.png').write_bytes(base64.b64decode(shot['data']))
+                    await call('Emulation.setDeviceMetricsOverride',dict(width=390,height=844,deviceScaleFactor=1,mobile=True))
+                    await asyncio.sleep(.2)
+                    assert await value("document.querySelector('#access-dialog').getBoundingClientRect().width <= innerWidth")
+                    await value("document.querySelector('#access-form').requestSubmit(); true")
+                    for _ in range(100):
+                        await asyncio.sleep(.1)
+                        if await value("!!document.querySelector('#login')"):break
+                    else:raise AssertionError('Popup apply did not return to sign-in')
+                    await value("document.querySelector('#password').value="+json.dumps(test.password)+"; document.querySelector('#login').requestSubmit(); true")
+                    for _ in range(60):
+                        await asyncio.sleep(.1)
+                        if await value("!!document.querySelector('#settings')"):break
+                    else:raise AssertionError('Could not sign in after popup apply')
+                    await value("document.querySelector('#access-open').click(); true")
+                    for _ in range(60):
+                        await asyncio.sleep(.1)
+                        if await value("document.querySelector('#access-role').value==='MASTER' && document.querySelector('#access-host').value==='192.0.2.10'"):break
+                    else:raise AssertionError('Saved role/address not loaded in popup')
+                    await value("document.querySelector('#access-close').click(); true")
                     await value("document.querySelector('#sign-out').click(); true")
                     for _ in range(40):
                         await asyncio.sleep(.1)
                         if await value("!!document.querySelector('#login')"):break
                     else:raise AssertionError('Browser sign-out did not return to login')
-                    print('PASS: real Chromium HTTPS login, protected dashboard, HttpOnly cookie, logout; empty-password screenshot saved')
+                    print('PASS: real Chromium HTTPS login, protected dashboard, HttpOnly cookie, logout; popup reveal/hide, role apply/relogin, mobile width; secret-free screenshots saved')
             finally:
                 chrome.terminate();chrome.wait(timeout=5)
     finally:test.doCleanups()

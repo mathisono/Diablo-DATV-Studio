@@ -94,6 +94,47 @@ class AccessTest(unittest.TestCase):
         # Neither plaintext password nor session cookie enters logs/config.
         self.log.flush();self.assertNotIn(self.password,(self.root/'launcher.log').read_text())
         self.assertNotIn(self.password,self.fixture.envfile.read_text())
+    def after_restart(self,cookie):
+        until=time.monotonic()+10
+        while time.monotonic()<until:
+            try:
+                if self.request('GET','/api/state',cookie=cookie)[0]==401:return
+            except (OSError,http.client.HTTPException):pass
+            time.sleep(.1)
+        self.fail('Managed launcher did not restart and invalidate sessions')
+
+    def test_web_password_and_role_settings(self):
+        for path in ['/api/access','/api/access/password']:
+            self.assertEqual(self.request('POST',path,{})[0],401)
+        cookie=self.login()
+        settings=self.request('GET','/api/access',cookie=cookie)
+        self.assertEqual(settings[0],200);self.assertNotIn(self.password,settings[2].decode())
+        self.assertEqual(json.loads(self.request('POST','/api/access/password',{},cookie)[2])['password'],self.password)
+        self.assertEqual(self.request('POST','/api/access',{'role':'MASTER','slave_host':'evil;id'},cookie)[0],400)
+        self.assertEqual(self.request('POST','/api/access',{'role':'MASTER','slave_host':'192.0.2.10','new_password':'short'},cookie)[0],400)
+        for bad in ['a'*12+'\n','a'*12+'\r','a'*12+'\0','a'*129]:
+            self.assertEqual(self.request('POST','/api/access',{'role':'STANDALONE','new_password':bad},cookie)[0],400)
+        for role,host in [('SLAVE',''),('MASTER','192.0.2.10'),('STANDALONE','')]:
+            result=self.request('POST','/api/access',{'role':role,'slave_host':host},cookie)
+            self.assertEqual(result[0],200,result[2]);self.after_restart(cookie)
+            cookie=self.login()
+            state=json.loads(self.request('GET','/api/state',cookie=cookie)[2])
+            self.assertEqual(state['peer_role'],role)
+            self.assertIn('tx=stopped',state['supervisor']['status'])
+            self.assertEqual(json.loads(self.request('GET','/api/access',cookie=cookie)[2])['slave_host'],host)
+        old=self.password;self.password=secrets.token_urlsafe(24)
+        result=self.request('POST','/api/access',{'role':'STANDALONE','slave_host':'','new_password':self.password},cookie)
+        self.assertEqual(result[0],200,result[2]);self.after_restart(cookie)
+        self.assertEqual(self.request('POST','/api/auth/login',{'password':old})[0],401)
+        time.sleep(1.1);cookie=self.login()
+        self.assertEqual(json.loads(self.request('POST','/api/access/password',{},cookie)[2])['password'],self.password)
+        for file in (self.root/'security').rglob('*'):
+            if file.is_file():
+                self.assertEqual(file.stat().st_mode&0o777,0o600)
+                self.assertNotIn(self.password.encode(),file.read_bytes())
+        self.assertNotIn(self.password,self.fixture.envfile.read_text())
+        self.log.flush();self.assertNotIn(self.password,(self.root/'launcher.log').read_text())
+
     def test_first_start_secure_verify_and_certificate_rerun(self):
         self.stop()
         before=self.cert.read_bytes()
@@ -121,6 +162,25 @@ class AccessTest(unittest.TestCase):
         self.assertGreater(elapsed,3);self.assertLess(elapsed,7)
         stream.close()
         self.assertEqual(self.request('GET','/api/state',cookie=cookie)[0],401)
+
+    def test_saved_password_encryption_and_legacy_upgrade(self):
+        record=self.root/'legacy.conf'
+        helper=str(ROOT/'control/auth-store')
+        subprocess.run([helper,'create',str(record)],input=self.password,text=True,check=True)
+        key=Path(str(record)+'.view-key');cipher=Path(str(record)+'.view')
+        for path in [key,cipher]:
+            self.assertEqual(path.stat().st_mode&0o777,0o600)
+            self.assertNotIn(self.password.encode(),path.read_bytes())
+        original=cipher.read_bytes();cipher.write_bytes(original[:-1]+bytes([original[-1]^1]))
+        bad=subprocess.run([helper,'reveal',str(record)],capture_output=True)
+        self.assertNotEqual(bad.returncode,0);self.assertEqual(bad.stdout,b'')
+        cipher.write_bytes(original);key.chmod(0o644)
+        self.assertNotEqual(subprocess.run([helper,'reveal',str(record)],capture_output=True).returncode,0)
+        key.unlink();cipher.unlink()
+        self.assertNotEqual(subprocess.run([helper,'verify',str(record)],input='wrong-password-123',text=True).returncode,0)
+        self.assertFalse(key.exists());self.assertFalse(cipher.exists())
+        subprocess.run([helper,'verify',str(record)],input=self.password,text=True,check=True)
+        self.assertEqual(subprocess.check_output([helper,'reveal',str(record)],text=True),self.password)
 
     def test_password_record_private_and_shared_peer_key(self):
         auth=next((self.root/'security').glob('access-*/password.conf'))

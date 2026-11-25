@@ -30,6 +30,7 @@ if (port < 1024 || port > 65535) die('Invalid PORTSDOWN_HTTP_PORT');
 const start_srt_slot = getenv('PORTSDOWN_START_SRT_SLOT') ?? '0';
 if (!match(start_srt_slot, /^[0-5]$/)) die('Invalid PORTSDOWN_START_SRT_SLOT');
 
+let access_busy = false, access_job = null;
 let sessions = [];
 let event_id = 0;
 let last_status = '';
@@ -97,6 +98,7 @@ function source_state(cfg) {
 }
 
 function sync_sources(cfg, status) {
+  if (access_busy) return;
   let can_run = index(status ?? '', 'tx=stopped') >= 0 &&
     index(status ?? '', 'rx=stopped') >= 0;
   let cameras = ipcam.load(ipcampath);
@@ -166,7 +168,88 @@ function response(peer, status, ctype, body, keep, headers) {
   return sent == length(packet);
 }
 
+function access_settings() {
+  return { available: auth.enabled() && !!getenv('PORTSDOWN_ACCESS_ENV'),
+    role: peer_role, slave_host: getenv('PORTSDOWN_PEER_REMOTE_HOST') ?? '',
+    busy: access_busy, password_configured: auth.enabled() };
+}
+function access_apply(peer, request) {
+  if (!access_settings().available)
+    return response(peer, '503 Service Unavailable', 'application/json', '{"error":"Run First Start and the managed Diablo launcher first"}');
+  if (access_busy)
+    return response(peer, '409 Conflict', 'application/json', '{"error":"Access changes are already being applied"}');
+  if (type(request) != 'object' || index(['STANDALONE','MASTER','SLAVE'], request.role) < 0 ||
+      type(request.slave_host ?? '') != 'string' ||
+      (request.slave_host && !valid_ipv4(request.slave_host)) ||
+      (request.role == 'MASTER' && !valid_ipv4(request.slave_host)))
+    return response(peer, '400 Bad Request', 'application/json', '{"error":"Select a role and enter the Slave LAN IPv4 address for Master mode"}');
+  let password = request.new_password ?? '';
+  if (type(password) != 'string' || (password != '' &&
+      (length(password) < 12 || length(password) > 128 || index(password, chr(0)) >= 0 || index(password, '\r') >= 0 || index(password, '\n') >= 0)))
+    return response(peer, '400 Bad Request', 'application/json', '{"error":"New password must be 12–128 bytes without line breaks"}');
+  let running = super.request(sockpath, 'STATUS');
+  let remote = peerctl.status();
+  if (!running.ok || index(running.status ?? '', 'tx=running') >= 0 ||
+      index(running.status ?? '', 'rx=running') >= 0 || index(running.status ?? '', 'source_ts=running') >= 0 ||
+      remote.tx_requested || remote.remote?.tx == 'running')
+    return response(peer, '409 Conflict', 'application/json', '{"error":"Stop TX, RX and output TS before changing access settings"}');
+  access_busy = true;
+  peerctl.pause();
+  let prefix = replace(getenv('PORTSDOWN_ACCESS_ENV'), /\/[^/]+$/, '');
+  let args = ['bash', `${dir}/scripts/setup-access.sh`, '--prefix', prefix,
+    '--first-start-managed', '--non-interactive', '--password-stdin',
+    '--role', request.role, '--peer-host', request.slave_host ?? ''];
+  let done = false;
+  let timer = uloop.timer(20000, () => {
+    if (done) return;
+    done = true;
+    if (access_job) access_job.kill();
+    access_job = null;
+    // Remain paused: a timed-out write may have reached the atomic commit.
+    response(peer, '503 Service Unavailable', 'application/json', '{"error":"Setup timed out; stop and restart Diablo before retrying"}');
+  });
+  access_job = uloop.task(() => {
+    let proc = fs.popen(args, 'w');
+    if (!proc) return false;
+    let wrote = proc.write(password);
+    let rc = proc.close();
+    return wrote == length(password) && rc == 0;
+  }, (ok) => {
+    if (done) return;
+    done = true; timer.cancel(); access_job = null;
+    if (!ok) {
+      access_busy = false; peerctl.resume();
+      return response(peer, '503 Service Unavailable', 'application/json', '{"error":"Could not save access settings; check installation permissions"}');
+    }
+    let marker = fs.open(getenv('PORTSDOWN_ACCESS_RESTART'), 'w', 0600);
+    if (!marker || marker.write('restart\n') != 8 || !marker.close())
+      return response(peer, '503 Service Unavailable', 'application/json', '{"error":"Settings saved; restart Diablo to apply them"}');
+    response(peer, '200 OK', 'application/json', '{"ok":true,"restarting":true}');
+    uloop.timer(300, () => { exit(75); });
+  });
+  password = null;
+  if (!access_job) {
+    done = true; timer.cancel(); access_busy = false; peerctl.resume();
+    response(peer, '503 Service Unavailable', 'application/json', '{"error":"Setup worker unavailable"}');
+  }
+}
+
 function api(peer, method, path, body) {
+  if (path == '/api/access' && method == 'GET')
+    return response(peer, '200 OK', 'application/json', sprintf('%J', access_settings()));
+  if (path == '/api/access' && method == 'POST') return access_apply(peer, json(body));
+  if (path == '/api/access/password' && method == 'POST') {
+    if (!access_settings().available || access_busy)
+      return response(peer, '409 Conflict', 'application/json', '{"error":"Password display unavailable during setup"}');
+    let proc = fs.popen([`${dir}/control/auth-store`, 'reveal', getenv('PORTSDOWN_AUTH_FILE')], 'r');
+    let value = proc ? proc.read(129) : null;
+    if (!proc || proc.close() != 0 || !value || length(value) > 128)
+      return response(peer, '409 Conflict', 'application/json', '{"error":"Sign out and sign in again to make the saved password viewable"}');
+    return response(peer, '200 OK', 'application/json', sprintf('%J', {password: value}));
+  }
+  if (access_busy && method == 'POST' && !match(path, /\/stop$/))
+    return response(peer, '409 Conflict', 'application/json', '{"error":"Access settings are being applied; starts and changes are paused"}');
+
   if (path == '/api/ipcam' && method == 'GET') {
     let saved = ipcam.load(ipcampath);
     return response(peer, '200 OK', 'application/json', sprintf('%J',

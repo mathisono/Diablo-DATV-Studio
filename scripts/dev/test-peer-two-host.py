@@ -87,6 +87,7 @@ def worker():
                    PORTSDOWN_SRT_PORT_BASE='28300', PORTSDOWN_SRT_TS_PORT_BASE='28400',
                    LD_LIBRARY_PATH=str(runtime/'lib'))
         secure = bool(spec.get('secure'))
+        managed = secure and bool(spec.get('managed'))
         tls_config = None
         api_port = spec['http_port']
         if secure:
@@ -116,6 +117,12 @@ def worker():
             tls_config = root/'stunnel.conf'
             tls_config.write_bytes(subprocess.check_output(['bash',str(repo/'scripts/tls-config.sh')],env=env))
             tls_config.chmod(0o600)
+            if managed:
+                with envfile.open('a') as f:
+                    for k,v in {'PORTSDOWN_STUNNEL':spec['stunnel'],
+                                'PORTSDOWN_PEER_TLS_PORT':str(spec['peer_port']),
+                                'PORTSDOWN_INTERNAL_HTTP_PORT':str(api_port)}.items():
+                        f.write('export '+k+'='+shlex.quote(v)+'\n')
         logs = open(root/'process.log', 'w+')
         def spawn(args):
             p = subprocess.Popen(args, env=env, stdout=logs, stderr=logs)
@@ -127,10 +134,13 @@ def worker():
         def emit(data):
             print(json.dumps(data), flush=True)
         try:
-            supervisor = spawn([str(repo/'control/tx-super')])
-            until(lambda: (root/'run/tx.sock').exists())
-            control_process = daemon()
-            if secure: tls_process = spawn([spec['stunnel'],str(tls_config)])
+            if managed:
+                spawn(['bash',str(repo/'scripts/run-diablo.sh'),str(envfile)])
+            else:
+                supervisor = spawn([str(repo/'control/tx-super')])
+                until(lambda: (root/'run/tx.sock').exists())
+                control_process = daemon()
+                if secure: tls_process = spawn([spec['stunnel'],str(tls_config)])
             until(lambda: api(api_port)['code'] == 200)
             emit({'ready': True, 'hostname': socket.gethostname(), 'arch': os.uname().machine,
                   'commit': subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()})

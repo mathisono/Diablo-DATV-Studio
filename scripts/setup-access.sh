@@ -3,15 +3,16 @@
 set -Eeuo pipefail
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 prefix=${DIABLO_PREFIX:-"$HOME/.local/share/diablo-datv-studio"}
-password_file= host= role= peer_host= https_port= interactive=1 managed=0
+password_file= host= role= peer_host= https_port= interactive=1 managed=0 password_stdin=0 peer_host_set=0
 while (($#)); do
     case $1 in
         --prefix) prefix=${2:?}; shift 2;;
+        --password-stdin) password_stdin=1; shift;;
         --password-file) password_file=${2:?}; shift 2;;
         --host) host=${2:?}; shift 2;;
         --https-port) https_port=${2:?}; shift 2;;
         --role) role=${2:?}; shift 2;;
-        --peer-host) peer_host=${2:?}; shift 2;;
+        --peer-host) peer_host=${2-}; peer_host_set=1; shift 2;;
         --non-interactive) interactive=0; shift;;
         --first-start-managed) managed=1; shift;;
         --help) echo 'Usage: bash scripts/setup-access.sh [--prefix PATH] [--password-file PRIVATE_FILE] [--host LAN_IP] [--https-port 8443] [--role STANDALONE|MASTER|SLAVE] [--peer-host SLAVE_IP] [--non-interactive]'; exit;;
@@ -30,7 +31,7 @@ umask 077
 host=${host:-${PORTSDOWN_TLS_HOST:-${PORTSDOWN_SRT_ADVERTISE_HOST:-}}}
 [[ -n $host ]] || host=$(hostname -I | awk '{print $1}')
 https_port=${https_port:-${PORTSDOWN_HTTPS_PORT:-8443}}
-peer_host=${peer_host:-${PORTSDOWN_PEER_REMOTE_HOST:-}}
+if ((!peer_host_set)); then peer_host=${PORTSDOWN_PEER_REMOTE_HOST:-}; fi
 if ((interactive)); then
     if [[ -z $role ]]; then read -r -p "Role STANDALONE/MASTER/SLAVE [${PORTSDOWN_PEER_ROLE:-STANDALONE}]: " role; fi
     read -r -p "LAN address for browser [$host]: " answer; host=${answer:-$host}
@@ -54,7 +55,9 @@ for reserved in "${PORTSDOWN_HTTP_PORT:-8080}" 18080 18181 18182 8181 {8082..809
     [[ $https_port != "$reserved" ]] || { echo 'HTTPS port conflicts with an internal/peer port' >&2; exit 2; }
 done
 password=
-if [[ -n $password_file ]]; then
+if ((password_stdin)); then
+    IFS= read -r password || [[ -n $password ]] || true
+elif [[ -n $password_file ]]; then
     [[ -f $password_file && ! -L $password_file && -O $password_file && $(stat -c %a "$password_file") == 600 ]] || { echo 'Password file must be an owned mode-600 regular file' >&2; exit 2; }
     mapfile -t password_lines < "$password_file"
     [[ ${#password_lines[@]} == 1 ]] || { echo 'Password file must contain exactly one line' >&2; exit 2; }
@@ -110,9 +113,9 @@ mkdir -p "$backup"; cp -p "$prefix/diablo.env" "$backup/diablo.env"
     printf 'export PORTSDOWN_TLS_PSK=%q\n' "$access/peer.psk"
     printf 'export PORTSDOWN_TLS_CERT=%q\nexport PORTSDOWN_TLS_KEY=%q\n' "$cert" "$key"
     printf 'export PORTSDOWN_TLS_HOST=%q\nexport PORTSDOWN_HTTPS_PORT=%q\n' "$host" "$https_port"
-    printf 'export PORTSDOWN_INTERNAL_HTTP_PORT=18080\nexport PORTSDOWN_TLS_BIND=0.0.0.0\n'
+    printf 'export PORTSDOWN_INTERNAL_HTTP_PORT=%q\nexport PORTSDOWN_TLS_BIND=%q\n' "${PORTSDOWN_INTERNAL_HTTP_PORT:-18080}" "${PORTSDOWN_TLS_BIND:-0.0.0.0}"
     printf 'export PORTSDOWN_PEER_ROLE=%q\nexport PORTSDOWN_PEER_REMOTE_HOST=%q\n' "$role" "$peer_host"
-    echo 'export PORTSDOWN_PEER_TLS_PORT=8181'
+    printf 'export PORTSDOWN_PEER_TLS_PORT=%q\n' "${PORTSDOWN_PEER_TLS_PORT:-8181}"
     echo '# END DIABLO ACCESS'
 } | "$repo/control/config-store" "$prefix/diablo.env"
 printf 'LAN browser: https://%s:%s/\nRole: %s\n' "$host" "$https_port" "$role"

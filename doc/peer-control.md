@@ -10,33 +10,28 @@ SRT/UDP contribution and an optional remote MJPEG preview use separate connectio
 | --- | --- |
 | STANDALONE | Local control; no peer listener or outgoing peer connection |
 | MASTER | Connects to one SLAVE; pushes a supported configuration subset, waits for acknowledgement, then permits remote TX requests |
-| SLAVE | Accepts only IPTS/SRT source configuration and authenticated transmitter/TX requests; web settings and start controls are locked, including while disconnected; local E-Stop remains available |
+| SLAVE | Accepts only IPTS/SRT source configuration and authenticated transmitter/TX requests; transmitter settings and start controls are locked, including while disconnected; signed-in local E-Stop and Access / Peer settings remain available |
 
 ## Configuration
 
-Stop Diablo on both computers. In the Diablo source folder on each, run:
+Run First Start once on each computer to set its shared password and HTTPS address.
+Then sign into each web GUI and open **Access / Peer settings**:
 
-```sh
-bash scripts/setup-access.sh
-```
+1. On the remote transmitter choose **Slave** and click **Apply & reconnect**.
+2. On the producing computer choose **Master**, enter the Slave's LAN IPv4
+   address, and click **Apply & reconnect**.
+3. Use **exactly the same shared password** on both. The popup can show the saved
+   password or change it; leave both new-password boxes blank to keep it.
+4. Sign in again after each apply. Look for **MASTER · linked**, configuration
+   ready and fresh telemetry. Stop TX/RX/output TS before changing settings.
 
-Choose **SLAVE** on the remote transmitter and **MASTER** on the producing
-computer. On MASTER, enter SLAVE's LAN IPv4 address. Enter **exactly the same
-shared password** on both; it also signs into each computer's web GUI.
-Start SLAVE, then MASTER, on each computer using:
+[Step-by-step web pairing and password instructions](LAN_ACCESS.md#pair-a-master-and-slave).
 
-```sh
-"$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
-```
+![Access and Master/Slave popup with password hidden](images/diablo-access-settings.png)
 
-Open MASTER's printed HTTPS address and sign in with that shared password.
-Look for **MASTER · linked**, configuration ready and fresh telemetry.
-[Full prompt-by-prompt pairing instructions](LAN_ACCESS.md#pair-a-master-and-slave).
-
-![Shared-password web sign-in on Master or Slave](images/diablo-login.png)
-
-The screenshot shows browser login; role, Slave address and shared-password
-setup are performed in Terminal with the command above.
+The screenshot is the actual settings popup; the example Slave address is not an
+installed default. Initial password setup stays in First Start. Terminal setup
+remains available for forgotten-password recovery, not normal pairing.
 
 Peer control uses **TLS-PSK on TCP 8181**, with a key derived from that password.
 Authentication happens before the SLAVE control socket is reached. There is no

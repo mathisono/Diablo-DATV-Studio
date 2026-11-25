@@ -11,6 +11,7 @@ documentation-only address. Random test ports are not the installation defaults.
 
 | Screenshot | What it demonstrates | Use in docs |
 | --- | --- | --- |
+| [Access / Peer settings](#access--peer-settings) | Actual popup: role, Slave IP, show/change password, apply/reconnect | LAN access / peer setup |
 | [Shared-password sign-in](#shared-password-sign-in) | Real HTTPS login screen; password field empty | First start / LAN access |
 | [Direct SRT](#direct-srt-and-five-input-encoders) | Selected SRT slot, preview in TX column, waiting cards, caller links | README / first SRT setup |
 | [ASI settings](#asi-output-and-metadata-flag) | ASI bitrate/device/channel, advisory metadata mismatch | ASI guide |
@@ -30,6 +31,17 @@ is empty. Browser sign-in, protected dashboard access, HttpOnly cookies and
 Sign out were exercised; no hardware or personal password was used. This is the
 new LAN entry screen; older dashboard captures below predate the Sign out button.
 See [LAN setup](LAN_ACCESS.md).
+
+## Access / Peer settings
+
+![Web access and Master/Slave popup](images/diablo-access-settings.png)
+
+Actual Chromium capture, 2026-11-25, from an isolated managed HTTPS installation.
+Master is selected in the form with documentation-only address `192.0.2.10`.
+Saved/new passwords are hidden or empty. The test exercised reveal/hide, role
+application, automatic restart/sign-in and reloaded saved values, plus the popup
+at 390 px mobile width. No personal credential, RF or ASI was used.
+[Instructions](LAN_ACCESS.md) · [Acceptance evidence](testing/web-access-settings-2026-11-25.md).
 
 ## Real Pi Camera to SRT and peer control
 

@@ -110,3 +110,26 @@ mock TX, E-Stop telemetry and loss stops. It never starts physical output.
 `capture-login.py` records the actual empty login page and browser sign-in/out.
 
 [Access boundaries](LAN_ACCESS.md) · [recorded tests](testing/shared-password-2026-11-25.md)
+
+### Web-managed access settings
+
+Authenticated `GET /api/access` returns role/address, never a password.
+`POST /api/access/password` explicitly reveals the encrypted local display copy;
+`POST /api/access` validates role, Slave IPv4 and an optional new password. Active
+TX/RX/output TS or pending peer TX rejects the change. Peer control is paused
+before a bounded background setup task; starts/config changes stay blocked while
+E-Stop remains available. Credentials travel to setup on stdin, not argv.
+
+The managed launcher exports the environment/restart-marker paths. Only exit 75
+plus its owned restart marker requests a coordinated stop/reload/restart; other
+child failures still shut down the application. Successful apply invalidates all
+sessions, rebuilds peer TLS configuration and does not re-key TX. Custom unmanaged
+ucode launches cannot apply access settings through the GUI.
+
+The password display sidecar uses OpenSSL AES-256-GCM and a private random key;
+OS-owner trust is explicit. Legacy verifier-only records gain it on successful
+login, never on a password guess. Tests cover tamper rejection and permissions.
+`scripts/dev/test-access-settings-two-host.py --help` tests actual web-managed
+role/password rotation and reconnects with mock TX. `capture-login.py` also
+captures the popup and tests browser apply/relogin. See the
+[web settings test report](testing/web-access-settings-2026-11-25.md).

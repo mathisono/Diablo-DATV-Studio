@@ -16,18 +16,25 @@ mkdir -p "$PORTSDOWN_RUN_DIR"
 exec 9>"$PORTSDOWN_RUN_DIR/launcher.lock"
 flock -n 9 || { echo 'Diablo DATV Studio is already running.' >&2; exit 2; }
 super_pid= daemon_pid= tls_pid=
-cleanup() {
-    trap - EXIT INT TERM HUP
+stop_children() {
     for child in "$tls_pid" "$daemon_pid" "$super_pid"; do
         [[ -z $child ]] || kill -TERM "$child" 2>/dev/null || true
     done
     for child in "$tls_pid" "$daemon_pid" "$super_pid"; do
         [[ -z $child ]] || wait "$child" 2>/dev/null || true
     done
+    super_pid= daemon_pid= tls_pid=
 }
+cleanup() { trap - EXIT INT TERM HUP; stop_children; }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
+# Only the managed launcher supports coordinated web configuration restarts.
+export PORTSDOWN_ACCESS_ENV=$(realpath "$envfile")
+export PORTSDOWN_ACCESS_RESTART="$PORTSDOWN_RUN_DIR/access.restart"
+while :; do
+source "$envfile"
+rm -f -- "$PORTSDOWN_ACCESS_RESTART"
 if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
     stunnel=${PORTSDOWN_STUNNEL:-$(command -v stunnel4 || command -v stunnel || true)}
     [[ -x $stunnel ]] || { echo 'Install stunnel4 for protected LAN access.' >&2; exit 2; }
@@ -54,8 +61,16 @@ done
 if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
     "$stunnel" "$PORTSDOWN_RUN_DIR/stunnel.conf" 9>&- & tls_pid=$!
     echo "Diablo DATV Studio: https://${PORTSDOWN_TLS_HOST}:${PORTSDOWN_HTTPS_PORT:-8443}/ (shared password; Ctrl+C to stop)"
-    wait -n "$super_pid" "$daemon_pid" "$tls_pid"
+    rc=0; wait -n "$super_pid" "$daemon_pid" "$tls_pid" || rc=$?
 else
     echo "Diablo DATV Studio: http://127.0.0.1:${PORTSDOWN_HTTP_PORT:-8080}/ (local-only; run setup-access.sh for LAN login)"
-    wait -n "$super_pid" "$daemon_pid"
+    rc=0; wait -n "$super_pid" "$daemon_pid" || rc=$?
 fi
+if [[ $rc == 75 && -f $PORTSDOWN_ACCESS_RESTART && ! -L $PORTSDOWN_ACCESS_RESTART &&
+      -O $PORTSDOWN_ACCESS_RESTART && $(cat "$PORTSDOWN_ACCESS_RESTART") == restart ]]; then
+    stop_children
+    echo 'Applying web access settings; all old processes stopped. TX will not resume.'
+    continue
+fi
+exit "$rc"
+done

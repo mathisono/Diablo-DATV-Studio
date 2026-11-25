@@ -147,7 +147,10 @@ same installation password derives the **TLS-PSK peer key**; Master/Slave contro
 is encrypted and authenticated before reaching its loopback NDJSON socket.
 No SSH tunnel or separate copied token is required. A trusted loopback-only
 internal HTTP port is reserved for local source helpers. Local OS processes
-remain trusted; media transport security is separate. See [LAN_ACCESS](LAN_ACCESS.md).
+remain trusted; media transport security is separate. The **Access / Peer settings**
+popup manages roles, the Slave address, and saved/new passwords after First Start.
+Apply stops/restarts the managed controls, invalidates sessions, and never resumes TX.
+See [LAN_ACCESS](LAN_ACCESS.md).
 
 ## What is not integrated
 

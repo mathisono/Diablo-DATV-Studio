@@ -8,7 +8,7 @@
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <header><div><p class="brand-kicker">VIDEO · TRANSPORT · DATV</p><h1>Diablo DATV Studio</h1></div><div><span id="connection">Connecting…</span> <button id="sign-out" type="button">Sign out</button></div></header>
+  <header><div><p class="brand-kicker">VIDEO · TRANSPORT · DATV</p><h1>Diablo DATV Studio</h1></div><div><span id="connection">Connecting…</span> <button id="access-open" type="button">Access / Peer settings</button> <button id="sign-out" type="button">Sign out</button></div></header>
   <main>
     <section class="controls">
       <h2>Transmitter</h2>
@@ -115,6 +115,21 @@
       <pre id="log" aria-live="polite"></pre>
     </section>
   </main>
+  <dialog id="access-dialog" aria-labelledby="access-title">
+    <div class="dialog-heading"><h2 id="access-title">Access &amp; Master / Slave</h2><button id="access-close" type="button" aria-label="Close access settings">Close</button></div>
+    <p>Choose this computer's role. Master and Slave must use the same shared password.</p>
+    <form id="access-form">
+      <label class="wide">This computer acts as<select id="access-role"><option value="STANDALONE">Standalone — local control</option><option value="MASTER">Master — produce video and control a Slave</option><option value="SLAVE">Slave — receive IPTS over SRT</option></select></label>
+      <label class="wide" id="access-host-label">Slave IP address<input id="access-host" inputmode="decimal" placeholder="192.168.3.232" autocomplete="off" spellcheck="false"></label>
+      <div class="wide password-display"><label>Saved shared password<input id="access-saved-password" type="password" readonly placeholder="Hidden" autocomplete="off"></label><button id="access-reveal" type="button">Show saved password</button></div>
+      <label>New shared password (optional)<input id="access-new-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current"></label>
+      <label>Repeat new password<input id="access-confirm-password" type="password" autocomplete="new-password"></label>
+      <label class="wide checkbox-label"><input id="access-show-new" type="checkbox"> Show new password while typing</label>
+      <p class="wide notice">Stop TX, RX and output TS before applying. Applying restarts control services and previews, disconnects the old peer and signs out browsers. TX never resumes automatically. After a password change, update the other peer to match.</p>
+      <p id="access-message" class="wide" role="status"></p>
+      <button id="access-apply" class="primary" type="submit">Apply &amp; reconnect</button>
+    </form>
+  </dialog>
   <footer>Diablo DATV Studio · Experimental · Built on the Portsdown and DATV community's work</footer>
 </body>
 </html>

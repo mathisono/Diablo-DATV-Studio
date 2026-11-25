@@ -4,6 +4,7 @@ import * as config from 'config';
 import * as super from 'super';
 
 let role = 'STANDALONE';
+let suspended = false;
 let token = null;
 let host = null;
 let port = 8181;
@@ -81,7 +82,11 @@ function cfg_subset() {
   return values;
 }
 
+export function pause() { suspended = true; disconnect(); }
+export function resume() { suspended = false; }
+
 export function push_config() {
+  if (suspended) return false;
   if (role != 'MASTER' || !authenticated) return false;
   let data = cfg_subset();
   if (!data) return false;
@@ -90,6 +95,7 @@ export function push_config() {
 }
 
 export function set_tx(on) {
+  if (suspended) return false;
   if (role != 'MASTER' || !authenticated || (on && (!cfg_acked || !remote_state?.supervisor_ok || remote_missed >= 3))) return false;
   if (on && !send({ cmd: 'hb' })) return false;
   if (!send({ cmd: 'tx', state: on ? 1 : 0, id: ++request_id })) return false;
@@ -217,7 +223,7 @@ export function start(settings, notify) {
       // One controller at a time. A second connection must not evict an
       // authenticated MASTER (including automatic reconnects). Stop the old
       // MASTER before handing control to another password-matching MASTER.
-      if (client && link) client.close();
+      if (client && (link || suspended)) client.close();
       else if (client) attach(client);
     }, uloop.ULOOP_READ);
     uloop.timer(500, function() {
@@ -233,6 +239,7 @@ export function start(settings, notify) {
   } else {
     if (!host) return false;
     uloop.timer(100, function() {
+      if (suspended) { this.set(500); return; }
       if (!link) {
         let client = socket.connect(host, port,
           { family: socket.AF_INET, socktype: socket.SOCK_STREAM }, 1000);

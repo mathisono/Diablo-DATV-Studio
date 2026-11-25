@@ -81,7 +81,8 @@ bash scripts/setup-access.sh
 ```
 
 Choose the role and a shared password. Existing protected installs may skip this;
-updates preserve their password and certificate. See [password/peer setup](LAN_ACCESS.md).
+updates preserve their password and certificate. Once signed in, use **Access / Peer settings**
+to show/change the password, select Master/Slave, and enter the Slave IP. See [web setup](LAN_ACCESS.md).
 
 **5. Start Diablo** using the Everyday start command above. Run the
 [first-picture test](FIRST_START.md#5-show-a-test-picture--no-extra-hardware)

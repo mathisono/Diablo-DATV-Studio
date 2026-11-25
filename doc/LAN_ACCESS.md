@@ -19,121 +19,104 @@ source "$HOME/.local/share/diablo-datv-studio/diablo.env"
 openssl x509 -in "$PORTSDOWN_TLS_CERT" -noout -fingerprint -sha256
 ```
 
-## Existing installation or password change
+## Change access settings in the web GUI
 
-Stop Diablo with **Ctrl+C**. From its downloaded folder run:
+Sign in, then click **Access / Peer settings** at the top of the dashboard.
+The popup handles ordinary password changes and Master/Slave pairing—no Terminal
+commands or SSH tunnel are needed after First Start.
 
-```sh
-cd "$HOME/Diablo-DATV-Studio" &&
-bash scripts/setup-access.sh
-```
+![Access and Master/Slave settings popup, with password hidden](images/diablo-access-settings.png)
 
-Choose **STANDALONE** for one computer. Keep its detected LAN address, enter a
-new shared password twice, then restart:
+Actual Chromium capture of an isolated test installation. The selected Master
+role and `192.0.2.10` address illustrate the form; use your own Slave's LAN address.
+The password is hidden and no hardware output was running.
 
-```sh
-"$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
-```
+| Control | What to do |
+| --- | --- |
+| This computer acts as | Choose **Standalone**, **Master**, or **Slave** |
+| Slave IP address | On Master, enter the Slave's IPv4 address only, e.g. `192.168.3.232`—not a URL, port or SRT link |
+| Show saved password | Reveal the current password; **Hide saved password** hides it again. It clears after 30 seconds, when the tab is hidden, or when the popup closes |
+| New shared password / Repeat new password | Leave both blank to keep it, or type the same new 12–128 byte password in both boxes |
+| Apply & reconnect | Save, restart the control services, then return to sign-in |
 
-On a protected installation, leaving the new-password prompt blank keeps the
-current password. A valid certificate for the same address is kept too. Changing
-the address or replacing an expired certificate prints a new fingerprint.
-Use `--prefix /your/install/path` for a custom installation.
+**Stop TX, RX and output TS first.** Apply is rejected while an output is active
+or a remote TX request is pending. Applying disconnects the old peer, restarts
+previews/control services and signs out existing browser sessions. **It never
+restarts TX automatically.** Sign in again with the saved (or new) password.
 
-**Forgot the password?** The Linux account owner can run the same setup command
-and choose a new one; the old password is not needed. Restart to apply it and
-invalidate old browser sessions. Back up `state/`, `security/` and `diablo.env`
-together, privately. Old backups still contain old password-derived keys.
+All signed-in operators have the same control rights, including viewing and
+changing this password and changing the role. Even a Slave's locked dashboard
+retains **Access / Peer settings** and local **E-Stop** for its operator.
 
 ## Pair a Master and Slave
 
-![Shared-password sign-in used on both Master and Slave](images/diablo-login.png)
+Both computers must already have Diablo installed, First Start completed, and
+Diablo running. Updating an older install? Follow [Install / update](INSTALL.md#update-an-existing-install).
+Choose the same shared password during First Start, or change it in the popup.
 
-This is the actual web sign-in page. **Pairing is configured in Terminal, not
-on this screen.** The password entered here is the same one saved during the
-following setup on both computers. No username or separate peer token is needed.
+### 1. Set up the Slave (remote transmitter)
 
-Both computers must already have Diablo installed. If updating an older version,
-complete the [Install / update steps](INSTALL.md#update-an-existing-install) first.
+1. Open **the Slave's HTTPS address** and sign in.
+2. Click **Access / Peer settings**.
+3. Select **Slave — receive IPTS over SRT**.
+4. Keep its password, or enter your chosen shared password twice.
+5. Click **Apply & reconnect**, then sign in again.
 
-### 1. Stop both copies of Diablo
+### 2. Set up the Master (video-producing computer)
 
-In each computer's running Diablo terminal, press **Ctrl+C**.
+1. Open **the Master's HTTPS address** and sign in.
+2. Click **Access / Peer settings**.
+3. Select **Master — produce video and control a Slave**.
+4. Enter **the Slave's LAN IPv4 address**, not the Master's.
+5. Make sure its shared password is **exactly the same as the Slave's**. A blank
+   new-password field keeps this computer's password; it does not copy the other one.
+6. Click **Apply & reconnect**, then sign in again.
 
-### 2. Configure the Slave (remote transmitter)
+### 3. Check the link, then configure video
 
-Open Terminal **on the Slave** and run:
+Master's peer status should show **MASTER · linked**, configuration ready and
+fresh Slave telemetry. A different password cannot establish the control link.
+If it does not link, check both passwords, the selected roles, Slave address,
+TCP 8181 access to the Slave, and that no other Master still controls it.
+
+The peer connection authenticates automatically; browser login grants access to
+the controls but does not establish the peer link itself. **Linked confirms
+control communication, not video reception or RF output.** Configure the separate
+SRT video stream and output hardware as described in [peer control](peer-control.md).
+Slave is **IPTS over SRT only**. The shared password does not bypass valid-video
+gates or hardware requirements, and does not automatically encrypt SRT media.
+
+**Changing the password on a pair:** stop outputs on both, change Slave first,
+then Master to the same password. The link drops while they differ and reconnects
+when they match. TX stays stopped; old browser sessions must sign in again.
+
+**Handover:** with outputs stopped, change the old Master to **Standalone** (or
+stop its Diablo application). Then configure the replacement Master with the
+Slave address and matching password. A second Master cannot evict an active one.
+
+## Recovery or an older installation
+
+Normal role/password changes belong in the popup. Use Terminal only if you cannot
+sign in, have no protected access yet, or need to change the host's HTTPS address.
+
+**Forgot the password?** On the Diablo Linux computer, stop Diablo with **Ctrl+C**,
+then run as the Linux account that installed it:
 
 ```sh
 cd "$HOME/Diablo-DATV-Studio" &&
 bash scripts/setup-access.sh
 ```
 
-Answer the prompts:
-
-| Prompt | Slave answer |
-| --- | --- |
-| Role | `SLAVE` |
-| LAN address for browser | The Slave's own LAN address; keep the detected value if correct |
-| Shared password / New shared password | Enter the password you want both systems to share |
-| Repeat shared password | Enter it again |
-
-### 3. Configure the Master (video-producing computer)
-
-Open Terminal **on the Master** and run the same command:
-
-```sh
-cd "$HOME/Diablo-DATV-Studio" &&
-bash scripts/setup-access.sh
-```
-
-| Prompt | Master answer |
-| --- | --- |
-| Role | `MASTER` |
-| LAN address for browser | The Master's own LAN address |
-| Slave LAN address | The Slave's address from step 2—not the Master's address |
-| Shared password / New shared password | Enter **exactly the same password** you entered on the Slave |
-| Repeat shared password | Enter it again |
-
-Type only the address, for example `192.168.3.232`, in the address prompts—not
-`https://`, a port number, or an SRT URL. Use your actual device addresses.
-On an already protected install, a blank password keeps that computer's existing
-password; it does **not** copy the other computer's password.
-
-### 4. Start the Slave, then the Master
-
-Run this **on each computer**, leaving both terminals open:
+Choose a new shared password twice; the old password is not required. Restart:
 
 ```sh
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
 ```
 
-Open **MASTER's printed HTTPS address** in your browser, verify its certificate
-fingerprint on the first visit, and sign in with the shared password. Peer status
-should show **MASTER · linked**, configuration ready and fresh Slave telemetry.
-You can open SLAVE's HTTPS address separately and sign in with that same password;
-its controls remain locked except for E-Stop.
-
-The computers authenticate their peer connection automatically after startup;
-browser sign-in lets you use the controls but is not what establishes the peer
-link. **Linked confirms control communication, not video reception or RF output.**
-If it does not link, check matching passwords, roles, the Slave address, and TCP
-8181 access to the Slave. No SSH tunnel is needed.
-
-There is no separate token to generate or copy. The password derives the key
-used for **TLS-authenticated peer control**. A different password cannot connect.
-The Slave remains **IPTS over SRT only**; its web controls stay locked except for
-local E-Stop, which also requires a signed-in browser. A password does not bypass
-valid-video gates, output configuration, or hardware requirements.
-
-**Handover:** stop the old MASTER before starting a replacement MASTER with the
-same password. A second connection cannot evict an active MASTER. Handover,
-reconnection and sign-in never start TX automatically. See [peer control](peer-control.md)
-for heartbeat behavior and the remaining live-output integration work.
-
-If you change the shared password, change it on **both** peers while stopped.
-Anyone knowing it can operate all matching-password systems; there are no
-individual accounts, read-only users or per-user audit identities.
+For custom installations add `--prefix /your/install/path` to setup. A valid
+certificate for the same address is kept. An address change or certificate renewal
+prints a new fingerprint. Back up `state/`, `security/` and `diablo.env` together,
+privately; old backups still contain old password-derived keys and recoverable secrets.
 
 ## What is protected
 
@@ -147,9 +130,14 @@ individual accounts, read-only users or per-user audit identities.
   expiry close that session's event/video connections. They **do not stop TX**;
   use E-Stop/Stop TX for that. Password hashing runs in a bounded background worker
   so a slow login does not block control heartbeats.
-- The saved record contains a salted PBKDF2-SHA256 verifier and a separately
-  derived peer key, not the plaintext password. Records, keys and setup backups
-  are user-private. Do not publish the `security/` directory or environment files.
+- Login uses a salted PBKDF2-SHA256 verifier; peer TLS uses a separately derived
+  key. **Show saved password** also requires a recoverable copy: AES-256-GCM
+  ciphertext and a random local key are kept in separate owner-only files (0600)
+  under the private `security/` directory. No plaintext password is stored there.
+  The Linux account owner can recover it; this is not protection against a
+  compromised OS account. Never publish this directory, environment files or backups.
+  Older verifier-only installs gain the encrypted display copy after the first
+  successful login. Passwords never appear in ordinary config/state APIs or logs.
 
 The implementation uses the existing ucode daemon and minimal C tools plus
 OpenSSL and **stunnel4**. No Python, Node.js or frontend framework is needed to run it.

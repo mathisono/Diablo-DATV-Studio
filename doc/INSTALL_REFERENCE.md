@@ -79,7 +79,8 @@ bash scripts/setup-access.sh
 
 Open the printed `https://LAN_IP:8443/` address directly and sign in. Verify the
 locally issued certificate's fingerprint on the first visit. No SSH tunnel is
-required. [LAN/password setup](LAN_ACCESS.md) covers changing roles/passwords,
+required. After First Start, use **Access / Peer settings** in the GUI for ordinary
+role and password changes. [LAN/password setup](LAN_ACCESS.md) covers changing roles/passwords,
 private files, peer TLS and the local trust boundary.
 
 `--local-only` on first-start is an explicit development/test option: it leaves

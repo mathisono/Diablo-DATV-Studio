@@ -1,0 +1,57 @@
+{
+  "test": "GUI access endpoints + managed restart, two hosts, MOCK TX ONLY; no RF/ASI",
+  "date_utc": "2026-11-25T22:47:18Z",
+  "checks": {
+    "web_pairing_standalone_to_slave_and_master": true,
+    "active_mock_tx_blocks_access_changes_and_estop_updates_master": true,
+    "password_rotation_disconnects_then_matching_peers_reconnect_without_tx": true,
+    "web_standalone_releases_slave": true,
+    "no_plaintext_passwords_in_process_logs": true
+  },
+  "slave": {
+    "ready": true,
+    "hostname": "VideoLP3D",
+    "arch": "x86_64",
+    "commit": "686f5a8c11f8ee824abd61113f248577252238b3",
+    "tested_sources_match_local": true
+  },
+  "master": {
+    "ready": true,
+    "hostname": "TANK",
+    "arch": "aarch64",
+    "commit": "7a8a4698ed11d1adfffcb8753e98aaaadb6ffa72",
+    "tested_sources_match_local": true
+  },
+  "result": "PASS",
+  "cleanup": [
+    {
+      "stopped": true,
+      "all_owned_processes_exited": true
+    },
+    {
+      "stopped": true,
+      "all_owned_processes_exited": true
+    }
+  ],
+  "source_sha256": {
+    "control/auth-store.c": "4f1d98208b014f8d2c2e47a2bf1d49d25ef53b284a834a8b8133f633c68f40b1",
+    "control/config-store.c": "a1b600017adeec6b238790a325811563101883a23254dfc7c22f2e74ba4e32b0",
+    "control/tx-super.c": "df7cb9220ca54280b33f4eb919a240b62a92dd735f4df9ff1d3cb92922719267",
+    "control/ucode/auth.uc": "43b49e52c9a4f6d639bd7ee96ad843bfc7f3c6e7135b76f6ecdabdbbe3c60b8e",
+    "control/ucode/config.uc": "0e3443c8492cd70547e4803aad6bfb72168df8ad3fd2ae9700c6fe36020b4c3f",
+    "control/ucode/daemon.uc": "b9aaaa23aa55c210d51de1df2db6b1a58ca382aaf7e97c24229064fe593e2b25",
+    "control/ucode/first-start.uc": "5452c985491b8b7c3674e5b3b0ab9cca92e9c744bee001c784c63b29a94fc7f0",
+    "control/ucode/ipcam.uc": "f8187b98aed5db0f39564b50575d531e1d0aacc8885b41f5132f6653f79f70b8",
+    "control/ucode/peer.uc": "a7309c278865127b57f019b55157ba6ab3619c1e93c3d7addff5fa2d74e2aaa6",
+    "control/ucode/presets.uc": "827d7647f0f7380c941a682b5591f5ed431f1f21ce193fe5b1f9d82678b9ce3e",
+    "control/ucode/super.uc": "04c1140b333b82b5a31d3675e27b873b282b74fa52335905834a7516399bde9a",
+    "control/ucode/video.uc": "25a4a8072f19a63f9376c68bd823056c48266f5f5d7a1100270f56bae94fa859",
+    "scripts/run-diablo.sh": "1f6b69ae1cd3033ee109dac460a50e786bfbbc4227fa94d3ea99418b5d30e323",
+    "scripts/setup-access.sh": "3d35a316fab4167a7d5794c4774eab67fb8d873785ca2abe15744e206e2ef7af",
+    "scripts/tls-config.sh": "272070864f6de5922e60eeeec87b277b3f71c8c92e985e30dd4f3469b220a409",
+    "www/app.js": "bf5c980d5dcf88b31050f011d501410ef2659509d46a2cff5ac43b683b6173de",
+    "www/index.html": "6087fa7859007cd793a7f93f21fdd7da4ff0daf2e5ceb21f2d03ed6154fe28ad",
+    "www/style.css": "3af567b952a924029da40a3f4aacf2a2ea23e5d4963c438a03a38b8fbc1a1dd7"
+  },
+  "source_note": "Isolated remote checkout HEADs are base metadata, not the tested revision. Current uncommitted source files were copied over them; verified SHA-256 manifest above records the tested code."
+}

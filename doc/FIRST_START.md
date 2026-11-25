@@ -152,7 +152,7 @@ Start with **one** source, after the test above works:
   select that camera as the direct source. Keep its password private.
 - **Pi Camera, software TS output, permissions or scripted setup:** see the
   [advanced setup reference](INSTALL_REFERENCE.md).
-- **Master/Slave and password changes:** follow the [prompt-by-prompt pairing instructions](LAN_ACCESS.md#pair-a-master-and-slave), then consult [peer operation](peer-control.md).
+- **Master/Slave and password changes:** click **Access / Peer settings** in the web GUI. Follow the [web pairing instructions](LAN_ACCESS.md#pair-a-master-and-slave), then consult [peer operation](peer-control.md).
 - **ASI or a radio transmitter:** read the [current limitations](KNOWN_ISSUES.md)
   and [ASI guide](asi-output.md) first. These are separate from first start.
 

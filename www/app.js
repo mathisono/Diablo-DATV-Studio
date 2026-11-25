@@ -7,6 +7,7 @@ let capabilities = {}, current = {};
 let logInitialized = false;
 let srtLocked = false;
 let lastState = null;
+let accessApplying = false;
 let ipcamConfigured = {1:false, 2:false};
 const multiviewOptions = [
   ['HDMI','USB HDMI capture'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
@@ -29,7 +30,7 @@ function log(message) {
 async function api(path, method='GET', data) {
   const reply = await fetch(path, { method, headers: { 'Content-Type':'application/json', 'X-Portsdown-Control':'1' },
     body: data ? JSON.stringify(data) : undefined });
-  if (reply.status === 401) { location.replace('/'); throw Error('Sign in required'); }
+  if (reply.status === 401) { if (!accessApplying) location.replace('/'); throw Error('Sign in required'); }
   const result = await reply.json();
   if (!reply.ok) throw Error(result.error || result.message || `HTTP ${reply.status}`);
   return result;
@@ -365,4 +366,77 @@ setInterval(refreshAsiFileStatus, 10000);
 
 document.querySelector('#sign-out').addEventListener('click', async () => {
   try { await api('/api/auth/logout','POST'); } finally { location.replace('/'); }
+});
+
+const accessDialog=$('access-dialog');
+let revealTimer;
+function hideSavedPassword() {
+  clearTimeout(revealTimer);
+  $('access-saved-password').value='';
+  $('access-saved-password').type='password';
+  $('access-reveal').textContent='Show saved password';
+}
+function resetAccessSecrets() {
+  hideSavedPassword();
+  for (const id of ['access-new-password','access-confirm-password']) { $(id).value='';$(id).type='password'; }
+  $('access-show-new').checked=false;
+}
+function accessRoleChanged() {
+  $('access-host-label').hidden=$('access-role').value!=='MASTER';
+  $('access-host').required=$('access-role').value==='MASTER';
+}
+$('access-role').addEventListener('change',accessRoleChanged);
+$('access-open').addEventListener('click',async()=>{
+  resetAccessSecrets();$('access-message').textContent='Loading…';accessDialog.showModal();
+  try {
+    const data=await api('/api/access');
+    $('access-role').value=data.role;$('access-host').value=data.slave_host;accessRoleChanged();
+    $('access-apply').disabled=!data.available||data.busy;
+    $('access-reveal').disabled=!data.available||data.busy;
+    $('access-message').textContent=data.available?'': 'Run First Start once to enable password-protected access.';
+  } catch(error) {$('access-message').textContent=error.message;$('access-apply').disabled=true;}
+});
+$('access-close').addEventListener('click',()=>accessDialog.close());
+accessDialog.addEventListener('close',resetAccessSecrets);
+accessDialog.addEventListener('cancel',event=>{if(accessApplying)event.preventDefault();});
+$('access-reveal').addEventListener('click',async()=>{
+  if ($('access-saved-password').value) {hideSavedPassword();return;}
+  try {
+    const data=await api('/api/access/password','POST',{});
+    if (!accessDialog.open) return;
+    $('access-saved-password').type='text';$('access-saved-password').value=data.password;
+    $('access-reveal').textContent='Hide saved password';
+    revealTimer=setTimeout(hideSavedPassword,30000);
+  } catch(error) {$('access-message').textContent=error.message;}
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hideSavedPassword();});
+$('access-show-new').addEventListener('change',()=>{
+  for(const id of ['access-new-password','access-confirm-password'])$(id).type=$('access-show-new').checked?'text':'password';
+});
+$('access-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const password=$('access-new-password').value;
+  if(password!==$('access-confirm-password').value) {$('access-message').textContent='New passwords do not match.';return;}
+  const bytes=new TextEncoder().encode(password).length;
+  if(password && (bytes<12 || bytes>128 || /[\0\r\n]/.test(password))) {$('access-message').textContent='Use 12–128 bytes without line breaks for the new password.';return;}
+  accessApplying=true;hideSavedPassword();
+  $('access-apply').disabled=true;$('access-close').disabled=true;$('access-reveal').disabled=true;
+  $('access-message').textContent='Saving access settings…';
+  try {
+    await api('/api/access','POST',{role:$('access-role').value,slave_host:$('access-host').value.trim(),new_password:password});
+    resetAccessSecrets();events.close();
+    $('access-message').textContent='Saved. Reconnecting… Sign in again when the login page opens.';
+    await new Promise(resolve=>setTimeout(resolve,1500));
+    for(let attempt=0;attempt<30;attempt++) {
+      try {
+        const check=await fetch('/api/state',{cache:'no-store',signal:AbortSignal.timeout(2000)});
+        if(check.status===401) {location.replace('/');return;}
+      } catch {}
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    $('access-message').textContent='Settings saved. Reopen this HTTPS address to sign in; check the Diablo terminal if it stays unavailable.';
+  } catch(error) {
+    accessApplying=false;$('access-message').textContent=error.message;
+    $('access-apply').disabled=false;$('access-close').disabled=false;$('access-reveal').disabled=false;
+  }
 });
