@@ -6,6 +6,7 @@
 - [Installation, startup, update and rollback](INSTALL.md)
 - [Peer control, IPTS/SRT-only SLAVE and two-host acceptance](peer-control.md)
 - [Screenshot gallery and captures still needed](SCREENSHOTS.md)
+- [Real Pi Camera → SRT and two-host peer test](testing/picam-srt-two-host-2026-11-25.md)
 - [Development, source layout and tests](DEVELOPMENT.md)
 - [Capability matrix and open issues](KNOWN_ISSUES.md)
 - [Repository migration and validation record](MIGRATION.md)

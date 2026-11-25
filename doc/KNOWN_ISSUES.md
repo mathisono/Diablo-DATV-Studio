@@ -10,11 +10,11 @@ card output and receiver/RF acceptance.
 | Capability | Current evidence | Limit |
 | --- | --- | --- |
 | Persistent C/ucode web control | Native x86-64 and AArch64 C/ucode runtimes; both peer roles tested | Linux only; loopback HTTP needs tunnel/authenticated TLS proxy |
-| Five SRT source encoders | Synthetic callers; arrival/loss and raster checks | Five-way hardware CPU/thermal endurance and actual ATEM pending |
+| Five SRT source encoders | Synthetic callers; real IMX708 720p24 camera into slot 1, arrival/loss/recovery | Five-way hardware CPU/thermal endurance and actual ATEM pending |
 | Direct SRT local TS | Selected-slot live relay tests | No headless RF/ASI connection yet |
 | Two IP CAM configurations | Private URL handling and restart tests; one real camera previously checked | Two physical cameras together not tested |
 | IP CAM local TS | Earlier 4K input → 480p/720p TS test | Other cameras/rates require validation |
-| HDMI/Pi/IPTS previews | Real MS2109 USB-device bars in GUI; producer stall/recovery; synthetic/Pi-path and UDP tests | External HDMI picture/audio transitions, Pi capture and audio handoff pending |
+| HDMI/Pi/IPTS previews | Real MS2109 bars; real IMX708 camera and received SRT/IPTS 320×240 previews on two hosts | External HDMI picture/audio transitions and automatic camera/audio handoff pending |
 | Four-source multiview | Browser layout and actual composite TS | Preview-derived, 5 fps, video only; not a production mixer |
 | DVB-S portable encoder | Assembly-equivalence and offline TS tests | Pi DMA/RF acceptance pending |
 | DATV-Express DVB-S2 QPSK | Native builds/offline I/Q; legacy interlock tests | USB/PTT/RF and new-GUI launcher pending |
@@ -95,7 +95,7 @@ analog/webcam and remaining legacy capture modes need explicit new-GUI routing.
 
 Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/4
 
-**Scope:** actual ATEM SRT; Elgato video/audio; free Pi Camera; two physical RTSP
+**Scope:** actual ATEM SRT; Elgato video/audio; Pi Camera coverage; two physical RTSP
 cameras; five concurrent SRT encoders; source-specific reconnect behavior.
 
 **Completed subset (2026-11-25):** [MacroSilicon MS2109 USB HDMI preview](usb-hdmi-capture.md)
@@ -103,6 +103,15 @@ on VideoLP3D: real device-generated bars displayed at 320×240, application
 placeholder hidden, producer stall/fallback/resume passed. USB audio enumerates
 but service-account ALSA permissions and audio capture remain unverified. This
 is not an external HDMI signal-lock/arrival test or an Elgato test.
+
+**Pi Camera subset (2026-11-25):** [TANK IMX708 → VideoLP3D over SRT](testing/picam-srt-two-host-2026-11-25.md)
+passed real 720p24 H.264 capture, 320×240 previews, 10.771 seconds of received
+standalone TS and a clean 24-frame decode. Sender stop returned the exact
+`NO SRT INPUT 1` card; reconnection recovered. The same camera produced 14.938
+seconds of stream-copied TS in the peer test. Audio was a synthetic AAC test
+tone, not a microphone. Rover camera ownership was released for testing and
+restored afterward. This clears the bounded real-camera test, not full-resolution
+GUI output routing, audio handoff, other camera modes or endurance.
 
 **Done when:** 480p25/720p24/1080p15 and high-resolution camera downsampling run
 for a recorded duration with stable CPU/temperature/latency and valid output TS.
@@ -153,6 +162,16 @@ fresh OS-image or non-Pi ARM64 hardware qualification. The subsequent
 [automated first-start workflow](testing/first-start-2026-11-25.md) also passed on
 both hosts, including selected SRT listener startup, validated station/source
 configuration, backups and GUI/API/stop checks.
+
+**Real-camera peer subset (2026-11-25):** [TANK MASTER → VideoLP3D SLAVE](testing/picam-srt-two-host-2026-11-25.md)
+passed with live IMX708 video, received IPTS/SRT preview and stream-copy TS.
+MASTER retained Pi Camera; SLAVE enforced IPTS over SRT. Local E-Stop cleared
+MASTER's request; heartbeat-loss stop was 1.298 s, disconnect stop 0.029 s,
+and resume/reconnect did not restart mock TX. Five [actual GUI captures](SCREENSHOTS.md#real-pi-camera-to-srt-and-peer-control)
+are recorded with private camera scenes masked. The receiver and camera sender
+were separate test helpers, not the mock TX pipeline: integrated valid-media
+gating and physical output are still unverified. All test children/tunnels were
+stopped and the rover service restored active, still boot-enabled.
 
 **Remaining scope:** fresh armhf Pi image, full arm64 platform checks,
 network delay/loss/endurance, service-account/device

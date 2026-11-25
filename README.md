@@ -75,7 +75,7 @@ must not replace Diablo with an upstream `master` checkout.
 | Target | Evidence | Remaining |
 | --- | --- | --- |
 | x86-64 development host | C/ucode tests, FFmpeg TS, SRT and browser fixtures | Not a physical capture or RF test |
-| TANK, Pi 4 / AArch64 Trixie | Fresh user-local native bootstrap, GUI/API lifecycle, update lock and settings-preserving rerun; two-host peer/TS tests | Not a freshly imaged OS acceptance; no DATV-Express RF test |
+| TANK, Pi 4 / AArch64 Trixie | Fresh user-local native bootstrap; actual IMX708 720p24 camera → SRT → VideoLP3D, preview/loss/recovery and peer mock-TX tests | Not a freshly imaged OS acceptance; no DATV-Express RF test |
 | LattePanda 3 Delta, Mint 22.3 | DTA-2145 finite file and TANK SRT-to-card playout, stop/reopen; TS analysis; QSV CQP encode | BNC disconnected: downstream ASI signal/timing, full GUI source routing and endurance pending |
 | Raspberry Pi OS Trixie armhf | Ported source retained | Fresh 32-bit full-system/capture/display/RF acceptance |
 
@@ -86,6 +86,30 @@ The **ASI card transports MPEG-TS to an external modulator**; it does not itself
 supply DVB-S/S2 frequency, symbol rate, or FEC. QSV CQP encoding works on the tested
 Jasper Lake GPU but cannot guarantee a fixed bitrate; libx264 remains the
 fixed-rate fallback. See [the measured hardware notes](doc/lattepanda-dta-driver.md).
+
+## Real camera and two-host test
+
+**TANK Pi Camera → SRT → VideoLP3D**, tested 2026-11-25 with actual 720p24
+H.264 video and a synthetic AAC test tone. Standalone SRT arrival, waiting-card
+fallback and reconnection passed. In peer mode, MASTER retained Pi Camera while
+SLAVE accepted only IPTS over SRT. These are real web-GUI captures; private camera
+scenes are explicitly masked, not replaced with synthetic video.
+
+### TANK MASTER — camera live, remote mock TX running
+
+![TANK MASTER with Pi Camera preview live and returned SLAVE process state; camera image privacy-masked](doc/images/diablo-picam-master-live.png)
+
+### VideoLP3D SLAVE — received IPTS live, settings locked
+
+![VideoLP3D SLAVE with live IPTS preview, SRT-only input and local E-Stop; camera image privacy-masked](doc/images/diablo-picam-slave-live.png)
+
+**TX here is a mock process: no RF or ASI output.** Media helpers ran separately
+from the TX lifecycle; complete GUI source-to-output routing and media-loss
+interlocking remain open. Local SLAVE E-Stop reached MASTER; heartbeat loss
+stopped mock TX in 1.298 s, disconnect in 0.029 s, without automatic restart.
+
+[Standalone live, no-signal and E-Stop screenshots](doc/SCREENSHOTS.md#real-pi-camera-to-srt-and-peer-control) ·
+[Test method, results and limitations](doc/testing/picam-srt-two-host-2026-11-25.md)
 
 ## Project lineage and licensing
 

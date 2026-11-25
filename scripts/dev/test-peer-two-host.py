@@ -206,7 +206,7 @@ class Remote:
         raise RuntimeError('Worker unexpectedly exited')
 
 
-async def screenshot(url, path, expected, slave=False):
+async def screenshot(url, path, expected, slave=False, preview_mask=False, marker='MOCK TX - NO RF'):
     import requests
     import websockets
     with tempfile.TemporaryDirectory(prefix='diablo-peer-chromium-') as profile:
@@ -239,7 +239,20 @@ async def screenshot(url, path, expected, slave=False):
                 state = dom['result']['value']
                 assert expected in state['peer'], state['peer']
                 assert state['locked'] == slave and state['stopEnabled'], state
-                assert 'MOCK TX - NO RF' in state['text'] or 'MOCK TX - NO RF' in (await call('Runtime.evaluate', {'expression': "document.querySelector('#service_name').value", 'returnByValue': True}))['result']['value']
+                assert marker in state['text'] or marker in (await call('Runtime.evaluate', {'expression': "document.querySelector('#service_name').value", 'returnByValue': True}))['result']['value']
+                if preview_mask:
+                    # Do not publish private camera scenes. Keep actual UI state intact.
+                    masked = await call('Runtime.evaluate', {'expression': '''(() => {
+                      const live=document.querySelector('#live-preview');
+                      const ready=!!(live && live.naturalWidth && !live.hidden);
+                      document.querySelectorAll('.preview').forEach(p => {
+                        const cover=document.createElement('div');
+                        cover.textContent='Camera image hidden for privacy — live test';
+                        cover.style.cssText='position:absolute;inset:0;background:#152838;color:white;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:20';
+                        p.style.position='relative'; p.appendChild(cover);
+                      }); return {ready}; })()''', 'returnByValue':True})
+                    state['preview_image_loaded']=masked['result']['value']['ready']
+                    assert state['preview_image_loaded'], 'Live preview image not loaded'
                 shot = await call('Page.captureScreenshot', {'format':'png','captureBeyondViewport':False})
                 path.write_bytes(base64.b64decode(shot['data']))
                 return {k:v for k,v in state.items() if k != 'text'}

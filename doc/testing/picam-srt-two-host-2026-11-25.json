@@ -1,0 +1,627 @@
+{
+  "date_utc": "2026-11-25T19:09:22Z",
+  "camera": "IMX708, actual rpicam capture",
+  "audio": "synthetic 1 kHz test tone, NOT a camera microphone",
+  "hardware_tx": "mock only; no RF or ASI",
+  "stages": {
+    "standalone": {
+      "checks": {
+        "actual_camera_and_received_preview_live": true,
+        "camera_stop_removes_live_preview": true,
+        "received_720p24_h264_aac_decodes": true,
+        "loss_exact_waiting_frame": true,
+        "camera_reconnect_recovers": true
+      },
+      "screenshots": {
+        "diablo-picam-srt-live": {
+          "peer": "STANDALONE \u00b7 not linked",
+          "tx": "RF TX unavailable for this source route; local MPEG-TS output is separate.",
+          "locked": false,
+          "stopEnabled": true,
+          "preview_image_loaded": true
+        },
+        "diablo-picam-srt-waiting": {
+          "peer": "STANDALONE \u00b7 not linked",
+          "tx": "RF TX unavailable for this source route; local MPEG-TS output is separate.",
+          "locked": false,
+          "stopEnabled": true
+        }
+      },
+      "slave": {
+        "ready": true,
+        "host": "VideoLP3D",
+        "arch": "x86_64",
+        "commit": "668f1fbc94679f581ce1d561b743b087fdb58a04"
+      },
+      "master": {
+        "ready": true,
+        "host": "TANK",
+        "arch": "aarch64",
+        "commit": "668f1fbc94679f581ce1d561b743b087fdb58a04"
+      },
+      "preview": {
+        "sha256": "b50f34961485b01e44baff2b8566d0b20a53766539372829fa9f0a48d1fafdba",
+        "bytes": 2610,
+        "probe": {
+          "programs": [],
+          "streams": [
+            {
+              "width": 320,
+              "height": 240
+            }
+          ]
+        }
+      },
+      "media": {
+        "probe": {
+          "programs": [
+            {
+              "program_id": 1,
+              "program_num": 1,
+              "nb_streams": 2,
+              "pmt_pid": 4096,
+              "pcr_pid": 256,
+              "tags": {
+                "service_name": "Service01",
+                "service_provider": "FFmpeg"
+              },
+              "streams": [
+                {
+                  "index": 0,
+                  "codec_name": "h264",
+                  "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+                  "profile": "Constrained Baseline",
+                  "codec_type": "video",
+                  "codec_tag_string": "[27][0][0][0]",
+                  "codec_tag": "0x001b",
+                  "width": 1280,
+                  "height": 720,
+                  "coded_width": 1280,
+                  "coded_height": 720,
+                  "closed_captions": 0,
+                  "film_grain": 0,
+                  "has_b_frames": 0,
+                  "pix_fmt": "yuv420p",
+                  "level": 31,
+                  "chroma_location": "left",
+                  "field_order": "progressive",
+                  "refs": 1,
+                  "is_avc": "false",
+                  "nal_length_size": "0",
+                  "ts_packetsize": "188",
+                  "id": "0x100",
+                  "r_frame_rate": "24/1",
+                  "avg_frame_rate": "24/1",
+                  "time_base": "1/90000",
+                  "start_pts": 131670,
+                  "start_time": "1.463000",
+                  "duration_ts": 963750,
+                  "duration": "10.708333",
+                  "bits_per_raw_sample": "8",
+                  "extradata_size": 33,
+                  "disposition": {
+                    "default": 0,
+                    "dub": 0,
+                    "original": 0,
+                    "comment": 0,
+                    "lyrics": 0,
+                    "karaoke": 0,
+                    "forced": 0,
+                    "hearing_impaired": 0,
+                    "visual_impaired": 0,
+                    "clean_effects": 0,
+                    "attached_pic": 0,
+                    "timed_thumbnails": 0,
+                    "non_diegetic": 0,
+                    "captions": 0,
+                    "descriptions": 0,
+                    "metadata": 0,
+                    "dependent": 0,
+                    "still_image": 0
+                  }
+                },
+                {
+                  "index": 1,
+                  "codec_name": "aac",
+                  "codec_long_name": "AAC (Advanced Audio Coding)",
+                  "profile": "LC",
+                  "codec_type": "audio",
+                  "codec_tag_string": "[15][0][0][0]",
+                  "codec_tag": "0x000f",
+                  "sample_fmt": "fltp",
+                  "sample_rate": "48000",
+                  "channels": 1,
+                  "channel_layout": "mono",
+                  "bits_per_sample": 0,
+                  "initial_padding": 0,
+                  "ts_packetsize": "188",
+                  "id": "0x101",
+                  "r_frame_rate": "0/0",
+                  "avg_frame_rate": "0/0",
+                  "time_base": "1/90000",
+                  "start_pts": 126000,
+                  "start_time": "1.400000",
+                  "duration_ts": 923520,
+                  "duration": "10.261333",
+                  "bit_rate": "66839",
+                  "disposition": {
+                    "default": 0,
+                    "dub": 0,
+                    "original": 0,
+                    "comment": 0,
+                    "lyrics": 0,
+                    "karaoke": 0,
+                    "forced": 0,
+                    "hearing_impaired": 0,
+                    "visual_impaired": 0,
+                    "clean_effects": 0,
+                    "attached_pic": 0,
+                    "timed_thumbnails": 0,
+                    "non_diegetic": 0,
+                    "captions": 0,
+                    "descriptions": 0,
+                    "metadata": 0,
+                    "dependent": 0,
+                    "still_image": 0
+                  }
+                }
+              ]
+            }
+          ],
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "Constrained Baseline",
+              "codec_type": "video",
+              "codec_tag_string": "[27][0][0][0]",
+              "codec_tag": "0x001b",
+              "width": 1280,
+              "height": 720,
+              "coded_width": 1280,
+              "coded_height": 720,
+              "closed_captions": 0,
+              "film_grain": 0,
+              "has_b_frames": 0,
+              "pix_fmt": "yuv420p",
+              "level": 31,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 1,
+              "is_avc": "false",
+              "nal_length_size": "0",
+              "ts_packetsize": "188",
+              "id": "0x100",
+              "r_frame_rate": "24/1",
+              "avg_frame_rate": "24/1",
+              "time_base": "1/90000",
+              "start_pts": 131670,
+              "start_time": "1.463000",
+              "duration_ts": 963750,
+              "duration": "10.708333",
+              "bits_per_raw_sample": "8",
+              "extradata_size": 33,
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "[15][0][0][0]",
+              "codec_tag": "0x000f",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 1,
+              "channel_layout": "mono",
+              "bits_per_sample": 0,
+              "initial_padding": 0,
+              "ts_packetsize": "188",
+              "id": "0x101",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/90000",
+              "start_pts": 126000,
+              "start_time": "1.400000",
+              "duration_ts": 923520,
+              "duration": "10.261333",
+              "bit_rate": "66839",
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 1,
+            "format_name": "mpegts",
+            "format_long_name": "MPEG-TS (MPEG-2 Transport Stream)",
+            "start_time": "1.400000",
+            "duration": "10.771333",
+            "size": "1310720",
+            "bit_rate": "973487",
+            "probe_score": 50
+          }
+        },
+        "decode_24_frames_exit": 0,
+        "decode_errors": ""
+      },
+      "result": "PASS",
+      "cleanup": [
+        {
+          "stopped": true,
+          "all_owned_processes_exited": true
+        },
+        {
+          "stopped": true,
+          "all_owned_processes_exited": true
+        }
+      ]
+    },
+    "peer": {
+      "checks": {
+        "camera_local_slave_ipts_srt_only": true,
+        "actual_camera_and_received_preview_live": true,
+        "camera_live_during_remote_mock_tx": true,
+        "local_estop_acknowledged": true,
+        "heartbeat_loss_stop_seconds": 1.298,
+        "resume_no_auto_restart": true,
+        "disconnect_stop_seconds": 0.029,
+        "reconnect_no_auto_restart": true,
+        "camera_stop_removes_live_preview": true,
+        "received_720p24_h264_aac_decodes": true
+      },
+      "screenshots": {
+        "diablo-picam-master-live": {
+          "peer": "MASTER \u00b7 linked \u00b7 config ready",
+          "tx": "SLAVE TX process: RUNNING \u00b7 TX start processed. Process status is not an RF measurement.",
+          "locked": false,
+          "stopEnabled": true,
+          "preview_image_loaded": true
+        },
+        "diablo-picam-slave-live": {
+          "peer": "SLAVE \u00b7 linked \u00b7 config ready \u00b7 IPTS over SRT \u00b7 UDP port 28900",
+          "tx": "STATUS tx=running rx=stopped preview=stopped board=express peer=slave link=ok srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped",
+          "locked": true,
+          "stopEnabled": true,
+          "preview_image_loaded": true
+        },
+        "diablo-picam-master-estop": {
+          "peer": "MASTER \u00b7 linked \u00b7 config ready",
+          "tx": "SLAVE TX process: STOPPED \u00b7 local E-Stop. Process status is not an RF measurement.",
+          "locked": false,
+          "stopEnabled": true,
+          "preview_image_loaded": true
+        }
+      },
+      "slave": {
+        "ready": true,
+        "host": "VideoLP3D",
+        "arch": "x86_64",
+        "commit": "668f1fbc94679f581ce1d561b743b087fdb58a04"
+      },
+      "master": {
+        "ready": true,
+        "host": "TANK",
+        "arch": "aarch64",
+        "commit": "668f1fbc94679f581ce1d561b743b087fdb58a04"
+      },
+      "preview": {
+        "sha256": "b3a6eb6d5956c55f0f591fce2daf1cbc5bd60ffcf281f160198b81a825c36e9c",
+        "bytes": 2604,
+        "probe": {
+          "programs": [],
+          "streams": [
+            {
+              "width": 320,
+              "height": 240
+            }
+          ]
+        }
+      },
+      "media": {
+        "probe": {
+          "programs": [
+            {
+              "program_id": 1,
+              "program_num": 1,
+              "nb_streams": 2,
+              "pmt_pid": 4096,
+              "pcr_pid": 256,
+              "tags": {
+                "service_name": "Service01",
+                "service_provider": "FFmpeg"
+              },
+              "streams": [
+                {
+                  "index": 0,
+                  "codec_name": "h264",
+                  "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+                  "profile": "Constrained Baseline",
+                  "codec_type": "video",
+                  "codec_tag_string": "[27][0][0][0]",
+                  "codec_tag": "0x001b",
+                  "width": 1280,
+                  "height": 720,
+                  "coded_width": 1280,
+                  "coded_height": 720,
+                  "closed_captions": 0,
+                  "film_grain": 0,
+                  "has_b_frames": 0,
+                  "pix_fmt": "yuv420p",
+                  "level": 31,
+                  "chroma_location": "left",
+                  "field_order": "progressive",
+                  "refs": 1,
+                  "is_avc": "false",
+                  "nal_length_size": "0",
+                  "ts_packetsize": "188",
+                  "id": "0x100",
+                  "r_frame_rate": "24/1",
+                  "avg_frame_rate": "24/1",
+                  "time_base": "1/90000",
+                  "start_pts": 127920,
+                  "start_time": "1.421333",
+                  "duration_ts": 1342500,
+                  "duration": "14.916667",
+                  "bits_per_raw_sample": "8",
+                  "extradata_size": 33,
+                  "disposition": {
+                    "default": 0,
+                    "dub": 0,
+                    "original": 0,
+                    "comment": 0,
+                    "lyrics": 0,
+                    "karaoke": 0,
+                    "forced": 0,
+                    "hearing_impaired": 0,
+                    "visual_impaired": 0,
+                    "clean_effects": 0,
+                    "attached_pic": 0,
+                    "timed_thumbnails": 0,
+                    "non_diegetic": 0,
+                    "captions": 0,
+                    "descriptions": 0,
+                    "metadata": 0,
+                    "dependent": 0,
+                    "still_image": 0
+                  }
+                },
+                {
+                  "index": 1,
+                  "codec_name": "aac",
+                  "codec_long_name": "AAC (Advanced Audio Coding)",
+                  "profile": "LC",
+                  "codec_type": "audio",
+                  "codec_tag_string": "[15][0][0][0]",
+                  "codec_tag": "0x000f",
+                  "sample_fmt": "fltp",
+                  "sample_rate": "48000",
+                  "channels": 1,
+                  "channel_layout": "mono",
+                  "bits_per_sample": 0,
+                  "initial_padding": 0,
+                  "ts_packetsize": "188",
+                  "id": "0x101",
+                  "r_frame_rate": "0/0",
+                  "avg_frame_rate": "0/0",
+                  "time_base": "1/90000",
+                  "start_pts": 126000,
+                  "start_time": "1.400000",
+                  "duration_ts": 1307520,
+                  "duration": "14.528000",
+                  "bit_rate": "50901",
+                  "disposition": {
+                    "default": 0,
+                    "dub": 0,
+                    "original": 0,
+                    "comment": 0,
+                    "lyrics": 0,
+                    "karaoke": 0,
+                    "forced": 0,
+                    "hearing_impaired": 0,
+                    "visual_impaired": 0,
+                    "clean_effects": 0,
+                    "attached_pic": 0,
+                    "timed_thumbnails": 0,
+                    "non_diegetic": 0,
+                    "captions": 0,
+                    "descriptions": 0,
+                    "metadata": 0,
+                    "dependent": 0,
+                    "still_image": 0
+                  }
+                }
+              ]
+            }
+          ],
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "Constrained Baseline",
+              "codec_type": "video",
+              "codec_tag_string": "[27][0][0][0]",
+              "codec_tag": "0x001b",
+              "width": 1280,
+              "height": 720,
+              "coded_width": 1280,
+              "coded_height": 720,
+              "closed_captions": 0,
+              "film_grain": 0,
+              "has_b_frames": 0,
+              "pix_fmt": "yuv420p",
+              "level": 31,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 1,
+              "is_avc": "false",
+              "nal_length_size": "0",
+              "ts_packetsize": "188",
+              "id": "0x100",
+              "r_frame_rate": "24/1",
+              "avg_frame_rate": "24/1",
+              "time_base": "1/90000",
+              "start_pts": 127920,
+              "start_time": "1.421333",
+              "duration_ts": 1342500,
+              "duration": "14.916667",
+              "bits_per_raw_sample": "8",
+              "extradata_size": 33,
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "[15][0][0][0]",
+              "codec_tag": "0x000f",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 1,
+              "channel_layout": "mono",
+              "bits_per_sample": 0,
+              "initial_padding": 0,
+              "ts_packetsize": "188",
+              "id": "0x101",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/90000",
+              "start_pts": 126000,
+              "start_time": "1.400000",
+              "duration_ts": 1307520,
+              "duration": "14.528000",
+              "bit_rate": "50901",
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 1,
+            "format_name": "mpegts",
+            "format_long_name": "MPEG-TS (MPEG-2 Transport Stream)",
+            "start_time": "1.400000",
+            "duration": "14.938000",
+            "size": "1723772",
+            "bit_rate": "923160",
+            "probe_score": 50
+          }
+        },
+        "decode_24_frames_exit": 0,
+        "decode_errors": ""
+      },
+      "result": "PASS",
+      "cleanup": [
+        {
+          "stopped": true,
+          "all_owned_processes_exited": true
+        },
+        {
+          "stopped": true,
+          "all_owned_processes_exited": true
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Real IMX708 camera; synthetic AAC test tone, no microphone validation",
+    "Media helpers started separately from mock TX; not integrated GUI source-to-RF/ASI acceptance",
+    "No RF or ASI output; no downstream receiver, PCR/continuity, long-duration, thermal or impairment acceptance",
+    "Camera scene masked in screenshots; original frames and temporary recordings not published"
+  ],
+  "restoration": {
+    "rover_service": "active",
+    "boot_enablement": "enabled, unchanged",
+    "http": 200,
+    "authenticated_snapshot_requests": 2,
+    "snapshot_statuses": [
+      200,
+      200
+    ],
+    "snapshot_jpeg_bytes": [
+      5310,
+      5323
+    ],
+    "actuator_power": "owner confirmed OFF",
+    "motion_commands": "none"
+  }
+}

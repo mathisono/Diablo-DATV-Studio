@@ -17,7 +17,57 @@ documentation-only address. Random test ports are not the installation defaults.
 | [Mixed multiview](#mixed-source-multiview) | Equal quadrants, four selectors, concurrent source settings | Multiview guide |
 | [IP cameras](#two-ip-cam-input-encoders) | Two independent input cards and Save IP / Restart | RTSP setup |
 | [Peer control](#two-host-peer-control-and-link-loss) | Real two-host MASTER/SLAVE, IPTS/SRT-only SLAVE, locked controls, heartbeat loss/disconnect | Peer control guide |
+| [Real Pi Camera / SRT](#real-pi-camera-to-srt-and-peer-control) | Real IMX708 source, standalone live/loss, MASTER/SLAVE previews and E-Stop acknowledgement | README / Pi setup |
 | [Mobile](#mobile-layout) | Single-column responsive controls at 390 px viewport | UI/device support |
+
+## Real Pi Camera to SRT and peer control
+
+**Captured 2026-11-25**, application revision `668f1fb`: TANK Pi 4/IMX708 camera
+sent H.264 720p24 with synthetic AAC audio to VideoLP3D. Both native GUIs ran on
+the real hosts, viewed through SSH tunnels. Camera imagery is covered by a
+clearly labeled privacy mask before capture; controls/status are unchanged.
+The test verified loaded preview frames and decoded received video separately.
+
+[Test method, results, reproduction and limits](testing/picam-srt-two-host-2026-11-25.md)
+
+### Standalone SRT encoder 1 — live camera input
+
+![VideoLP3D standalone SRT encoder 1 live; camera image hidden for privacy](images/diablo-picam-srt-live.png)
+
+The low-resolution preview is in the transmitter column. RF and local output-TS
+buttons are unavailable in this isolated setup. The SRT slot's own TS output
+was captured and decoded; that does not demonstrate GUI-to-RF integration.
+
+### Sender stopped — actual waiting card
+
+![VideoLP3D returns to NO SRT INPUT 1 after the real camera sender stops](images/diablo-picam-srt-waiting.png)
+
+This is the real fallback after stopping the sender, not a fixture injected for
+the screenshot. The JPEG matched the repository's waiting card exactly.
+Restarting the camera sender recovered live video.
+
+### TANK MASTER — Pi Camera source and SLAVE TX telemetry
+
+![TANK MASTER with Pi Camera source, live preview state and SLAVE mock TX running](images/diablo-picam-master-live.png)
+
+### VideoLP3D SLAVE — received IPTS over SRT
+
+![VideoLP3D SLAVE locked to MASTER-produced IPTS over SRT with live preview and local E-Stop](images/diablo-picam-slave-live.png)
+
+SLAVE's transport stream was received by stream copy; decoding a second output
+for MJPEG preview did not re-encode the recorded TS. Its supervisor's `ipts=stopped`
+refers to its managed source process: this test's receiver was a separate helper,
+while the JPEG ingest correctly reports **IPTS preview live**.
+
+### MASTER — local SLAVE E-Stop acknowledged
+
+![TANK MASTER reports SLAVE TX STOPPED and local E-Stop while camera preview remains live](images/diablo-picam-master-estop.png)
+
+TX is a mock process in these peer captures, **not RF or ASI**. The camera/media
+helpers are independent of mock TX, so preview remaining live after E-Stop is
+expected. These screenshots clear the real-camera preview/UI evidence gap, not
+automatic camera handoff, integrated valid-video gating or physical output.
+TANK's rover service was restored after all test processes were stopped.
 
 ## Direct SRT and five input encoders
 
@@ -167,7 +217,7 @@ restart occurred. RF/ASI were not enabled, and owned test processes were stopped
 | Real HDMI preview plus decoded TS at receiver | Capture guide, replace synthetic HDMI example | Free Elgato/ALSA devices and live output integration |
 | Actual ATEM SRT live → loss → recovery | SRT setup / reliability section | ATEM feeding supported TS and a bounded test |
 | Two simultaneous real RTSP cameras | Camera setup / performance | Second camera, private URLs kept hidden |
-| Pi Camera preview / capture handoff | Pi setup guide | Camera not owned by another application |
+| Pi Camera automatic GUI capture/output handoff | Pi setup guide; real-camera preview/SRT captures now above | Integrated source/TX lifecycle; separate helper test is not this acceptance |
 | Physical ASI connection and independent analyzer | ASI acceptance guide | Port-2 hookup, modulator RF off, receiver/analyzer; card-only playout passed with BNC disconnected (see [ASI report](asi-output.md)) |
 | RF receiver lock, PTT-off on input loss | Board-specific transmitter guide | Interlocked launcher, board and supervised RF test setup |
 | Actual 32-bit and 64-bit Pi clean installs | Platform acceptance guide | Spare images/devices; not inferred from native builds |
@@ -189,3 +239,5 @@ See [DEVELOPMENT.md](DEVELOPMENT.md#screenshots). The checked-in
 processes, captures Chromium, and stops its owned processes afterward.
 
 For the real two-host peer captures, use the separate [peer test harness](peer-control.md#reproduce-the-isolated-test); the six-fixture capture script does not regenerate them.
+
+The real Pi Camera captures use [test-picam-srt-two-host.py and its prerequisites](testing/picam-srt-two-host-2026-11-25.md#reproduce).
