@@ -100,6 +100,8 @@ function handle_line(line) {
       super.request(sockpath, 'STOP_HDMI');
       super.request(sockpath, 'STOP_PICAM');
       super.request(sockpath, 'STOP_IPTS');
+      super.request(sockpath, 'STOP_IPCAM1');
+      super.request(sockpath, 'STOP_IPCAM2');
     }
     if (!error && (message.data.call != null || message.data.service_name != null)) {
       let running = super.request(sockpath, 'STATUS').status ?? '';

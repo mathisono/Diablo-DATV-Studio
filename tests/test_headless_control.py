@@ -119,6 +119,10 @@ class SupervisorTest(unittest.TestCase):
         self.assertEqual(command(self.sock, "STOP_SOURCE_TS"), "OK")
         self.config.write_text("modeoutput=DATVEXPRESS\nsource_layout=DIRECT\nmodeinput=HDMI\n")
         self.assertIn("not selected", command(self.sock, "START_SOURCE_TS"))
+        self.config.write_text("modeoutput=DATVEXPRESS\nsource_layout=DIRECT\nmodeinput=IPCAM1\n")
+        self.assertIn("source TS RF route unavailable", command(self.sock, "START_TX"))
+        self.assertEqual(command(self.sock, "START_SOURCE_TS"), "OK")
+        self.assertEqual(command(self.sock, "STOP_SOURCE_TS"), "OK")
 
     def test_second_supervisor_cannot_replace_live_socket(self):
         self.start()
@@ -168,6 +172,7 @@ class UcodeTest(unittest.TestCase):
         self.path = Path(self.tmp.name)
         self.config = self.path / "config.txt"
         self.config.write_text("modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nfreqoutput=437\nsymbolrate=333\nfec=12\ncall=KG6MDW\nservice_name=Trevor\n")
+        self.ipcam_config = self.path / "ip-cameras.conf"
         self.asi_file = self.path / "asi-source.ts"
         self.source_ts_mock = self.path / "source-ts-mock"
         self.source_ts_mock.write_text('#!/bin/sh\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
@@ -177,7 +182,7 @@ class UcodeTest(unittest.TestCase):
             base = random.randint(25000, 45000)
             probes = []
             try:
-                for offset in (0, 1, 40, 41, 42, 43, 44, 50, 51, 52):
+                for offset in (0, 1, 40, 41, 42, 43, 44, 50, 51, 52, 53, 54):
                     probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     probes.append(probe); probe.bind(("127.0.0.1", base + offset))
                 for offset in (*range(20, 25), *range(30, 35)):
@@ -200,6 +205,7 @@ class UcodeTest(unittest.TestCase):
                             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
                             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
                             "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
+                            "PORTSDOWN_IPCAM_CONFIG": str(self.ipcam_config),
                             "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
                             "PORTSDOWN_FFMPEG": shutil.which("ffmpeg") or ""}
         self.supervisor = subprocess.Popen([str(CONTROL / "tx-super")], env=env,
@@ -215,6 +221,7 @@ class UcodeTest(unittest.TestCase):
             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
             "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
+            "PORTSDOWN_IPCAM_CONFIG": str(self.ipcam_config),
             "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
             "PORTSDOWN_PRESETS_PATH": str(self.path / "presets.json"),
         }
@@ -321,6 +328,66 @@ class UcodeTest(unittest.TestCase):
         status, body = self.request("GET", "/no-hdmi-input.svg")
         self.assertEqual(status, 200, body)
         self.assertIn(b"NO HDMI INPUT", body)
+
+    def test_two_ip_cameras_use_private_urls_and_independent_previews(self):
+        self.assertEqual(json.loads(self.request("GET", "/api/ipcam")[1])["configured"],
+                         {"1": False, "2": False})
+        self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 1, "url": "file:///tmp/video.ts"})[0], 400)
+        self.assertEqual(self.request("POST", "/api/config", {
+            "source_layout": "MULTIVIEW", "multiview_1": "IPCAM1",
+            "multiview_2": "IPCAM2", "multiview_3": "SRT3", "multiview_4": "IPTSIN"})[0], 200)
+        urls = {1: "rtsp://user:p%40ss@127.0.0.1:8554/first",
+                2: "rtsp://user:other@127.0.0.1:8554/second"}
+        for slot, url in urls.items():
+            status, body = self.request("POST", "/api/ipcam", {"slot": slot, "url": url})
+            self.assertEqual(status, 200, body)
+            self.assertEqual(self.request("GET", f"/no-ipcam{slot}-input.jpg")[0], 200)
+        self.assertEqual(self.ipcam_config.stat().st_mode & 0o777, 0o600)
+        self.assertIn(urls[1], self.ipcam_config.read_text())
+        for endpoint in ("/api/config", "/api/state", "/api/ipcam"):
+            self.assertNotIn(b"p%40ss", self.request("GET", endpoint)[1])
+        state = json.loads(self.request("GET", "/api/state")[1])
+        self.assertTrue(state["sources"]["IPCAM1"]["selected"])
+        self.assertTrue(state["sources"]["IPCAM2"]["selected"])
+        self.assertEqual(self.request("POST", "/api/source-ts/start")[0], 200)
+        self.assertEqual(self.request("POST", "/api/source-ts/stop")[0], 200)
+        with socket.create_connection(("127.0.0.1", self.source_preview_port + 3), timeout=2) as producer:
+            producer.sendall((ROOT / "www/no-ipcam1-input.jpg").read_bytes())
+            self.assertTrue(wait_for(lambda: json.loads(self.request("GET", "/api/state")[1])
+                                     ["sources"]["IPCAM1"]["preview"]["producer"]))
+            self.assertFalse(json.loads(self.request("GET", "/api/state")[1])
+                             ["sources"]["IPCAM2"]["preview"]["producer"])
+        self.assertTrue(wait_for(lambda: not json.loads(self.request("GET", "/api/state")[1])
+                                 ["sources"]["IPCAM1"]["preview"]["producer"]))
+        for slot in (1, 2):
+            with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+                viewer.settimeout(3)
+                viewer.sendall(f"GET /api/video/source/ipcam{slot} HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+                data = b""
+                while b"\xff\xd9" not in data: data += viewer.recv(8192)
+                self.assertIn((ROOT / f"www/no-ipcam{slot}-input.jpg").read_bytes(), data)
+        if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+            output = self.path / "ipcam-multiview.ts"
+            result = subprocess.run([str(CONTROL / "source-ts.sh")], env=os.environ | {
+                "PORTSDOWN_CONFIG": str(self.config), "PORTSDOWN_DIR": str(ROOT),
+                "PORTSDOWN_HTTP_PORT": str(self.port),
+                "PORTSDOWN_SOURCE_TS_URL": str(output),
+                "PORTSDOWN_SOURCE_TS_DURATION": "2"},
+                capture_output=True, text=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stderr[-1000:])
+            probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                    "stream=codec_name,width,height", "-of", "json", str(output)],
+                                   capture_output=True, text=True, check=True, timeout=8)
+            self.assertEqual(json.loads(probe.stdout)["streams"][0],
+                             {"codec_name": "h264", "width": 640, "height": 480})
+        self.assertEqual(self.request("POST", "/api/config", {
+            "source_layout": "DIRECT", "modeinput": "IPCAM2"})[0], 200)
+        self.assertEqual(self.request("POST", "/api/tx/start")[0], 409)
+        self.assertEqual(self.request("POST", "/api/source-ts/start")[0], 200)
+        self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 2, "url": ""})[0], 200)
+        self.assertEqual(self.request("POST", "/api/source-ts/start")[0], 409)
+        self.ipcam_config.chmod(0o644)
+        self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 2, "url": urls[2]})[0], 400)
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg unavailable")
     def test_mixed_multiview_generates_local_ts_and_waiting_cards(self):
@@ -473,14 +540,50 @@ class UcodeTest(unittest.TestCase):
                             "PORTSDOWN_ARGS_OUT": str(args_file),
                             "PORTSDOWN_CAM_ARGS_OUT": str(cam_args),
                             "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]}
+        self.ipcam_config.write_text("ipcam1=rtsp://u:p%40ss@127.0.0.1:8554/a\n"
+                                     "ipcam2=rtsp://u:other@127.0.0.1:8554/b\n")
+        self.ipcam_config.chmod(0o600)
+        env["PORTSDOWN_IPCAM_CONFIG"] = str(self.ipcam_config)
+        env["PORTSDOWN_SOURCE_MJPEG_PORT_BASE"] = str(self.source_preview_port)
         for role, expected in (("HDMI", "/dev/video2"),
                                ("IPTS", "udp://0.0.0.0:10123"),
-                               ("PICAM", "-f\nmjpeg\n-i\npipe:0")):
+                               ("PICAM", "-f\nmjpeg\n-i\npipe:0"),
+                               ("IPCAM1", "rtsp://u:p%40ss@127.0.0.1:8554/a"),
+                               ("IPCAM2", "rtsp://u:other@127.0.0.1:8554/b")):
             result = subprocess.run([str(CONTROL / "source-preview.sh"), role],
                                     env=env, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(expected, args_file.read_text(), role)
+            if role.startswith("IPCAM"):
+                self.assertIn("fps=5,scale=320:240", args_file.read_text())
+                self.assertIn(f"tcp://127.0.0.1:{self.source_preview_port+2+int(role[-1])}",
+                              args_file.read_text())
         self.assertIn("--camera\n1", cam_args.read_text())
+
+    def test_direct_ip_camera_ts_uses_selected_private_url_and_format(self):
+        fake = self.path / "ffmpeg-capture"
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$PORTSDOWN_ARGS_OUT"\n')
+        fake.chmod(0o755)
+        args_file = self.path / "ts-args"
+        self.ipcam_config.write_text("ipcam1=rtsp://u:p%40ss@127.0.0.1:8554/a\n"
+                                     "ipcam2=rtsp://u:other@127.0.0.1:8554/b\n")
+        self.ipcam_config.chmod(0o600)
+        for fmt, expected in (("4:3", "scale=640:480"),
+                              ("720p", "scale=1280:720"),
+                              ("1080p", "scale=1920:1080")):
+            self.config.write_text(f"source_layout=DIRECT\nmodeinput=IPCAM2\nformat={fmt}\n"
+                                   "call=KG6MDW\nservice_name=Trevor\n")
+            result = subprocess.run([str(CONTROL / "source-ts.sh")], env=os.environ | {
+                "PORTSDOWN_CONFIG": str(self.config), "PORTSDOWN_DIR": str(ROOT),
+                "PORTSDOWN_FFMPEG": str(fake), "PORTSDOWN_ARGS_OUT": str(args_file),
+                "PORTSDOWN_IPCAM_CONFIG": str(self.ipcam_config),
+                "PORTSDOWN_SOURCE_TS_DURATION": "1"}, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = args_file.read_text()
+            self.assertIn("rtsp://u:other@127.0.0.1:8554/b", args)
+            self.assertNotIn("p%40ss", args)
+            self.assertIn(expected, args)
+            self.assertIn("-rtsp_transport\ntcp", args)
 
     def test_selected_source_preview_returns_to_waiting_card_after_loss(self):
         status, body = self.request("POST", "/api/config", {

@@ -21,6 +21,12 @@ tiles have synthetic MJPEG frames, while Pi Camera displays its waiting card.
 No Elgato, Pi Camera, IP transmitter, ASI card, or RF path was used. The GUI
 shows how source-specific settings appear together for a mixed-source layout.
 
+![Two RTSP IP CAM sources selected in the multiview, with private URL configuration and live/waiting tiles](images/headless-web-gui-ipcam-multiview.png)
+
+This second multiview capture uses synthetic frames for IP CAM 1 and HDMI;
+IP CAM 2 displays its waiting card. It demonstrates simultaneous independent
+camera selection and the URL-configured indicators without exposing URLs.
+
 ![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
 
 The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
@@ -78,19 +84,38 @@ capture, audio, and RF remain unverified.
   across disconnects and never replays a recording. This local relay is not
   yet connected to an RF transmitter. Multiview exposes four
   independent top-left/top-right/bottom-left/bottom-right dropdowns below the
-  preview. Each tile may select HDMI, Pi Camera, IPTS, any SRT encoder 1–5,
+  preview. Each tile may select HDMI, Pi Camera, IPTS, IP CAM 1/2, any SRT encoder 1–5,
   or a test card; the browser preview has four equal quadrants. The saved
   selection is included in presets and Master/Slave configuration. HDMI V4L2
   device, Pi Camera index, IPTS UDP port, and loopback/LAN listen scope appear
   whenever that source type is selected in either direct or multiview mode.
+  Selecting either IP CAM reveals both RTSP URL setup fields. The GUI accepts
+  usernames/passwords and percent-encodes special characters in their URL
+  components; saved URLs are never returned to the browser. They live in
+  `/var/lib/portsdown/ip-cameras.conf` (mode 0600), or the path selected by
+  `PORTSDOWN_IPCAM_CONFIG`, not in presets, peer config, or the legacy config.
+  Use HTTPS at any reverse proxy for remote GUI access to credential fields.
   The five SRT listeners remain independently enabled below the main controls.
-- `control/source-preview.sh` runs selected HDMI, Pi Camera, and IPTS previews
+- `control/source-preview.sh` runs selected HDMI, Pi Camera, IPTS, and two
+  independent IP CAM previews
   independently at 320×240/5 fps. HDMI uses the configured V4L2 device, Pi
   Camera uses `rpicam-vid` (or `libcamera-vid`), and IPTS decodes MPEG-TS on
-  the configured UDP port. The web server supplies source-specific waiting
+  the configured UDP port. Each RTSP IP CAM uses TCP transport, decodes its
+  source raster (including HD/UHD), and scales/pads to 320×240 at 5 fps.
+  The web server supplies source-specific waiting
   cards when no live frames arrive and returns to them after loss. Set
   `PORTSDOWN_SOURCE_PREVIEW_EXEC` to enable these producers. Pi Camera and
   physical HDMI capture are not yet hardware-tested in this control plane.
+  One LAN RTSP camera was probed at 3840×2160 H.264/30 fps; the actual
+  `source-preview.sh` produced three MJPEG frames, and a bounded Direct
+  IP CAM encode produced a 640×480 H.264/AAC TS with service metadata.
+  This was a software/network test only; IP CAM 2 and RF were not tested.
+- Direct IP CAM 1/2 can start a local live MPEG-TS encode. Saved `format`
+  selects 640×480/25, 854×480/25, 1280×720/24, or 1920×1080/15;
+  video is H.264 (900 kb/s target) and available camera audio becomes AAC.
+  The process retries after RTSP loss, emits no saved recording, and never
+  keys RF. The GUI blocks RF TX for this route until board integration is
+  implemented.
 - `control/source-ts.sh` composes the four current low-resolution preview
   feeds (including waiting cards) with FFmpeg `xstack` into a **video-only,
   5 fps** H.264 MPEG-TS monitor output. Use **Start/Stop output TS** in the

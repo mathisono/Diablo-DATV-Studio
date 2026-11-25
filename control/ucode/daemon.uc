@@ -6,6 +6,7 @@ import * as super from 'super';
 import * as video from 'video';
 import * as peerctl from 'peer';
 import * as presets from 'presets';
+import * as ipcam from 'ipcam';
 
 /* Persistent, loopback-only development server. Put authentication at a
  * reverse proxy before exposing this control API on a LAN. */
@@ -14,6 +15,7 @@ if (!dir || substr(dir, 0, 1) != '/') die('PORTSDOWN_DIR must be absolute');
 const cfgpath = getenv('PORTSDOWN_CONFIG') ?? `${dir}/scripts/portsdown_config.txt`;
 const store = getenv('PORTSDOWN_CONFIG_STORE') ?? `${dir}/control/config-store`;
 const presetpath = getenv('PORTSDOWN_PRESETS_PATH') ?? '/var/lib/portsdown/presets.json';
+const ipcampath = getenv('PORTSDOWN_IPCAM_CONFIG') ?? '/var/lib/portsdown/ip-cameras.conf';
 const sockpath = getenv('PORTSDOWN_TX_SOCKET') ?? '/run/portsdown/tx.sock';
 const port = +(getenv('PORTSDOWN_HTTP_PORT') ?? '8080');
 const extra_host = getenv('PORTSDOWN_ALLOWED_HOST');
@@ -39,7 +41,7 @@ function srt_state(status) {
   return slots;
 }
 
-const local_sources = { HDMI: 6, CAMH264: 7, IPTSIN: 8 };
+const local_sources = { HDMI: 6, CAMH264: 7, IPTSIN: 8, IPCAM1: 9, IPCAM2: 10 };
 let source_attempts = {};
 function wants_source(cfg, source) {
   if (!cfg) return false;
@@ -62,9 +64,9 @@ function sync_sources(cfg, status) {
   let can_run = index(status ?? '', 'tx=stopped') >= 0 &&
     index(status ?? '', 'rx=stopped') >= 0;
   for (let source, slot in local_sources) {
-    let role = source == 'CAMH264' ? 'PICAM' : source == 'IPTSIN' ? 'IPTS' : 'HDMI';
+    let role = source == 'CAMH264' ? 'PICAM' : source == 'IPTSIN' ? 'IPTS' : source;
     let wanted = wants_source(cfg, source);
-    let key = source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : 'hdmi';
+    let key = source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : lc(source);
     let running = index(status ?? '', `${key}=running`) >= 0;
     if (!wanted || !can_run) {
       if (running) super.request(sockpath, `STOP_${role}`);
@@ -127,6 +129,27 @@ function response(peer, status, ctype, body, keep) {
 }
 
 function api(peer, method, path, body) {
+  if (path == '/api/ipcam' && method == 'GET') {
+    let saved = ipcam.load(ipcampath);
+    return response(peer, '200 OK', 'application/json', sprintf('%J',
+      { configured: { '1': !!saved['1'], '2': !!saved['2'] } }));
+  }
+  if (path == '/api/ipcam' && method == 'POST') {
+    if (peer_role == 'SLAVE') return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only"}');
+    let running = super.request(sockpath, 'STATUS').status ?? '';
+    if (index(running, 'tx=running') >= 0 || index(running, 'rx=running') >= 0)
+      return response(peer, '409 Conflict', 'application/json', '{"error":"stop TX/RX before changing camera URL"}');
+    let request = json(body);
+    let slot = '' + request?.slot;
+    let error = ipcam.save(ipcampath, store, slot, request?.url);
+    if (error) return response(peer, '400 Bad Request', 'application/json', sprintf('%J', { error: error }));
+    if (index(running, 'source_ts=running') >= 0)
+      super.request(sockpath, 'STOP_SOURCE_TS');
+    super.request(sockpath, `STOP_IPCAM${slot}`);
+    source_attempts[`IPCAM${slot}`] = 0;
+    emit('config', { changed: true });
+    return response(peer, '200 OK', 'application/json', '{"ok":true}');
+  }
   if (method == 'GET' && path == '/api/asi/file-status')
     return response(peer, '200 OK', 'application/json', sprintf('%J', asi_file_status()));
   if (method == 'GET' && path == '/api/state') {
@@ -215,7 +238,8 @@ function api(peer, method, path, body) {
     let route = config.load(cfgpath);
     if (path == '/api/tx/start' &&
         (route?.source_layout == 'MULTIVIEW' ||
-         route?.source_layout == 'DIRECT' && route?.modeinput == 'SRT'))
+         route?.source_layout == 'DIRECT' &&
+         (route?.modeinput == 'SRT' || route?.modeinput == 'IPCAM1' || route?.modeinput == 'IPCAM2')))
       return response(peer, '409 Conflict', 'application/json',
         '{"error":"selected source TS output is separate; RF TX route is not integrated"}');
     let result;
@@ -247,12 +271,19 @@ function api(peer, method, path, body) {
     let start = path == '/api/source-ts/start';
     let cfg = config.load(cfgpath);
     if (start && cfg?.source_layout != 'MULTIVIEW' &&
-        !(cfg?.source_layout == 'DIRECT' && cfg?.modeinput == 'SRT'))
-      return response(peer, '409 Conflict', 'application/json', '{"error":"save Direct SRT or Multiview output source first"}');
-    if (start && cfg?.source_layout == 'DIRECT') {
+        !(cfg?.source_layout == 'DIRECT' &&
+          (cfg?.modeinput == 'SRT' || cfg?.modeinput == 'IPCAM1' || cfg?.modeinput == 'IPCAM2')))
+      return response(peer, '409 Conflict', 'application/json', '{"error":"save Direct SRT, Direct IP CAM, or Multiview output source first"}');
+    if (start && cfg?.source_layout == 'DIRECT' && cfg?.modeinput == 'SRT') {
       let slot = cfg.srt_source_slot ?? '1';
       let armed = super.request(sockpath, `START_SRT${slot}`);
       if (!armed.ok) return response(peer, '503 Service Unavailable', 'application/json', sprintf('%J', armed));
+    }
+    if (start && cfg?.source_layout == 'DIRECT' &&
+        (cfg?.modeinput == 'IPCAM1' || cfg?.modeinput == 'IPCAM2')) {
+      let number = substr(cfg.modeinput, -1);
+      if (!ipcam.load(ipcampath)[number])
+        return response(peer, '409 Conflict', 'application/json', '{"error":"configure the selected IP CAM URL first"}');
     }
     let result = super.request(sockpath, start ? 'START_SOURCE_TS' : 'STOP_SOURCE_TS');
     emit('state', { command: start ? 'START_SOURCE_TS' : 'STOP_SOURCE_TS', result: result });
@@ -273,9 +304,9 @@ function api(peer, method, path, body) {
     if (!video.subscribe(peer, +substr(path, -1))) peer.close();
     return;
   }
-  if (method == 'GET' && match(path, /^\/api\/video\/source\/(hdmi|camera|ipts)$/)) {
+  if (method == 'GET' && match(path, /^\/api\/video\/source\/(hdmi|camera|ipts|ipcam1|ipcam2)$/)) {
     let source = substr(path, 18);
-    let slot = source == 'hdmi' ? 6 : source == 'camera' ? 7 : 8;
+    let slot = source == 'hdmi' ? 6 : source == 'camera' ? 7 : source == 'ipts' ? 8 : source == 'ipcam1' ? 9 : 10;
     if (!response(peer, '200 OK', 'multipart/x-mixed-replace; boundary=frame', '', true)) return;
     if (!video.subscribe(peer, slot)) peer.close();
     return;
@@ -285,7 +316,7 @@ function api(peer, method, path, body) {
     return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :
       response(peer, '200 OK', 'image/jpeg', file);
   }
-  if (method == 'GET' && (match(path, /^\/no-(hdmi|picam|ipts)-input\.jpg$/) || path == '/test-card.jpg')) {
+  if (method == 'GET' && (match(path, /^\/no-(hdmi|picam|ipts|ipcam1|ipcam2)-input\.jpg$/) || path == '/test-card.jpg')) {
     let file = fs.readfile(`${dir}/www${path}`);
     return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :
       response(peer, '200 OK', 'image/jpeg', file);
@@ -329,12 +360,12 @@ for (let slot = 1; slot <= 5; slot++) {
 }
 let source_preview_base = +(getenv('PORTSDOWN_SOURCE_MJPEG_PORT_BASE') ??
   ('' + (+(getenv('PORTSDOWN_MJPEG_PORT') ?? '8082') + 6)));
-if (source_preview_base < 1024 || source_preview_base > 65533)
+if (source_preview_base < 1024 || source_preview_base > 65531)
   die('Invalid source preview port base');
 for (let source, slot in local_sources) {
   if (!video.start(source_preview_base + slot - 6, slot))
     die(`Cannot bind ${source} preview ingest port`);
-  let card = source == 'HDMI' ? 'hdmi' : source == 'CAMH264' ? 'picam' : 'ipts';
+  let card = source == 'HDMI' ? 'hdmi' : source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : lc(source);
   if (!video.set_fallback(slot, fs.readfile(`${dir}/www/no-${card}-input.jpg`)))
     die(`Missing ${source} preview test card`);
 }

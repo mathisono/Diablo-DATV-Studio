@@ -14,8 +14,9 @@ fi
 [[ -r $config ]] || { echo 'Configuration unavailable' >&2; exit 2; }
 cfg() { awk -F= -v key="$1" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$config"; }
 layout=$(cfg source_layout)
-[[ $layout == MULTIVIEW || ( $layout == DIRECT && $(cfg modeinput) == SRT ) ]] || {
-  echo 'Select Multiview or Direct SRT and save configuration first' >&2; exit 2;
+direct=$(cfg modeinput)
+[[ $layout == MULTIVIEW || ( $layout == DIRECT && ( $direct == SRT || $direct == IPCAM1 || $direct == IPCAM2 ) ) ]] || {
+  echo 'Select Multiview, Direct SRT or Direct IP CAM and save configuration first' >&2; exit 2;
 }
 [[ $http_port =~ ^[0-9]+$ ]] && (( http_port >= 1024 && http_port <= 65535 )) || exit 2
 provider=$(cfg call)
@@ -25,6 +26,31 @@ name=$(cfg service_name)
 }
 limit=()
 if [[ -n $duration ]]; then limit=(-t "$duration"); fi
+if [[ $layout == DIRECT && $direct == IPCAM1 || $layout == DIRECT && $direct == IPCAM2 ]]; then
+  number=${direct#IPCAM}
+  secrets=${PORTSDOWN_IPCAM_CONFIG:-/var/lib/portsdown/ip-cameras.conf}
+  [[ -r $secrets ]] || { echo "IP CAM $number not configured" >&2; exit 2; }
+  mode=$(stat -c %a "$secrets")
+  (( (8#$mode & 077) == 0 )) || { echo 'IP camera config must be private (0600)' >&2; exit 2; }
+  url=$(awk -F= -v key="ipcam$number" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$secrets")
+  [[ $url == rtsp://* ]] || { echo "IP CAM $number RTSP URL missing" >&2; exit 2; }
+  case $(cfg format) in
+    1080p) width=1920; height=1080; fps=15;;
+    720p) width=1280; height=720; fps=24;;
+    16:9) width=854; height=480; fps=25;;
+    *) width=640; height=480; fps=25;;
+  esac
+  camera_ts() {
+    "$ffmpeg" -hide_banner -nostdin -loglevel quiet -rtsp_transport tcp -timeout 5000000 -i "$url" \
+      -map 0:v:0 -map '0:a:0?' -vf "fps=$fps,scale=$width:$height:force_original_aspect_ratio=decrease,pad=$width:$height:(ow-iw)/2:(oh-ih)/2,setsar=1" \
+      -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g $((fps * 2)) \
+      -b:v 900k -maxrate 950k -bufsize 950k -c:a aac -b:a 64k -ar 48000 \
+      -metadata "service_provider=$provider" -metadata "service_name=$name" \
+      "${limit[@]}" -f mpegts -muxrate 1200000 "$output"
+  }
+  if [[ -n $duration ]]; then camera_ts; exit $?; fi
+  while :; do camera_ts || true; sleep 1; done
+fi
 if [[ $layout == DIRECT ]]; then
   slot=$(cfg srt_source_slot)
   slot=${slot:-1}
@@ -66,6 +92,8 @@ for tile in 1 2 3 4; do
     HDMI) url=/api/video/source/hdmi;;
     CAMH264) url=/api/video/source/camera;;
     IPTSIN) url=/api/video/source/ipts;;
+    IPCAM1) url=/api/video/source/ipcam1;;
+    IPCAM2) url=/api/video/source/ipcam2;;
     SRT[1-5]) url=/api/video/srt/${choice#SRT};;
     CARDH264) url=;;
     *) echo "Invalid multiview tile $tile: $choice" >&2; exit 2;;

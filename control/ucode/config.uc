@@ -17,8 +17,8 @@ export const capabilities = {
 const fec_s = ['12', '23', '34', '56', '78'];
 const fec_s2 = ['14', '13', '12', '35', '23', '34', '56', '89', '91'];
 const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','HDMI','DESKTOP','SRT',
-  'IPTSIN','IPTSIN264','IPTSIN265'];
-const multiview_sources = ['HDMI','CAMH264','IPTSIN','SRT1','SRT2','SRT3','SRT4','SRT5','CARDH264'];
+  'IPTSIN','IPTSIN264','IPTSIN265','IPCAM1','IPCAM2'];
+const multiview_sources = ['HDMI','CAMH264','IPTSIN','IPCAM1','IPCAM2','SRT1','SRT2','SRT3','SRT4','SRT5','CARDH264'];
 const formats = ['4:3','16:9','720p','1080p'];
 const encoders = ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'];
 const mutable = ['modeoutput', 'modeinput', 'modulation', 'freqoutput', 'symbolrate',

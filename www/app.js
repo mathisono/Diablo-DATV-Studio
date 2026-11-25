@@ -9,6 +9,7 @@ let srtLocked = false;
 let lastState = null;
 const multiviewOptions = [
   ['HDMI','Elgato HDMI'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
+  ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
   ...[1,2,3,4,5].map(n=>[`SRT${n}`,`SRT encoder ${n}`]),['CARDH264','Test card']
 ];
 const previewSources = {
@@ -17,6 +18,8 @@ const previewSources = {
   IPTSIN: ['/api/video/source/ipts','/no-ipts-input.jpg'],
   IPTSIN264: ['/api/video/source/ipts','/no-ipts-input.jpg'],
   IPTSIN265: ['/api/video/source/ipts','/no-ipts-input.jpg']
+  ,IPCAM1: ['/api/video/source/ipcam1','/no-ipcam1-input.jpg']
+  ,IPCAM2: ['/api/video/source/ipcam2','/no-ipcam2-input.jpg']
 };
 function log(message) {
   const node = $('log');
@@ -28,6 +31,13 @@ async function api(path, method='GET', data) {
   const result = await reply.json();
   if (!reply.ok) throw Error(result.error || result.message || `HTTP ${reply.status}`);
   return result;
+}
+async function refreshIpCamStatus() {
+  try {
+    const saved = (await api('/api/ipcam')).configured;
+    for (let n=1;n<=2;n++) $('ipcam-status-'+n).textContent =
+      saved[String(n)] ? `IP CAM ${n} configured · URL hidden` : `IP CAM ${n} not configured`;
+  } catch { for (let n=1;n<=2;n++) $('ipcam-status-'+n).textContent = 'Camera configuration unavailable'; }
 }
 function choices(id, items, selected) {
   $(id).replaceChildren(...items.map(([value,label]) => {
@@ -80,6 +90,7 @@ function refreshSourceFields() {
   const hdmi = multi ? selected.includes('HDMI') : $('modeinput').value === 'HDMI';
   const picam = multi ? selected.includes('CAMH264') : $('modeinput').value === 'CAMH264';
   const ipts = multi ? selected.includes('IPTSIN') : $('modeinput').value.startsWith('IPTSIN');
+  const ipcam = multi ? selected.some(s=>s==='IPCAM1'||s==='IPCAM2') : $('modeinput').value.startsWith('IPCAM');
   $('srt-details').open = multi ? selected.some(s=>s.startsWith('SRT')) : $('modeinput').value === 'SRT';
   for (const el of document.querySelectorAll('.direct-only')) el.hidden = multi;
   for (const el of document.querySelectorAll('.srt-direct-only')) el.hidden = multi || $('modeinput').value !== 'SRT';
@@ -87,10 +98,11 @@ function refreshSourceFields() {
   $('multiview-preview').hidden = !multi;
   $('multiview-preview').classList.toggle('wide',['16:9','720p','1080p'].includes($('format').value));
   $('multiview-selectors').hidden = !multi;
-  $('source-ts-controls').hidden = !multi && $('modeinput').value !== 'SRT';
+  $('source-ts-controls').hidden = !multi && !['SRT','IPCAM1','IPCAM2'].includes($('modeinput').value);
   for (const el of document.querySelectorAll('.hdmi-only')) el.hidden = !hdmi;
   for (const el of document.querySelectorAll('.picam-only')) el.hidden = !picam;
   for (const el of document.querySelectorAll('.ipts-only')) el.hidden = !ipts;
+  for (const el of document.querySelectorAll('.ipcam-only')) el.hidden = !ipcam;
   $('expresshdmidevice').required = hdmi;
   const route = $('route-summary');
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
@@ -107,6 +119,7 @@ function fill(config, updateCurrent=true) {
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
     ['CARDH264','Test card'],['HDMI','Elgato HDMI'],['DESKTOP','Desktop'],['SRT','SRT input'],
+    ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
     ['IPTSIN','IP transport stream'],['IPTSIN264','IPTS H.264'],['IPTSIN265','IPTS H.265']
   ], config.modeinput);
   choices('srt_source_slot', [1,2,3,4,5].map(n=>[String(n),`SRT encoder ${n}`]), config.srt_source_slot || '1');
@@ -125,6 +138,7 @@ function fill(config, updateCurrent=true) {
 }
 async function reload() {
   const result = await api('/api/config'); capabilities = result.capabilities; fill(result.config);
+  await refreshIpCamStatus();
   const state = await api('/api/state'); showState(state);
 }
 function previewFor(source, state) {
@@ -140,7 +154,7 @@ function previewFor(source, state) {
     const legacyHdmi=key==='HDMI' && !state.source_preview_available;
     return {url:legacyHdmi?'/api/video':mapped[0],card:mapped[1],
       live:legacyHdmi?!!state.video?.producer:!!state.sources?.[key]?.preview?.producer,
-      label:key==='CAMH264'?'Pi Camera':key==='IPTSIN'?'IPTS':'HDMI'};
+      label:key==='CAMH264'?'Pi Camera':key==='IPTSIN'?'IPTS':key==='IPCAM1'?'IP CAM 1':key==='IPCAM2'?'IP CAM 2':'HDMI'};
   }
   return {url:'/api/video',card:'/no-ip-input.svg',live:!!state.video?.producer,label:source||'Direct'};
 }
@@ -177,7 +191,7 @@ function showState(state) {
   const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : state.board === 'DEKTEC_ASI' ? 'dektec_asi' : null;
   const boardReady = expectedBoard && supervisorBoard === expectedBoard;
   const localRoute = current.source_layout === 'MULTIVIEW' ||
-    (current.source_layout === 'DIRECT' && current.modeinput === 'SRT');
+    (current.source_layout === 'DIRECT' && ['SRT','IPCAM1','IPCAM2'].includes(current.modeinput));
   $('tx-status').textContent = localRoute
     ? 'RF TX unavailable for this source route; local MPEG-TS output is separate.'
     : !boardReady && state.peer_role !== 'MASTER'
@@ -195,16 +209,18 @@ function showState(state) {
   const locked = state.peer_role === 'SLAVE';
   const monitorRunning = /source_ts=running/.test(supervisorStatus);
   const outputSelected = current.source_layout === 'MULTIVIEW' ||
-    (current.source_layout === 'DIRECT' && current.modeinput === 'SRT');
+    (current.source_layout === 'DIRECT' && ['SRT','IPCAM1','IPCAM2'].includes(current.modeinput));
   const selectedSrt = state.srt?.find(item=>item.slot===Number(current.srt_source_slot||'1'));
   $('source-ts-status').textContent = !state.source_ts_available ? 'Local TS launcher not configured' :
-    monitorRunning ? `Local MPEG-TS output running${current.source_layout === 'DIRECT' ? ` · SRT encoder ${current.srt_source_slot||'1'} selected` : ' · four-tile multiview'}` :
-    current.source_layout === 'DIRECT' && selectedSrt ? `SRT encoder ${selectedSrt.slot} selected · input UDP ${selectedSrt.ts_port} · output starts on request` : 'Local MPEG-TS output stopped';
+    monitorRunning ? `Local MPEG-TS output running${current.source_layout === 'DIRECT' ? current.modeinput === 'SRT' ? ` · SRT encoder ${current.srt_source_slot||'1'} selected` : ` · ${current.modeinput} selected` : ' · four-tile multiview'}` :
+    current.source_layout === 'DIRECT' && current.modeinput === 'SRT' && selectedSrt ? `SRT encoder ${selectedSrt.slot} selected · input UDP ${selectedSrt.ts_port} · output starts on request` :
+    current.source_layout === 'DIRECT' && current.modeinput?.startsWith('IPCAM') ? `${current.modeinput} selected · output starts on request` : 'Local MPEG-TS output stopped';
   $('source-ts-start').disabled = locked || !outputSelected || !state.source_ts_available || monitorRunning;
   $('source-ts-stop').disabled = locked || !monitorRunning;
   $('tx-start').disabled = locked || localRoute || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
   for (const id of fields) $(id).disabled = locked;
+  for (let n=1;n<=2;n++) for (const action of ['url','save','clear']) $(`ipcam-${action}-${n}`).disabled = locked;
   $('settings').querySelector('button[type=submit]').disabled = locked;
   for (const button of $('presets').querySelectorAll('button')) button.disabled = locked;
   srtLocked = locked;
@@ -271,6 +287,30 @@ $('settings').addEventListener('submit',async event => {
   try { await api('/api/config','POST',changed); log('Configuration saved'); await reload(); }
   catch (error) { log(`Save failed: ${error.message}`); }
 });
+for (let n=1;n<=2;n++) {
+  $(`ipcam-save-${n}`).addEventListener('click', async () => {
+    const input=$(`ipcam-url-${n}`);
+    try {
+      const parsed=new URL(input.value.trim());
+      if (parsed.protocol !== 'rtsp:' || !parsed.hostname) throw Error('Enter an rtsp:// URL');
+      await api('/api/ipcam','POST',{slot:n,url:parsed.href});
+      input.value='';
+      await refreshIpCamStatus();
+      log(`IP CAM ${n} configuration saved`);
+    } catch(error) { log(`IP CAM ${n}: ${error.message}`); }
+  });
+  $(`ipcam-url-${n}`).addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); $(`ipcam-save-${n}`).click(); }
+  });
+  $(`ipcam-clear-${n}`).addEventListener('click', async () => {
+    try {
+      await api('/api/ipcam','POST',{slot:n,url:''});
+      $(`ipcam-url-${n}`).value='';
+      await refreshIpCamStatus();
+      log(`IP CAM ${n} configuration cleared`);
+    } catch(error) { log(`IP CAM ${n}: ${error.message}`); }
+  });
+}
 for (let i=1;i<=4;i++) {
   const loadButton=document.createElement('button'); loadButton.textContent=`Load ${i}`;
   loadButton.onclick=async()=>{ try { fill(await api(`/api/presets/${i}`),false); log(`Preset ${i} loaded; press Save configuration to apply`); } catch(error) { log(error.message); } };

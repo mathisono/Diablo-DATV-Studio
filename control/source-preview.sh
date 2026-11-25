@@ -6,7 +6,7 @@ ffmpeg=${PORTSDOWN_FFMPEG:-ffmpeg}
 config=${PORTSDOWN_CONFIG:-${PORTSDOWN_DIR:-}/scripts/portsdown_config.txt}
 base=${PORTSDOWN_SOURCE_MJPEG_PORT_BASE:-$(( ${PORTSDOWN_MJPEG_PORT:-8082} + 6 ))}
 case "$base" in ''|*[!0-9]*) exit 2;; esac
-(( base >= 1024 && base <= 65533 )) || exit 2
+(( base >= 1024 && base <= 65531 )) || exit 2
 [[ -r "$config" ]] || { echo 'Source preview config unavailable' >&2; exit 2; }
 cfg() { awk -F= -v key="$1" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$config"; }
 case "$role" in
@@ -41,10 +41,26 @@ case "$role" in
           -rw_timeout 5000000 -f mpegts
           -i "udp://$bind_ip:$input_port?fifo_size=100000&overrun_nonfatal=1")
     ;;
-  *) echo 'Expected HDMI, PICAM, or IPTS' >&2; exit 2;;
+  IPCAM1|IPCAM2)
+    number=${role#IPCAM}
+    port=$((base + 2 + number))
+    secrets=${PORTSDOWN_IPCAM_CONFIG:-/var/lib/portsdown/ip-cameras.conf}
+    [[ -r $secrets ]] || { echo "IP CAM $number not configured" >&2; exit 2; }
+    mode=$(stat -c %a "$secrets")
+    (( (8#$mode & 077) == 0 )) || { echo 'IP camera config must be private (0600)' >&2; exit 2; }
+    url=$(awk -F= -v key="ipcam$number" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$secrets")
+    [[ $url == rtsp://* ]] || { echo "IP CAM $number RTSP URL missing" >&2; exit 2; }
+    args=(-rtsp_transport tcp -timeout 5000000 -i "$url")
+    ;;
+  *) echo 'Expected HDMI, PICAM, IPTS, IPCAM1 or IPCAM2' >&2; exit 2;;
 esac
 command -v "$ffmpeg" >/dev/null 2>&1 || exit 2
 common=(-hide_banner -nostdin -loglevel warning)
+if [[ $role == IPCAM1 || $role == IPCAM2 ]]; then
+  # FFmpeg errors may contain the credential-bearing URL. Do not forward them
+  # into the supervisor's web-visible log stream.
+  common=(-hide_banner -nostdin -loglevel quiet)
+fi
 output=(-vf 'fps=5,scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2' -q:v 10 -an -f mjpeg "tcp://127.0.0.1:$port")
 if [[ $role == PICAM ]]; then
   "$camera" -n -t 0 --camera "$camera_index" --codec mjpeg --width 640 --height 480 -o - |
