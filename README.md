@@ -7,7 +7,7 @@ framebuffer, Node.js server, or Python server is required for the new GUI.
 
 ![Diablo DATV Studio — Direct SRT and transmitter preview](doc/images/diablo-srt.png)
 
-[First start](doc/FIRST_START.md) · [Install / update](doc/INSTALL.md) · [Screenshot gallery](doc/SCREENSHOTS.md) ·
+[Start here: your first picture](doc/FIRST_START.md) · [Install / update](doc/INSTALL.md) · [Screenshot gallery](doc/SCREENSHOTS.md) ·
 [Development & tests](doc/DEVELOPMENT.md) · [Status / open issues](doc/KNOWN_ISSUES.md) ·
 [Migration record](doc/MIGRATION.md) · [Documentation index](doc/README.md)
 
@@ -34,37 +34,38 @@ not proof of RF or physical ASI output. There is **no DVB-S2X backend** in this
 repository. The retained legacy RF paths are not all connected to the new GUI.
 See the [capability and acceptance matrix](doc/KNOWN_ISSUES.md).
 
-## Quick start — Linux, no RF/ASI output
+## Can I install it and try it?
 
-On Debian/Raspberry Pi OS Trixie or Ubuntu 24 / Linux Mint 22, as a normal user.
-**A Raspberry Pi running a 64-bit OS is ARM64 (AArch64).** Other ARM64 Linux
-boards use the same native build path, but need their own working capture drivers.
-See the [step-by-step first-start guide](doc/FIRST_START.md) for SSH, permissions,
-source selection and a software TS check.
+**Yes—for the web interface, previews and software video paths.** Start with a
+64-bit Linux Pi or PC. No camera, OBS or transmitter board is needed for the
+included 30-second moving-picture test. Radio transmission and ASI setup are
+separate advanced tasks, not enabled by the basic installer.
+
+**New to Linux? Follow [First start: get your first picture](doc/FIRST_START.md).**
+It explains where to type commands, what to answer in setup, how to open the
+browser, and what a successful test looks like. Windows/macOS can be used as
+browser clients; the program itself runs on Linux.
+
+Already comfortable with Linux? On a supported Linux computer:
 
 ```sh
-# A minimal OS image may not have Git yet:
-sudo apt-get update
-sudo apt-get install -y git
-git clone --branch Trixie https://github.com/mathisono/Diablo-DATV-Studio.git
-cd Diablo-DATV-Studio
+cd "$HOME" &&
+sudo apt-get update &&
+sudo apt-get install -y git &&
+git clone --branch Trixie https://github.com/mathisono/Diablo-DATV-Studio.git &&
+cd Diablo-DATV-Studio &&
 bash scripts/first-start.sh
 ```
 
-The setup wizard installs the pinned runtime, asks for station/source settings,
-checks GUI startup and shutdown, and offers foreground launch. Device permissions,
-SSH enablement and Pi camera packages are explicit options; hardware outputs stay
-off. Choose listener-on-start if you want the selected SRT input ready at launch.
-Open
-**http://127.0.0.1:8080/** on that machine, or use an SSH tunnel as described in
-[INSTALL.md](doc/INSTALL.md). The wizard saves your **CALLSIGN** and **service name** using the same validation
-as the GUI. Stop the foreground application with **Ctrl+C**.
+For the first test choose **SRT**, slot **1**, and **yes** to listener-on-launch.
+Setup prints your browser address and, for another computer, an SSH tunnel
+command. Leave Diablo's terminal running. In a second terminal on that same
+Linux computer, run `bash "$HOME/Diablo-DATV-Studio/scripts/test-srt-input.sh"`.
+Watch for live video, then the waiting card when the 30-second sender finishes.
+Stop Diablo with **Ctrl+C**. Keep the downloaded folder in place.
 
-Keep the checkout in place: the installed launcher uses it. Updating is an
-explicit `git pull --ff-only` on **Trixie**, followed by rerunning the installer;
-existing configuration and camera credentials are preserved. The installer refuses
-to rebuild while its launcher is active. `bash scripts/install-diablo.sh --check`
-provides a read-only dependency and capture-access report.
+Already installed? Use the [short update and backup steps](doc/INSTALL.md#update-an-existing-install),
+not a second clone. [Advanced setup reference](doc/INSTALL_REFERENCE.md).
 
 The old `install_portsdown.sh`, `update.sh`, and menu updater are intentionally
 blocked in this repo: they target the old Buster/Portsdown distribution. They

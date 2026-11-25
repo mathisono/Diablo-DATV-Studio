@@ -4,6 +4,7 @@
 
 - [Automated first start: wizard, source setup and verification](FIRST_START.md)
 - [Installation, startup, update and rollback](INSTALL.md)
+- [Advanced installation reference and scripted setup](INSTALL_REFERENCE.md)
 - [Peer control, IPTS/SRT-only SLAVE and two-host acceptance](peer-control.md)
 - [Screenshot gallery and captures still needed](SCREENSHOTS.md)
 - [Real Pi Camera → SRT and two-host peer test](testing/picam-srt-two-host-2026-11-25.md)

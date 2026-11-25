@@ -163,6 +163,11 @@ fresh OS-image or non-Pi ARM64 hardware qualification. The subsequent
 both hosts, including selected SRT listener startup, validated station/source
 configuration, backups and GUI/API/stop checks.
 
+The simplified beginner guide's [30-second local SRT test](testing/first-picture-2026-11-25.md)
+also passed on TANK with the real SRT listener: live preview state, normal sender
+completion, waiting-state return and TX kept off. This improves reproducibility;
+it is not fresh-OS or first-time human usability acceptance.
+
 **Real-camera peer subset (2026-11-25):** [TANK MASTER → VideoLP3D SLAVE](testing/picam-srt-two-host-2026-11-25.md)
 passed with live IMX708 video, received IPTS/SRT preview and stream-copy TS.
 MASTER retained Pi Camera; SLAVE enforced IPTS over SRT. Local E-Stop cleared
