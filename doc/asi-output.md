@@ -34,6 +34,34 @@ failed and successful playout logs, stop timings, host inventory and a summary
 with source hashes. Test files and isolated launcher copies remain under
 `/home/mat/dektec-asi/tests/d02-20261125/`; no normal installation was overwritten.
 
+## Repeat card test — 2026-11-25, revision `27c2ed9`
+
+**PASS, card/driver level.** The latest launchers were copied to an isolated
+test directory on VideoLP3D without changing the installed application. Device
+0/output channel 0/physical port 2 and the driver/runtime versions above were
+reconfirmed; the owner's disconnected-output test setup remained the basis of
+this test. No external RF controls were used.
+
+- Reanalyzed the finite 720p24 H.264/AAC reference file: PCR-derived rate
+  **3,071,588 b/s**, zero sync/transport errors, continuity discontinuities or
+  PCR/PTS/DTS leaps. File playout completed normally in **12.313 s**.
+- TANK sent a finite generated 720p24 H.264/AAC stream over SRT at the same
+  muxrate. Sender and live ASI launcher both exited **0**. TSDuck reported
+  transmission, sender disconnect, then normal card termination. The listener's
+  **23.311 s** wall time includes waiting for the sender; it is not media latency.
+- The **pre-card** packet tap again matched the PCR bitrate with zero reported
+  sync/transport/continuity errors or timestamp leaps; 24 video frames decoded
+  without errors. Output metadata was **KJ6DZB / Diablo ASI Retest**.
+- File playout reopened and completed in **12.286 s** after live shutdown.
+  Final checks found no TSDuck or FFmpeg process on VideoLP3D, and the shared
+  channel lock was available. TANK's rover remained active throughout.
+
+[Repeat-test logs and analysis](testing/asi-retest-2026-11-25/) are retained.
+Remote working files: `~/dektec-asi/tests/asi-retest-20261125/` on VideoLP3D.
+This test used generated video, **not the Pi camera**, and did not independently
+receive the ASI BNC signal. Physical timing/receiver lock, camera-to-ASI GUI
+integration and endurance remain open; D-02 is not closed.
+
 ## Corrected small-FIFO stall
 
 With a 256 KiB hardware FIFO, uncapped TSDuck output batches stalled. The first
