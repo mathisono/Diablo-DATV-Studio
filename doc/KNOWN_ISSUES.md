@@ -145,6 +145,12 @@ stop was 1.460 s; disconnect stop was 0.031 s. These are observed software
 timings, not RF measurements. Both isolated instances cleaned up all owned
 processes. **Reverse-role testing is cleared**, not the complete D-06 issue.
 
+**Installer subset (2026-11-25):** [native installer review](testing/install-review-2026-11-25.md)
+passed fresh user-local bootstrap, API/config/stop, active-update exclusion,
+read-only feature checks and settings-preserving reruns on Pi 4 ARM64 Trixie and
+VideoLP3D x86-64 Mint. Core OS dependencies were already installed; this is not a
+fresh OS-image or non-Pi ARM64 hardware qualification.
+
 **Remaining scope:** fresh armhf Pi image, full arm64 platform checks,
 network delay/loss/endurance, service-account/device
 permissions and reboot behavior. Complete the production MASTER TS → SLAVE

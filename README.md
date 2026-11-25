@@ -7,7 +7,7 @@ framebuffer, Node.js server, or Python server is required for the new GUI.
 
 ![Diablo DATV Studio — Direct SRT and transmitter preview](doc/images/diablo-srt.png)
 
-[Install](doc/INSTALL.md) · [Screenshot gallery](doc/SCREENSHOTS.md) ·
+[First start](doc/FIRST_START.md) · [Install / update](doc/INSTALL.md) · [Screenshot gallery](doc/SCREENSHOTS.md) ·
 [Development & tests](doc/DEVELOPMENT.md) · [Status / open issues](doc/KNOWN_ISSUES.md) ·
 [Migration record](doc/MIGRATION.md) · [Documentation index](doc/README.md)
 
@@ -36,9 +36,16 @@ See the [capability and acceptance matrix](doc/KNOWN_ISSUES.md).
 
 ## Quick start — Linux, no RF/ASI output
 
-On Debian/Raspberry Pi OS Trixie or Ubuntu 24 / Linux Mint 22, as a normal user:
+On Debian/Raspberry Pi OS Trixie or Ubuntu 24 / Linux Mint 22, as a normal user.
+**A Raspberry Pi running a 64-bit OS is ARM64 (AArch64).** Other ARM64 Linux
+boards use the same native build path, but need their own working capture drivers.
+See the [step-by-step first-start guide](doc/FIRST_START.md) for SSH, permissions,
+source selection and a software TS check.
 
 ```sh
+# A minimal OS image may not have Git yet:
+sudo apt-get update
+sudo apt-get install -y git
 git clone --branch Trixie https://github.com/mathisono/Diablo-DATV-Studio.git
 cd Diablo-DATV-Studio
 bash scripts/install-diablo.sh
@@ -53,7 +60,9 @@ starting TS generation. Stop the foreground application with **Ctrl+C**.
 
 Keep the checkout in place: the installed launcher uses it. Updating is an
 explicit `git pull --ff-only` on **Trixie**, followed by rerunning the installer;
-existing configuration and camera credentials are preserved.
+existing configuration and camera credentials are preserved. The installer refuses
+to rebuild while its launcher is active. `bash scripts/install-diablo.sh --check`
+provides a read-only dependency and capture-access report.
 
 The old `install_portsdown.sh`, `update.sh`, and menu updater are intentionally
 blocked in this repo: they target the old Buster/Portsdown distribution. They
@@ -64,7 +73,7 @@ must not replace Diablo with an upstream `master` checkout.
 | Target | Evidence | Remaining |
 | --- | --- | --- |
 | x86-64 development host | C/ucode tests, FFmpeg TS, SRT and browser fixtures | Not a physical capture or RF test |
-| TANK, AArch64 Trixie | Native transmitter/GUI builds and bounded offline TS/interlock tests inherited from Portsdown | No DATV-Express card/display; no RF acceptance |
+| TANK, Pi 4 / AArch64 Trixie | Fresh user-local native bootstrap, GUI/API lifecycle, update lock and settings-preserving rerun; two-host peer/TS tests | Not a freshly imaged OS acceptance; no DATV-Express RF test |
 | LattePanda 3 Delta, Mint 22.3 | DTA-2145 finite file and TANK SRT-to-card playout, stop/reopen; TS analysis; QSV CQP encode | BNC disconnected: downstream ASI signal/timing, full GUI source routing and endurance pending |
 | Raspberry Pi OS Trixie armhf | Ported source retained | Fresh 32-bit full-system/capture/display/RF acceptance |
 

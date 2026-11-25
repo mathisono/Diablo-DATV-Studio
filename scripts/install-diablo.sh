@@ -5,14 +5,16 @@ repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 prefix=${DIABLO_PREFIX:-"$HOME/.local/share/diablo-datv-studio"}
 jobs=${DIABLO_BUILD_JOBS:-2}
 packages=1
+check_only=0
 usage() {
-    echo 'Usage: bash scripts/install-diablo.sh [--prefix ABSOLUTE_PATH] [--jobs N] [--skip-system-packages]'
+    echo 'Usage: bash scripts/install-diablo.sh [--prefix ABSOLUTE_PATH] [--jobs N] [--skip-system-packages] [--check]'
 }
 while (($#)); do
     case $1 in
         --prefix) prefix=${2:?Missing prefix}; shift 2;;
         --jobs) jobs=${2:?Missing jobs}; shift 2;;
         --skip-system-packages) packages=0; shift;;
+        --check) check_only=1; shift;;
         --help|-h) usage; exit 0;;
         *) usage >&2; exit 2;;
     esac
@@ -20,6 +22,29 @@ done
 [[ $(id -u) != 0 ]] || { echo 'Run as your normal user; sudo is used only for packages.' >&2; exit 2; }
 [[ $prefix == /* && $prefix != / && $prefix != *$'\n'* ]] || { echo 'Prefix must be an absolute directory.' >&2; exit 2; }
 [[ $jobs =~ ^[1-9][0-9]?$ ]] || { echo 'Jobs must be 1-99.' >&2; exit 2; }
+if ((check_only)); then exec bash "$repo/scripts/check-diablo-host.sh"; fi
+[[ $(uname -s) == Linux ]] || { echo 'Linux is required.' >&2; exit 2; }
+umask 077
+mkdir -p "$prefix"
+[[ ! -L $prefix && -O $prefix ]] || { echo 'Prefix must be an owned, real directory.' >&2; exit 2; }
+exec 9>"$prefix/install.lock"
+flock -n 9 || { echo 'Another Diablo installer is running.' >&2; exit 2; }
+# Share the launcher's lifetime lock, so it cannot start during a rebuild either.
+run_dir=${XDG_RUNTIME_DIR:-/tmp}/diablo-$(id -u)
+if [[ -f $prefix/diablo.env ]]; then
+    run_dir=$(bash -c 'source "$1"; printf "%s" "${PORTSDOWN_RUN_DIR:?}"' _ "$prefix/diablo.env")
+fi
+[[ $run_dir == /* && $run_dir != / ]] || { echo 'Invalid runtime directory.' >&2; exit 2; }
+mkdir -p "$run_dir"
+[[ ! -L $run_dir && -O $run_dir ]] || { echo 'Runtime directory must be owned and not a symlink.' >&2; exit 2; }
+exec 8>"$run_dir/launcher.lock"
+flock -n 8 || { echo 'Stop the running Diablo launcher before installing/updating.' >&2; exit 2; }
+mkdir -p "$prefix/src" "$prefix/build" "$prefix/bin" "$prefix/logs" "$prefix/state"
+chmod 700 "$prefix/state"
+logfile="$prefix/logs/install-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+exec > >(tee "$logfile") 2>&1
+ln -sfn "$(basename "$logfile")" "$prefix/logs/install.log"
+trap 'echo "Install failed at line $LINENO; see $logfile" >&2' ERR
 if ((packages)); then
     . /etc/os-release
     case " ${ID:-} ${ID_LIKE:-} " in
@@ -27,18 +52,9 @@ if ((packages)); then
         *) echo 'Install build dependencies manually, then use --skip-system-packages.' >&2; exit 2;;
     esac
     sudo apt-get update
-    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev git ca-certificates ffmpeg
+    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev git ca-certificates ffmpeg util-linux v4l-utils alsa-utils
 fi
-for tool in git cmake make cc pkg-config ffmpeg flock; do
-    command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 2; }
-done
-pkg-config --exists json-c || { echo 'Missing libjson-c-dev / json-c.pc.' >&2; exit 2; }
-ffmpeg -hide_banner -protocols 2>/dev/null | grep -qw srt || { echo 'FFmpeg must include SRT.' >&2; exit 2; }
-mkdir -p "$prefix" "$prefix/src" "$prefix/build" "$prefix/bin" "$prefix/logs" "$prefix/state"
-chmod 700 "$prefix/state"
-exec 9>"$prefix/install.lock"
-flock -n 9 || { echo 'Another Diablo installer is running.' >&2; exit 2; }
-exec > >(tee "$prefix/logs/install.log") 2>&1
+bash "$repo/scripts/check-diablo-host.sh"
 
 fetch_pin() {
     local name=$1 url=$2 revision=$3 checkout="$prefix/src/$1"
@@ -65,7 +81,7 @@ cmake -S "$prefix/src/ucode" -B "$prefix/build/ucode" \
     -DCMAKE_INSTALL_RPATH="$prefix/runtime/lib" -DULOOP_SUPPORT=ON -DSOCKET_SUPPORT=ON
 cmake --build "$prefix/build/ucode" --parallel "$jobs"
 cmake --install "$prefix/build/ucode"
-make -C "$repo/control" -j "$jobs"
+make -B -C "$repo/control" -j "$jobs"
 LD_LIBRARY_PATH="$prefix/runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
     "$prefix/runtime/bin/ucode" -L "$prefix/runtime/lib/ucode" \
     -e 'import * as fs from "fs"; import * as socket from "socket"; import * as uloop from "uloop"; print("Runtime modules OK\n");'
@@ -112,6 +128,13 @@ fi
 } > "$prefix/bin/diablo-studio"
 chmod 755 "$prefix/bin/diablo-studio"
 printf '\nInstalled. Start manually: %q\n' "$prefix/bin/diablo-studio"
-echo 'Open http://127.0.0.1:8080/ or use an SSH tunnel. Stop with Ctrl+C.'
+{
+    date -u +'%Y-%m-%dT%H:%M:%SZ'
+    printf 'checkout=%s\ncommit=%s\narchitecture=%s\nuserspace_bits=%s\n' "$repo" "$(git -C "$repo" rev-parse HEAD)" "$(uname -m)" "$(getconf LONG_BIT)"
+    printf 'libubox=%s\nucode=%s\n' "$(git -C "$prefix/src/libubox" rev-parse HEAD)" "$(git -C "$prefix/src/ucode" rev-parse HEAD)"
+    ffmpeg -version | sed -n '1p'
+} > "$prefix/logs/installed-version.txt"
+echo 'Start the launcher for its configured browser URL. Stop with Ctrl+C.'
+echo "First-start guide: $repo/doc/FIRST_START.md"
 echo 'Enter your CALLSIGN and service name in the GUI before generating TS.'
 echo 'No service enabled, driver installed, ASI playout started, or RF keyed.'

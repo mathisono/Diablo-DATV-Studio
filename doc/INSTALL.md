@@ -1,5 +1,7 @@
 # Installing Diablo DATV Studio
 
+Start with the [first-start walkthrough](FIRST_START.md) for a new machine.
+
 ## Scope
 
 This installs the **headless GUI, source previews, and local TS control**. It does
@@ -10,19 +12,27 @@ Linux/POSIX is required; “headless” does not mean Windows/macOS compatibilit
 The bootstrap targets Debian-family systems: Debian/Raspberry Pi OS Trixie and
 Ubuntu 24 / Mint 22. Actual migration validation is recorded in
 [MIGRATION.md](MIGRATION.md); a supported installer path is not a claim of testing
-every OS/architecture or physical device.
+every OS/architecture or physical device. Raspberry Pi OS 64-bit is ARM64:
+Pi and non-Pi ARM64 hosts build the same native headless runtime, not the legacy
+framebuffer GUI. Generic ARM64 requires compatible distro packages/kernel drivers;
+Pi-specific CSI camera and GPIO support is not portable to arbitrary ARM boards.
+Fresh user-local bootstrap checks on TANK (Pi 4 / Trixie ARM64) and VideoLP3D
+(Mint 22.3 x86-64) are recorded in [the installer review](testing/install-review-2026-11-25.md).
+These used existing OS dependencies, not fresh OS images.
 
 ## Install
 
 As the intended non-root user (not root):
 
 ```sh
+sudo apt-get update
+sudo apt-get install -y git
 git clone --branch Trixie https://github.com/mathisono/Diablo-DATV-Studio.git
 cd Diablo-DATV-Studio
 bash scripts/install-diablo.sh
 ```
 
-The script installs distribution build tools, FFmpeg, and JSON-C headers; builds
+The script installs distribution build tools, FFmpeg, JSON-C headers and V4L2/ALSA diagnostics; builds
 pinned libubox and ucode with fs/socket/uloop; builds the C supervisor/config
 writer; creates private initial configuration; and installs a foreground launcher.
 It does not change apt sources, upgrade the OS/kernel, reboot, alter Secure Boot,
@@ -32,14 +42,25 @@ Optional controls:
 
 ```sh
 bash scripts/install-diablo.sh --prefix "$HOME/diablo-local" --jobs 2
+# Read-only platform/dependency/capture-access report:
+bash scripts/install-diablo.sh --check
 # If dependencies are already installed:
 bash scripts/install-diablo.sh --skip-system-packages
 ```
 
-Default prefix: `$HOME/.local/share/diablo-datv-studio`. `logs/install.log` contains
-build evidence; `runtime/` contains ucode/libubox; `diablo.env` holds launcher
+Default prefix: `$HOME/.local/share/diablo-datv-studio`. `logs/install.log` points
+to the latest timestamped log (including package installation); older logs remain.
+`logs/installed-version.txt` records the last successful source/dependency revisions
+and architecture, without private settings; `runtime/` contains ucode/libubox; `diablo.env` holds launcher
 settings; `state/` holds config, presets and private camera URLs. The checkout
 must remain in place. A rerun preserves existing config and `diablo.env`.
+Installation and the launcher share a lock: stop Diablo before updating. Builds
+force native recompilation of the C tools, even if a copied checkout contains
+stale binaries. The preflight checks actual FFmpeg SRT/UDP/TCP, H.264/AAC/MJPEG,
+scaling/multiview and TS/V4L2/ALSA support; missing core features stop the build.
+Optional Pi camera packages and capture/audio/render-group access are reported,
+not silently changed. See the first-start guide for targeted group changes and
+logging back in. The installer does not attempt GPU driver or QSV tuning.
 
 ## Start, connect, stop
 

@@ -2,6 +2,7 @@
 
 ## Current Diablo documentation
 
+- [First start: OS, browser, source preview and software TS](FIRST_START.md)
 - [Installation, startup, update and rollback](INSTALL.md)
 - [Peer control, IPTS/SRT-only SLAVE and two-host acceptance](peer-control.md)
 - [Screenshot gallery and captures still needed](SCREENSHOTS.md)

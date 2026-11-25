@@ -14,6 +14,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DiabloLauncherTest(unittest.TestCase):
+    def test_read_only_preflight(self):
+        if not os.environ.get('DIABLO_TEST_RUNTIME'):
+            self.skipTest('Requires native installer prerequisites')
+        with tempfile.TemporaryDirectory(prefix='diablo-check-') as scratch:
+            prefix = Path(scratch) / 'must-not-be-created'
+            command = ['bash', str(ROOT / 'scripts/install-diablo.sh'),
+                       '--check', '--prefix', str(prefix)]
+            good = subprocess.run(command, capture_output=True, text=True, timeout=20)
+            self.assertEqual(good.returncode, 0, good.stdout + good.stderr)
+            self.assertFalse(prefix.exists())
+            # A present executable is insufficient: required codec/protocol features matter.
+            bad = subprocess.run(command, env={**os.environ, 'PORTSDOWN_FFMPEG': '/bin/true'},
+                                 capture_output=True, text=True, timeout=20)
+            self.assertEqual(bad.returncode, 2)
+            self.assertIn('MISSING: FFmpeg protocol srt', bad.stdout)
+            self.assertFalse(prefix.exists())
+
     def test_boot_save_duplicate_and_stop(self):
         runtime = os.environ.get('DIABLO_TEST_RUNTIME')
         if not runtime:
@@ -89,6 +106,14 @@ class DiabloLauncherTest(unittest.TestCase):
                         capture_output=True, text=True, timeout=5)
                     self.assertEqual(duplicate.returncode, 2)
                     self.assertIn('already running', duplicate.stderr)
+                    update = subprocess.run(
+                        ['bash', str(ROOT / 'scripts/install-diablo.sh'),
+                         '--prefix', str(path), '--skip-system-packages'],
+                        capture_output=True, text=True, timeout=5)
+                    self.assertEqual(update.returncode, 2)
+                    self.assertIn('Stop the running Diablo launcher', update.stderr)
+                    self.assertEqual(request('GET', '/api/state')[0], 200)
+
                 finally:
                     proc.terminate()
                     try:
