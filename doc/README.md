@@ -3,6 +3,7 @@
 ## Current Diablo documentation
 
 - [Installation, startup, update and rollback](INSTALL.md)
+- [Peer control, IPTS/SRT-only SLAVE and two-host acceptance](peer-control.md)
 - [Screenshot gallery and captures still needed](SCREENSHOTS.md)
 - [Development, source layout and tests](DEVELOPMENT.md)
 - [Capability matrix and open issues](KNOWN_ISSUES.md)

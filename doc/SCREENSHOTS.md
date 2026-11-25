@@ -1,8 +1,10 @@
 # Diablo DATV Studio screenshot gallery
 
 These are **actual Chromium captures of the new Diablo web GUI**, not painted
-mockups. They were regenerated during the repository migration. The supervisor
-was set to `PORTSDOWN_BOARD=none`; **no RF or physical ASI output was enabled**.
+mockups. The original six fixtures were regenerated during repository migration
+with `PORTSDOWN_BOARD=none`. The six peer captures below use real VideoLP3D/TANK
+control instances with a simulated Express board and mock TX/safe-off scripts.
+**No RF or physical ASI output was enabled in any capture.**
 Synthetic preview frames are labeled in the images. Camera endpoints and station
 labels in the fixtures are examples, not installed defaults; `192.0.2.10` is a
 documentation-only address. Random test ports are not the installation defaults.
@@ -14,6 +16,7 @@ documentation-only address. Random test ports are not the installation defaults.
 | [Elgato HDMI](#elgato-hdmi-configuration) | V4L2/ALSA controls, low-resolution preview | Capture setup |
 | [Mixed multiview](#mixed-source-multiview) | Equal quadrants, four selectors, concurrent source settings | Multiview guide |
 | [IP cameras](#two-ip-cam-input-encoders) | Two independent input cards and Save IP / Restart | RTSP setup |
+| [Peer control](#two-host-peer-control-and-link-loss) | Real two-host MASTER/SLAVE, IPTS/SRT-only SLAVE, locked controls, heartbeat loss/disconnect | Peer control guide |
 | [Mobile](#mobile-layout) | Single-column responsive controls at 390 px viewport | UI/device support |
 
 ## Direct SRT and five input encoders
@@ -64,6 +67,71 @@ proof of two simultaneous physical cameras.
 390 px Chromium viewport; full page shown. The capture verifies no horizontal
 layout overflow, not a test of a physical phone's touchscreen.
 
+## Two-host peer control and link loss
+
+**Completed 2026-11-24:** VideoLP3D (x86-64) as MASTER, TANK (AArch64) as
+SLAVE, application revision `5264929`. Direct LAN TCP carries control; separate
+SRT carries the MASTER-produced TS. SLAVE is restricted to **IPTS over SRT**,
+not a mirrored copy of MASTER's camera or multiview selection.
+
+[Peer configuration, test method and limits](peer-control.md) ·
+[Machine-readable results](testing/peer-two-host-2026-11-24.json)
+
+### VideoLP3D MASTER — linked
+
+![VideoLP3D MASTER linked and configuration acknowledged, with source selection remaining on MASTER](images/diablo-peer-master-linked.png)
+
+MASTER owns source production. Its transmitter panel now shows **SLAVE TX
+process: RUNNING**, received through bidirectional telemetry, rather than the
+MASTER's local process status. The process is a test double, not a physical transmitter.
+
+### TANK SLAVE — IPTS over SRT only
+
+![TANK SLAVE linked, IPTS over SRT pass-through selected, settings locked and local E-Stop available](images/diablo-peer-slave-linked.png)
+
+SLAVE accepts the finished MASTER TS, without video re-encoding. The screen
+shows its only source choice, locked settings, and enabled local E-Stop.
+`tx=running` here is a **mock sleep process**, not RF or ASI output. The finite
+720p24 H.264/AAC SRT delivery test passed separately; the preview was not wired
+to that test receiver, so it correctly shows **NO IPTS INPUT**. This image is
+not proof of an integrated valid-video-to-RF gate.
+
+### MASTER — local SLAVE E-Stop acknowledged
+
+![VideoLP3D MASTER shows SLAVE TX process STOPPED with local E-Stop reason](images/diablo-peer-master-slave-estop.png)
+
+The E-Stop was issued locally on TANK. Returned telemetry cleared MASTER's
+`tx_requested` and changed its display to **STOPPED · local E-Stop**. An exited
+SLAVE TX process was also detected and reported in the test.
+
+### TANK — heartbeat loss with TCP still connected
+
+![TANK stopped mock TX after MASTER heartbeat loss, while TCP still reports linked](images/diablo-peer-slave-watchdog.png)
+
+Freezing MASTER's control daemon stopped mock TX in **1.246 s**. `linked` only
+means the socket remains connected; `link=stale` and `tx=stopped` show the
+watchdog condition. Clearer combined health/status reporting remains needed.
+
+### TANK — disconnected MASTER
+
+![TANK SLAVE not linked and mock TX stopped after MASTER disconnect](images/diablo-peer-slave-link-loss.png)
+
+Disconnect stopped mock TX in **0.029 s** in this run. Resume/reconnect did not restart TX without an explicit request.
+Both instances and all owned test processes/tunnels were stopped afterward.
+
+### MASTER — return telemetry unavailable
+
+![VideoLP3D MASTER shows remote TX state UNKNOWN and disables Start when SLAVE telemetry is lost](images/diablo-peer-master-telemetry-loss.png)
+
+SLAVE's ucode daemon was frozen while its C supervisor continued running.
+MASTER invalidated its remote state, disabled Start and stopped heartbeats.
+The SLAVE C watchdog stopped mock TX. After resume/reconnection, TX remained
+stopped. **UNKNOWN is not presented as confirmed RF-off.**
+
+No peer token or camera credentials appear in these captures. These satisfy the
+**isolated two-host UI/link-loss screenshot requirement**, not physical RF
+shutdown, media-loss interlocking, network-impairment endurance or reboot testing.
+
 ## Screenshots still needed
 
 | Needed capture | Why / where to publish it | Prerequisite |
@@ -74,7 +142,6 @@ layout overflow, not a test of a physical phone's touchscreen.
 | Pi Camera preview / capture handoff | Pi setup guide | Camera not owned by another application |
 | Physical ASI connection and independent analyzer | ASI acceptance guide | Port-2 hookup, modulator RF off, receiver/analyzer |
 | RF receiver lock, PTT-off on input loss | Board-specific transmitter guide | Interlocked launcher, board and supervised RF test setup |
-| Two-host Master/Slave UI with link loss | Peer control guide | Isolated two-host control test, secrets redacted |
 | Actual 32-bit and 64-bit Pi clean installs | Platform acceptance guide | Spare images/devices; not inferred from native builds |
 
 Track real-source captures in [issue #4](https://github.com/mathisono/Diablo-DATV-Studio/issues/4),
@@ -92,3 +159,5 @@ credentials, peer tokens, or private operator files.
 See [DEVELOPMENT.md](DEVELOPMENT.md#screenshots). The checked-in
 `scripts/dev/capture-gui.py` creates all six fixtures with isolated ports and
 processes, captures Chromium, and stops its owned processes afterward.
+
+For the real two-host peer captures, use the separate [peer test harness](peer-control.md#reproduce-the-isolated-test); the six-fixture capture script does not regenerate them.

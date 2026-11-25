@@ -106,8 +106,22 @@ synthetic TS; QP 30 passed only that bounded sample.
 
 Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/6
 
-**Scope:** fresh armhf Pi image, full arm64 platform checks, two-host Master/Slave
-with network delay/loss, service-account/device permissions and reboot behavior.
+**Completed subset (2026-11-24):** [VideoLP3D MASTER → TANK SLAVE](peer-control.md)
+real-network control and six UI captures; IPTS-over-SRT-only SLAVE enforcement;
+finite MASTER-produced 720p24 H.264/AAC TS received by stream copy; mock TX
+start/stop, local E-Stop, heartbeat-loss stop (1.246 s), disconnect stop (0.029 s),
+no automatic re-key on reconnect. Bidirectional process telemetry reports SLAVE
+E-Stop/exit to MASTER and clears its pending request; lost return telemetry shows
+UNKNOWN and disables starts. All 31 headless-control regression tests passed again with telemetry enabled,
+along with the real two-host telemetry cases.
+
+**Remaining scope:** fresh armhf Pi image, full arm64 platform checks,
+network delay/loss/endurance, reverse-role tests, service-account/device
+permissions and reboot behavior. Complete the production MASTER TS → SLAVE
+SRT receiver → valid-video/media-loss gate → output/preview lifecycle. Current
+peer test uses separate FFmpeg media and mock TX; it is not physical RF/ASI proof.
+RF power/PTT/video-validity telemetry still requires backend integration.
+Authenticate replacement connections before displacing an active peer.
 
 **Done when:** recorded fresh installs and real-network dead-man's-switch tests
 pass without disturbing existing applications. Clean-checkout software tests are
