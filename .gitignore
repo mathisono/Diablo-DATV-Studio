@@ -101,3 +101,5 @@ bin/*.mjo
 
 
 src/dvbsenco8_tables.h
+src/express_s2/express_s2
+.diablo-local/

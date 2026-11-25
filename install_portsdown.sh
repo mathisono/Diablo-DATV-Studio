@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retained historical Portsdown implementation below; never use it in Diablo.
+echo "This legacy Portsdown installer/updater is disabled in Diablo DATV Studio." >&2
+echo "Use scripts/install-diablo.sh; update this repo with git pull --ff-only origin Trixie." >&2
+exit 2
+
 # Portsdown 4 Install by davecrump on 20230227
 
 # This installer rewrites apt sources and configures the legacy Buster camera

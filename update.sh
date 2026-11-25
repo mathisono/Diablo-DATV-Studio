@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retained historical Portsdown implementation below; never use it in Diablo.
+echo "This legacy Portsdown installer/updater is disabled in Diablo DATV Studio." >&2
+echo "Use scripts/install-diablo.sh; update this repo with git pull --ff-only origin Trixie." >&2
+exit 2
+
 # Updated by davecrump 20230228 for Portsdown 4 and LimeSDR Mini V2
 
 # This legacy updater rewrites apt sources for Buster. Keep it off Trixie.

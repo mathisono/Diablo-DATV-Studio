@@ -16,7 +16,8 @@ for port in "$srt_port" "$preview_port" "$ts_port"; do
 done
 
 ffmpeg=${PORTSDOWN_FFMPEG:-/usr/bin/ffmpeg}
-[ -n "${PORTSDOWN_CONFIG:-}" ] || PORTSDOWN_CONFIG=${PORTSDOWN_DIR:-/home/pi/rpidatv}/scripts/portsdown_config.txt
+dir=${PORTSDOWN_DIR:-$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)}
+[ -n "${PORTSDOWN_CONFIG:-}" ] || PORTSDOWN_CONFIG=$dir/scripts/portsdown_config.txt
 # shellcheck source=../scripts/ts_service_metadata.sh
 . "$(dirname "$0")/../scripts/ts_service_metadata.sh"
 ts_service_metadata_load "$PORTSDOWN_CONFIG"

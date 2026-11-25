@@ -1,5 +1,10 @@
 # Trixie source/output porting scope
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 This is a development matrix, **not a 64-bit Trixie installation guide**.
 TANK has built the earlier native AArch64 GUI/backend and passed offline SRT
 tests, but there is no fresh 64-bit Portsdown install, touchscreen, or

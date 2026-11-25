@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Portsdown Control (development)</title>
+  <title>Diablo DATV Studio</title>
   <link rel="stylesheet" href="/style.css">
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <header><h1>Portsdown Control</h1><span id="connection">Connecting…</span></header>
+  <header><div><p class="brand-kicker">VIDEO · TRANSPORT · DATV</p><h1>Diablo DATV Studio</h1></div><span id="connection">Connecting…</span></header>
   <main>
     <section class="controls">
       <h2>Transmitter</h2>
@@ -52,8 +52,8 @@
         <label><span id="modulation-label">Modulation</span><select id="modulation"></select></label>
         <label>Encoder<select id="encoding"></select></label>
         <label>Video format<select id="format"></select></label>
-        <label>CALLSIGN (TS provider)<input id="call" type="text" minlength="3" maxlength="20" pattern="[A-Z0-9/]*[0-9][A-Z0-9/]*" placeholder="KG6MDW" autocapitalize="characters" autocomplete="off" required></label>
-        <label>Service name<input id="service_name" type="text" maxlength="64" placeholder="Trevor" autocomplete="off" required></label>
+        <label>CALLSIGN (TS provider)<input id="call" type="text" minlength="3" maxlength="20" pattern="[A-Z0-9/]*[0-9][A-Z0-9/]*" placeholder="Your callsign" autocapitalize="characters" autocomplete="off" required></label>
+        <label>Service name<input id="service_name" type="text" maxlength="64" placeholder="Your DATV service" autocomplete="off" required></label>
         <p class="hdmi-note">Written into MPEG-TS service metadata. Set your own callsign and a service name (1–64 UTF-8 bytes); these example placeholders are not saved.</p>
         <label class="hdmi-only" hidden>HDMI video device<input id="expresshdmidevice" type="text" placeholder="/dev/videoN" autocomplete="off"></label>
         <label class="hdmi-only" hidden>HDMI audio device (optional)<input id="expressaudiodevice" type="text" placeholder="hw:1,0" autocomplete="off"></label>
@@ -76,8 +76,8 @@
         <label class="lime-only" hidden>Lime gain (0–100)<input id="limegain" type="number" min="0" max="100" step="1"></label>
         <button type="submit">Save configuration</button>
       </form>
-      <div class="presets" aria-label="Portsdown presets">
-        <p>Presets (saved on this Portsdown)</p>
+      <div class="presets" aria-label="Diablo presets">
+        <p>Presets (saved on this system)</p>
         <div id="presets"></div>
       </div>
     </section>
@@ -115,5 +115,6 @@
       <pre id="log" aria-live="polite"></pre>
     </section>
   </main>
+  <footer>Diablo DATV Studio · Experimental · Built on the Portsdown and DATV community's work</footer>
 </body>
 </html>

@@ -1,72 +1,29 @@
-# Headless `ucode` control plane — experimental, not a transmitter release
+# Diablo headless `ucode` control plane — experimental
 
-The x86-64 DTA-2145 driver installation and current Secure Boot blocker are
+The x86-64 DTA-2145 driver installation, resolved Secure Boot blocker and QSV findings are
 recorded in [LattePanda Dta driver bring-up](lattepanda-dta-driver.md).
 
-This branch adds a **parallel** web/control implementation that does not use
+Diablo provides a web/control implementation that does not use
 `rpidatvgui`, a touchscreen, `/dev/fb0`, or `/touchscreen/`. It does **not**
 remove those legacy paths yet. Do not enable it as a replacement for a working
 Portsdown transmitter until board-specific launch and safe-off paths have been
 verified on real hardware.
 
-## Web GUI screenshot
+## Current web GUI captures
 
-![Experimental Portsdown web GUI with five enabled SRT inputs showing numbered NO SRT INPUT test cards](images/headless-web-gui-srt.png)
+See the [Diablo screenshot gallery](SCREENSHOTS.md) for Direct SRT, ASI settings,
+Elgato HDMI, mixed multiview, both IP CAM controls and mobile layout. All six
+current captures use isolated synthetic fixtures and the real browser UI; none
+claims hardware output. The gallery identifies missing real-device captures.
 
-Captured from an isolated local run with all five SRT listeners enabled and
-waiting for video. TX was disabled (`PORTSDOWN_BOARD=none`); no RF or physical
-Portsdown display was involved.
+![Diablo mixed-source multiview](images/diablo-multiview.png)
 
-![Four-source multiview with HDMI, Pi Camera, IPTS and SRT tile selectors below the preview](images/headless-web-gui-multiview.png)
-
-The multiview screenshot is an isolated local simulation: HDMI, IPTS, and SRT
-tiles have synthetic MJPEG frames, while Pi Camera displays its waiting card.
-No Elgato, Pi Camera, IP transmitter, ASI card, or RF path was used. The GUI
-shows how source-specific settings appear together for a mixed-source layout.
-
-![Real RTSP IP CAM 1 feed, dedicated IP CAM input encoder cards, and complete SRT caller links](images/headless-web-gui-ipcam-multiview.png)
-
-This second multiview capture uses a **real LAN RTSP feed** for IP CAM 1
-(profile3: 320×240 MJPEG at 1 fps). IP CAM 2 is selected but unconfigured,
-so its waiting card remains visible; IPTS and SRT are also waiting. The
-camera login URL and password are not displayed or committed. This is a GUI
-preview demonstration, not an RF test. The SRT caller links in this isolated
-capture show the development host's LAN IP and temporary test ports, not
-TANK's production listener ports.
-
-![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
-
-The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
-device 0/channel 0 and 3,071,588 bit/s values are **example settings**, not
-enumerated hardware. Its amber ASI metadata flag compares a synthetic TS file
-with example saved labels; the mismatch is advisory and does not prevent
-playout. SRT port numbers shown are temporary test ports.
-
-![Elgato HDMI configuration with a low-resolution synthetic preview; TX disabled](images/headless-web-gui-elgato-asi.png)
-
-This **configuration example** selects Elgato HDMI video (`/dev/video2`),
-optional ALSA audio (`hw:1,0`), H.264 at 720p, and DekTec ASI output at
-3,071,588 bit/s. The device names and indices are illustrative, not detected
-on the current host. `KG6MDW` and `Trevor` are unsaved placeholder examples
-in the screenshot; the operator must enter their own values. The screenshot's 320×240 preview is a **synthetic test
-feed**, not an Elgato capture or physical ASI test. When HDMI is selected,
-the GUI shows the separate V4L2 and ALSA fields and live preview when frames
-arrive; it falls back to **NO HDMI INPUT** when they stop. The five SRT slots
-remain available in a collapsed section. The legacy Express capture path
-recognizes `modeinput=HDMI`, `expresshdmidevice`, and `expressaudiodevice`,
-but this headless ASI route is **not yet a live encoder or playout path**.
-With `PORTSDOWN_SOURCE_PREVIEW_EXEC` configured, the independent HDMI preview
-reads the saved `expresshdmidevice` and scales to 320×240 at 5 fps; the legacy
-standby preview does not reopen the same device. Without that producer, the
-standby preview is the direct HDMI fallback. `PORTSDOWN_VIDEO_DEVICE` remains
-the fallback for other legacy standby preview sources. Set `PORTSDOWN_HDMI_INPUT_FORMAT`
-to `mjpeg` or `yuyv422` only when the capture device requires a format
-override. The Express HDMI capture helper can also send a low-resolution
-MJPEG tap from the **same FFmpeg capture process** while it generates TS when
-`PORTSDOWN_MJPEG_PORT` is set; it never opens the V4L2 device a second time.
-That tap was checked with a synthetic source only. The new headless supervisor
-does not yet install or select the Express TX launcher, and physical Elgato
-capture, audio, and RF remain unverified.
+The HDMI preview reads the saved V4L2 device and scales it to 320×240/5 fps when
+`PORTSDOWN_SOURCE_PREVIEW_EXEC` is configured. It falls back to **NO HDMI INPUT**
+on loss; the legacy standby process does not reopen that same device. Physical
+Elgato capture/audio and headless live ASI routing remain acceptance work.
+The inherited Express capture helper supports a same-process TS/MJPEG tap using
+`PORTSDOWN_MJPEG_PORT`; only synthetic capture has verified that tap.
 
 ## Implemented
 
@@ -144,8 +101,8 @@ capture, audio, and RF remain unverified.
   capture, downstream ASI/RF, and receiver behavior still need hardware tests.
 - The Output settings form asks for **CALLSIGN** and **Service name**. The
   callsign becomes MPEG-TS `service_provider`; the service name becomes
-  MPEG-TS `service_name`. `KG6MDW` / `Trevor` are example placeholders, **not**
-  saved defaults. Enter the actual transmitting station's callsign (3–20
+  MPEG-TS `service_name`. The form asks for your callsign and service name; **no station
+  identity is saved by default**. Enter the actual transmitting station's callsign (3–20
   uppercase letters, digits, or `/`, with a digit) and a printable service
   name of 1–64 UTF-8 bytes. These settings are saved in
   `portsdown_config.txt`, included in presets and peer configuration, and
@@ -207,9 +164,10 @@ an explicit private-interface address.
   over ASI to an external modulator. The SRT slots' local UDP TS outputs are
   not yet wired to this ASI launcher; the launcher plays one analyzed TS file
   and stops. FFmpeg/QSV live encoding, TS remultiplexing/stuffing, output
-  timing, driver/DTAPI/TSDuck installation, card enumeration, physical ASI
-  waveform, downstream receive, and reboot persistence all need verification
-  on the actual DekTec host. The historical device 0/channel 0/port 2 and
+  timing, physical ASI output, downstream receive, and reboot persistence still
+  need acceptance. Driver/DTAPI/TSDuck installation and card enumeration on
+  LattePanda are now verified; QSV CQP and software TS tests also passed. See
+  [the measured record](lattepanda-dta-driver.md). The historical device 0/channel 0/port 2 and
   7,621,339 bit/s are reference observations, not assumed current settings.
   Keep external modulator RF disabled during bring-up. TANK is ARM64 and has
   no DekTec card; it is not a hardware acceptance target for this path.
@@ -246,29 +204,14 @@ an explicit private-interface address.
 
 ## Offline development run
 
-The new runtime requires `ucode` with its `fs`, `socket`, and `uloop` modules,
-`libubox`, FFmpeg for an actual preview, and a C compiler. `ucode` is common
-on OpenWrt but is not preinstalled on the tested Debian/Ubuntu hosts. Build
-`libubox` then `ucode` from their upstream sources, with `libjson-c-dev` and
-CMake; ensure `ULOOP_SUPPORT=ON` and `SOCKET_SUPPORT=ON`. The local spike used
-libubox commit `a396f38a8568a1d670c240465cd8d24fdfdf6463` and ucode commit
-`a2c42eac6369a0bba0315007c7dc7b7130275340` in `/tmp`, without changing
-the system installation. Do not infer that these commits are packaged for
-Trixie.
+Use the [Diablo installer and foreground launcher](INSTALL.md). It builds the
+pinned ucode/libubox runtime, initializes private config/state, and enables only
+the software source launchers. `PORTSDOWN_BOARD=none` keeps RF/ASI TX unavailable.
+No physical display or old Buster installation is required. Keep the checkout
+in place; the installed launcher references it.
 
-From the checkout, this example starts an **unarmed local UI**. It does not
-install a service or enable any TX backend:
-
-```sh
-make -C control
-export PORTSDOWN_DIR="$PWD"
-export PORTSDOWN_RUN_DIR="$(mktemp -d)"
-export PORTSDOWN_TX_SOCKET="$PORTSDOWN_RUN_DIR/tx.sock"
-export PORTSDOWN_HTTP_PORT=8080
-export PORTSDOWN_MJPEG_PORT=8082
-./control/tx-super &
-ucode -L "$PORTSDOWN_DIR/control/ucode" "$PORTSDOWN_DIR/control/ucode/daemon.uc"
-```
+The runtime has fs/socket/uloop modules. Development tests and legacy transmitter
+scripts still use Python; the new web/control daemon itself does not.
 
 To make the five software-only SRT listeners available, export
 `PORTSDOWN_SRT_EXEC="$PORTSDOWN_DIR/control/srt-slot.sh"` **before** starting
@@ -342,5 +285,8 @@ This is **not** an on-device five-encoder performance or RF result.
 3. Test the web UI and peer link on two separate Pi systems. Exercise normal
    stop, daemon kill, cable loss, stale heartbeat, board disconnect, and
    reboot. RF tests require a dummy load/attenuated receiver.
-4. Migrate the remaining legacy menu operations, receiver controls, settings,
-   and installer before removing `rpidatvgui` or `/touchscreen/`.
+4. Migrate remaining legacy menu operations and receiver controls before removing
+   `rpidatvgui` or `/touchscreen/`. The new headless bootstrap is now provided;
+   a full physical Pi/receiver/transmitter qualification is still pending.
+
+The authoritative work register is [KNOWN_ISSUES.md](KNOWN_ISSUES.md).

@@ -1,5 +1,10 @@
 # SRT input for an ATEM-style hardware encoder
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 `scripts/srt_ts_listener.sh` is a standalone **ingest-only** tool. It accepts
 one SRT caller on TANK (default UDP port 9000) and remuxes the first video and
 optional audio stream to MPEG-TS without re-encoding. It does not start

@@ -1,5 +1,10 @@
 # MSE-88 OBS → SRT → TANK DATV test path
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 The bounded preview/capture path below prepares MPEG-TS files and checks
 DVB-S2 modulation **offline**. It does not control DATV-Express USB, PTT, or
 RF. A separate experimental [interlocked SRT TX](srt-interlocked-tx.md)

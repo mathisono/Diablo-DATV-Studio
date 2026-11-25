@@ -335,7 +335,7 @@ for (let i=1;i<=4;i++) {
   const loadButton=document.createElement('button'); loadButton.textContent=`Load ${i}`;
   loadButton.onclick=async()=>{ try { fill(await api(`/api/presets/${i}`),false); log(`Preset ${i} loaded; press Save configuration to apply`); } catch(error) { log(error.message); } };
   const saveButton=document.createElement('button'); saveButton.textContent=`Save ${i}`; saveButton.className='save';
-  saveButton.onclick=async()=>{ try { await api(`/api/presets/${i}`,'POST',Object.fromEntries(fields.map(id=>[id,$(id).value]))); log(`Preset ${i} saved on this Portsdown`); } catch(error) { log(error.message); } };
+  saveButton.onclick=async()=>{ try { await api(`/api/presets/${i}`,'POST',Object.fromEntries(fields.map(id=>[id,$(id).value]))); log(`Preset ${i} saved on this system`); } catch(error) { log(error.message); } };
   $('presets').append(loadButton,saveButton);
 }
 const events=new EventSource('/api/events');

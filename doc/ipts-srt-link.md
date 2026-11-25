@@ -1,5 +1,10 @@
 # Streamer and IP Output: two different network jobs
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 The touchscreen now calls the existing `IP` output **IP Output**. It remains
 separate from **BATC Stream** (`STREAMER`).
 

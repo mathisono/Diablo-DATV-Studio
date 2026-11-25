@@ -1,5 +1,10 @@
 # First run on a fresh 32-bit Trixie Pi 4
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 This is an **isolated source and camera test**, not a Portsdown installation.
 The legacy `install_portsdown.sh` and `update.sh` are for 32-bit Buster; do not
 run either on Trixie. No service, boot setting, apt source, or RF output is
@@ -15,16 +20,15 @@ cat /etc/os-release | grep -E 'PRETTY_NAME|VERSION_CODENAME'
 dpkg --print-architecture
 sudo apt update
 sudo apt install -y git ffmpeg v4l-utils usbutils python3
-git clone --branch arm64-transmitter --single-branch \
-  https://github.com/mathisono/portsdown4_NTSC.git \
+git clone --branch Trixie --single-branch \
+  https://github.com/mathisono/Diablo-DATV-Studio.git \
   "$HOME/portsdown4-trixie-test"
 cd "$HOME/portsdown4-trixie-test"
 git rev-parse --short HEAD
 ```
 
 Continue only if the OS codename is `trixie` and the architecture is `armhf`.
-The branch name includes `arm64`, but it also contains the 32-bit NTSC/Trixie
-development work. Do not substitute the older `Bookworm` installer.
+The consolidated `Trixie` branch contains both the 32-bit and 64-bit development work. Do not substitute the older `Bookworm` installer.
 
 ## 2. Inventory the screen, camera, and encoder
 

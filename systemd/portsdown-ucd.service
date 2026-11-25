@@ -1,5 +1,5 @@
 [Unit]
-Description=Portsdown persistent ucode web control (experimental)
+Description=Diablo DATV Studio persistent ucode web control (experimental)
 After=portsdown-tx-super.service
 Requires=portsdown-tx-super.service
 

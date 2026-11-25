@@ -1,5 +1,5 @@
 [Unit]
-Description=Portsdown transmitter process and PTT supervisor (experimental)
+Description=Diablo DATV Studio transmitter process and PTT supervisor (experimental)
 After=network.target
 
 [Service]

@@ -1,5 +1,10 @@
 # Native 64-bit transmitter port: development status
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 This worktree is an **offline porting slice**, not an installable or RF-tested
 arm64 Portsdown release. Keep the Buster installer guard in place; do not run
 `install_portsdown.sh` or `update.sh` on Trixie.

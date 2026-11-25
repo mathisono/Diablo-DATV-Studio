@@ -1,0 +1,27 @@
+# New headless installation: no station identity invented, no RF/ASI armed.
+# Save your CALLSIGN and service name through the web form before TS generation.
+modeoutput=DATVEXPRESS_S2
+modulation=S2QPSK
+modeinput=SRT
+source_layout=DIRECT
+srt_source_slot=1
+encoding=H264
+format=720p
+freqoutput=437
+symbolrate=1000
+fec=12
+explevel=0
+plutopwr=71
+limegain=0
+asi_device=0
+asi_channel=0
+asi_bitrate=3071588
+expresshdmidevice=/dev/video0
+expressaudiodevice=
+picam_index=0
+ipts_input_port=10000
+ipts_bind_scope=LOCAL
+multiview_1=HDMI
+multiview_2=CAMH264
+multiview_3=IPTSIN
+multiview_4=SRT1

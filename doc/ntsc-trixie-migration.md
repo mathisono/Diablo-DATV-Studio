@@ -1,5 +1,10 @@
 # NTSC and Trixie migration status
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 This is a development status note, **not a Trixie installation guide**. Do not
 run `install_portsdown.sh` on Bookworm or Trixie: it rewrites apt sources for
 Buster and configures the obsolete camera stack. It now exits before those

@@ -1,5 +1,10 @@
 # Experimental SRT-interlocked DATV-Express DVB-S and DVB-S2 TX
 
+> Retained backend notes from the Portsdown development branches. For the new
+> Diablo GUI installation use [INSTALL.md](INSTALL.md); current integration gaps
+> and hardware acceptance are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+> Historical commit/host paths below describe evidence, not a fresh install.
+
 The touchscreen has **Output Device → Express S2**. With **Source → SRT**,
 the original **Express** output accepts **DVB-S** as well as experimental
 **S2 QPSK**; the separate **Express S2** output remains S2-only. Selected local

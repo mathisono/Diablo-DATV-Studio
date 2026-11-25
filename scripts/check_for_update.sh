@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retained historical Portsdown implementation below; never use it in Diablo.
+echo "This legacy Portsdown installer/updater is disabled in Diablo DATV Studio." >&2
+echo "Use scripts/install-diablo.sh; update this repo with git pull --ff-only origin Trixie." >&2
+exit 2
+
 ## Check which version number to look up. From M0DNY 201905090
 GIT_SRC_FILE=".portsdown_gitsrc"
 if [ -e ${GIT_SRC_FILE} ]; then
