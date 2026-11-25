@@ -17,8 +17,10 @@ status() {
     dkms status 2>/dev/null | grep -F dektec_dta || true
     modinfo -F signer Dta 2>/dev/null || true
     if command -v mokutil >/dev/null 2>&1; then
-        mokutil --sb-state || true
-        if [ -r /var/lib/shim-signed/mok/MOK.der ]; then
+        sb_state=$(mokutil --sb-state 2>/dev/null || true)
+        printf '%s\n' "$sb_state"
+        if [ "$sb_state" = 'SecureBoot enabled' ] &&
+           [ -r /var/lib/shim-signed/mok/MOK.der ]; then
             mokutil --test-key /var/lib/shim-signed/mok/MOK.der || true
         fi
     fi
@@ -86,6 +88,24 @@ if ! sudo modprobe Dta; then
     status
     exit 3
 fi
+
+if ! getent group dektec >/dev/null; then
+    sudo groupadd --system dektec
+fi
+if ! id -nG "$(id -un)" | grep -qw dektec; then
+    sudo usermod -aG dektec "$(id -un)"
+    echo "Group membership for $(id -un) takes effect at next login."
+fi
+# The vendor's 51-dta.rules uses MODE=0666. Override it for this host without
+# changing the vendor rule, so only the dektec group can access the device.
+printf '%s\n' 'KERNEL=="Dta[0-9]*", GROUP="dektec", MODE="0660"' |
+    sudo tee /etc/udev/rules.d/99-dektec-asi.rules >/dev/null
+sudo udevadm control --reload-rules
+for node in /dev/Dta[0-9]*; do
+    [ -e "$node" ] || continue
+    sudo chgrp dektec "$node"
+    sudo chmod 0660 "$node"
+done
 
 echo 'Dta loaded. Verify card binding and device access before any ASI playout.'
 status
