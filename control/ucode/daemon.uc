@@ -179,6 +179,24 @@ function api(peer, method, path, body) {
     emit('config', { changed: true });
     return response(peer, '200 OK', 'application/json', '{"ok":true}');
   }
+  if (method == 'POST' && match(path, /^\/api\/ipcam\/[12]\/restart$/)) {
+    if (peer_role == 'SLAVE') return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only"}');
+    let slot = substr(path, 11, 1);
+    if (!ipcam.load(ipcampath)[slot])
+      return response(peer, '409 Conflict', 'application/json', '{"error":"save an IP CAM URL first"}');
+    if (!getenv('PORTSDOWN_SOURCE_PREVIEW_EXEC'))
+      return response(peer, '503 Service Unavailable', 'application/json', '{"error":"camera preview launcher unavailable"}');
+    let status = super.request(sockpath, 'STATUS').status ?? '';
+    if (index(status, 'tx=running') >= 0 || index(status, 'rx=running') >= 0)
+      return response(peer, '409 Conflict', 'application/json', '{"error":"stop TX/RX before restarting camera preview"}');
+    let stopped = super.request(sockpath, `STOP_IPCAM${slot}`);
+    if (!stopped.ok)
+      return response(peer, '503 Service Unavailable', 'application/json', '{"error":"could not stop camera preview"}');
+    let started = super.request(sockpath, `START_IPCAM${slot}`);
+    source_attempts[`IPCAM${slot}`] = started.ok ? time() : 0;
+    return response(peer, started.ok ? '200 OK' : '503 Service Unavailable', 'application/json',
+      started.ok ? '{"ok":true}' : '{"error":"could not restart camera preview"}');
+  }
   if (method == 'GET' && path == '/api/asi/file-status')
     return response(peer, '200 OK', 'application/json', sprintf('%J', asi_file_status()));
   if (method == 'GET' && path == '/api/state') {

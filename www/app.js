@@ -49,6 +49,7 @@ function showIpCam(state) {
     $(`ipcam-placeholder-${n}`).hidden = live;
     $(`ipcam-status-${n}`).textContent = !configured ? `IP CAM ${n} not configured` :
       live ? `IP CAM ${n} · live preview · URL hidden` : `IP CAM ${n} · awaiting video · URL hidden`;
+    $(`ipcam-restart-${n}`).disabled = state.peer_role === 'SLAVE' || !configured;
   }
 }
 function choices(id, items, selected) {
@@ -231,7 +232,7 @@ function showState(state) {
   $('tx-start').disabled = locked || localRoute || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
   for (const id of fields) $(id).disabled = locked;
-  for (let n=1;n<=2;n++) for (const action of ['url','save','clear']) $(`ipcam-${action}-${n}`).disabled = locked;
+  for (let n=1;n<=2;n++) for (const action of ['url','save']) $(`ipcam-${action}-${n}`).disabled = locked;
   $('settings').querySelector('button[type=submit]').disabled = locked;
   for (const button of $('presets').querySelectorAll('button')) button.disabled = locked;
   srtLocked = locked;
@@ -322,12 +323,11 @@ for (let n=1;n<=2;n++) {
   $(`ipcam-url-${n}`).addEventListener('keydown', event => {
     if (event.key === 'Enter') { event.preventDefault(); $(`ipcam-save-${n}`).click(); }
   });
-  $(`ipcam-clear-${n}`).addEventListener('click', async () => {
+  $(`ipcam-restart-${n}`).addEventListener('click', async () => {
     try {
-      await api('/api/ipcam','POST',{slot:n,url:''});
-      $(`ipcam-url-${n}`).value='';
-      await refreshIpCamStatus();
-      log(`IP CAM ${n} configuration cleared`);
+      await api(`/api/ipcam/${n}/restart`,'POST');
+      log(`IP CAM ${n} preview restarted`);
+      showState(await api('/api/state'));
     } catch(error) { log(`IP CAM ${n}: ${error.message}`); }
   });
 }

@@ -177,6 +177,12 @@ class UcodeTest(unittest.TestCase):
         self.source_ts_mock = self.path / "source-ts-mock"
         self.source_ts_mock.write_text('#!/bin/sh\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
         self.source_ts_mock.chmod(0o755)
+        self.source_preview_log = self.path / "source-preview.log"
+        self.source_preview_mock = self.path / "source-preview-mock"
+        self.source_preview_mock.write_text(
+            '#!/bin/sh\nprintf "%s %s\\n" "$1" "$$" >> "$PORTSDOWN_PREVIEW_LOG"\n'
+            'trap "exit 0" TERM\nwhile :; do sleep 1; done\n')
+        self.source_preview_mock.chmod(0o755)
         self.sock = self.path / "run" / "tx.sock"
         for _ in range(50):
             base = random.randint(25000, 45000)
@@ -206,6 +212,8 @@ class UcodeTest(unittest.TestCase):
                             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
                             "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
                             "PORTSDOWN_IPCAM_CONFIG": str(self.ipcam_config),
+                            "PORTSDOWN_SOURCE_PREVIEW_EXEC": str(self.source_preview_mock),
+                            "PORTSDOWN_PREVIEW_LOG": str(self.source_preview_log),
                             "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
                             "PORTSDOWN_FFMPEG": shutil.which("ffmpeg") or ""}
         self.supervisor = subprocess.Popen([str(CONTROL / "tx-super")], env=env,
@@ -223,6 +231,8 @@ class UcodeTest(unittest.TestCase):
             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
             "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
             "PORTSDOWN_IPCAM_CONFIG": str(self.ipcam_config),
+            "PORTSDOWN_SOURCE_PREVIEW_EXEC": str(self.source_preview_mock),
+            "PORTSDOWN_PREVIEW_LOG": str(self.source_preview_log),
             "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
             "PORTSDOWN_PRESETS_PATH": str(self.path / "presets.json"),
         }
@@ -396,6 +406,25 @@ class UcodeTest(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/source-ts/start")[0], 409)
         self.ipcam_config.chmod(0o644)
         self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 2, "url": urls[2]})[0], 400)
+
+    def test_ip_camera_restart_reconnects_without_changing_saved_url(self):
+        self.assertEqual(self.request("POST", "/api/ipcam/1/restart")[0], 409)
+        url = "rtsp://user:p%40ss@127.0.0.1:8554/first"
+        self.assertEqual(self.request("POST", "/api/ipcam", {"slot": 1, "url": url})[0], 200)
+        self.assertTrue(wait_for(lambda: "ipcam1=running" in
+                                 json.loads(self.request("GET", "/api/state")[1])["supervisor"]["status"], 3))
+        self.assertTrue(wait_for(lambda: self.source_preview_log.exists() and
+                                 len([line for line in self.source_preview_log.read_text().splitlines()
+                                      if line.startswith("IPCAM1 ")]) == 1, 3))
+        self.assertEqual(self.request("POST", "/api/ipcam/1/restart")[0], 200)
+        self.assertTrue(wait_for(lambda: len([line for line in self.source_preview_log.read_text().splitlines()
+                                              if line.startswith("IPCAM1 ")]) == 2, 3))
+        after = [line for line in self.source_preview_log.read_text().splitlines()
+                 if line.startswith("IPCAM1 ")]
+        self.assertNotEqual(after[0], after[1])
+        self.assertEqual(self.ipcam_config.read_text().splitlines()[0], f"ipcam1={url}")
+        self.assertEqual(json.loads(self.request("GET", "/api/ipcam")[1])["configured"],
+                         {"1": True, "2": False})
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg unavailable")
     def test_mixed_multiview_generates_local_ts_and_waiting_cards(self):

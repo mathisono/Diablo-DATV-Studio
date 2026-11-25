@@ -95,8 +95,9 @@ capture, audio, and RF remain unverified.
   whenever that source type is selected in either direct or multiview mode.
   The separate **IP CAM input encoders** section always shows both RTSP URL
   controls and independent low-resolution previews, even before either camera
-  is selected as an output source. Saving a URL starts that camera's preview;
-  clearing it returns its card to the waiting pattern. The GUI accepts
+  is selected as an output source. Each camera has only **Save IP** and
+  **Restart** buttons. Saving a URL starts its preview; Restart reconnects
+  using the saved URL without changing it. The GUI accepts
   usernames/passwords and percent-encodes special characters in their URL
   components; saved URLs are never returned to the browser. They live in
   `/var/lib/portsdown/ip-cameras.conf` (mode 0600), or the path selected by
