@@ -966,6 +966,21 @@ class PeerTest(unittest.TestCase):
                 reply = conn.getresponse(); self.assertEqual(reply.status, 200, reply.read())
                 reply.read(); conn.close()
                 self.assertTrue(wait_for(lambda: "tx=running" in state(slave_port)["supervisor"]["status"]))
+                self.assertTrue(wait_for(lambda: state(master_port)["peer"].get("remote", {}).get("tx") == "running"))
+                conn = http.client.HTTPConnection("127.0.0.1", slave_port, timeout=2)
+                conn.request("POST", "/api/tx/stop", headers={"X-Portsdown-Control": "1"})
+                reply = conn.getresponse(); self.assertEqual(reply.status, 200, reply.read())
+                reply.read(); conn.close()
+                self.assertTrue(wait_for(lambda: not state(master_port)["peer"]["tx_requested"] and
+                                        state(master_port)["peer"]["remote"]["tx"] == "stopped"))
+                self.assertEqual(state(master_port)["peer"]["remote"]["reason"], "local E-Stop")
+                # Explicit new request works after SLAVE E-Stop; old stopped
+                # snapshots must not cancel a newer START in flight.
+                conn = http.client.HTTPConnection("127.0.0.1", master_port, timeout=2)
+                conn.request("POST", "/api/tx/start", headers={"X-Portsdown-Control": "1"})
+                reply = conn.getresponse(); self.assertEqual(reply.status, 200, reply.read())
+                reply.read(); conn.close()
+                self.assertTrue(wait_for(lambda: "tx=running" in state(slave_port)["supervisor"]["status"]))
                 master.terminate(); master.wait(timeout=3)
                 self.assertTrue(wait_for(lambda: "tx=stopped" in command(slave_sock, "STATUS"), 2.5))
                 self.assertIn("off", offlog.read_text())

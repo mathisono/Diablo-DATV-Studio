@@ -298,6 +298,7 @@ function api(peer, method, path, body) {
       super.request(sockpath, 'STOP_TX');
       result = { ok: remote, message: remote ? 'remote stop requested' : 'peer unreachable; remote dead-man stop pending' };
     } else result = super.request(sockpath, commands[path]);
+    if (peer_role == 'SLAVE' && path == '/api/tx/stop') peerctl.refresh_state('local E-Stop');
     emit('state', { command: commands[path], result: result });
     return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json', sprintf('%J', result));
   }

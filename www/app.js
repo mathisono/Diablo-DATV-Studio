@@ -208,6 +208,12 @@ function showState(state) {
     : !boardReady && state.peer_role !== 'MASTER'
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`
     : supervisorStatus || state.supervisor?.message || 'Unknown';
+  if (state.peer_role === 'MASTER') {
+    const telemetry = state.peer?.remote;
+    $('tx-status').textContent = !state.peer?.telemetry_fresh
+      ? 'SLAVE telemetry unavailable — remote TX state UNKNOWN; do not assume RF is off.'
+      : `SLAVE TX process: ${telemetry.tx.toUpperCase()} · ${telemetry.reason || 'status received'}${state.peer.tx_requested && telemetry.tx !== 'running' ? ' · START request awaiting confirmation' : ''}. Process status is not an RF measurement.`;
+  }
   updatePreview(state);
   showIpCam(state);
   $('peer-status').textContent = `${state.peer_role || 'STANDALONE'} · ${state.peer?.connected ? 'linked' : 'not linked'}${state.peer?.config_ready ? ' · config ready' : ''}`;
@@ -236,7 +242,7 @@ function showState(state) {
     current.source_layout === 'DIRECT' && current.modeinput?.startsWith('IPCAM') ? `${current.modeinput} selected · output starts on request` : 'Local MPEG-TS output stopped';
   $('source-ts-start').disabled = locked || !outputSelected || !state.source_ts_available || monitorRunning;
   $('source-ts-stop').disabled = locked || !monitorRunning;
-  $('tx-start').disabled = locked || (localRoute && state.peer_role !== 'MASTER') || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
+  $('tx-start').disabled = locked || (localRoute && state.peer_role !== 'MASTER') || (state.peer_role === 'MASTER' ? (!state.peer?.config_ready || !state.peer?.telemetry_fresh || !state.peer?.remote?.supervisor_ok) : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
   for (const id of fields) $(id).disabled = locked;
   for (let n=1;n<=2;n++) for (const action of ['url','save']) $(`ipcam-${action}-${n}`).disabled = locked;

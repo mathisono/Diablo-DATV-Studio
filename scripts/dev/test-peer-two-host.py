@@ -63,7 +63,7 @@ def worker():
         cfg = root/'config.txt'
         cfg.write_text('modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nmodeinput=CARDH264\nsource_layout=DIRECT\nfreqoutput=437\nsymbolrate=1000\nfec=12\nformat=720p\nencoding=H264\ncall=N0CALL\nservice_name=MOCK TX - NO RF initial\n')
         mock = root/'mock-tx'
-        mock.write_text('#!/bin/sh\necho "MOCK TX ONLY - NO HARDWARE"\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
+        mock.write_text('#!/bin/sh\necho "MOCK TX ONLY - NO HARDWARE"\necho $$ > "$PORTSDOWN_MOCK_PID"\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
         mock.chmod(0o700)
         off = root/'safe-off'
         off.write_text('#!/bin/sh\necho off >> "$PORTSDOWN_OFF_LOG"\necho "MOCK SAFE-OFF ONLY"\n')
@@ -77,7 +77,7 @@ def worker():
                    PORTSDOWN_IPCAM_CONFIG=str(root/'ipcam.conf'),
                    PORTSDOWN_BOARD='express', PORTSDOWN_TX_EXEC=str(mock),
                    PORTSDOWN_SAFE_OFF_EXEC=str(off), PORTSDOWN_EXPRESS_CTRL=str(control),
-                   PORTSDOWN_OFF_LOG=str(root/'off.log'), PORTSDOWN_PEER_ROLE=spec['role'],
+                   PORTSDOWN_OFF_LOG=str(root/'off.log'), PORTSDOWN_MOCK_PID=str(root/'mock.pid'), PORTSDOWN_PEER_ROLE=spec['role'],
                    PORTSDOWN_PEER_TOKEN=spec['token'], PORTSDOWN_PEER_SRT_PORT='28900', PORTSDOWN_PEER_PORT=str(spec['peer_port']),
                    PORTSDOWN_PEER_HOST=spec['host'], PORTSDOWN_PEER_BIND=spec['bind'],
                    PORTSDOWN_HTTP_PORT=str(spec['http_port']),
@@ -118,6 +118,16 @@ def worker():
                     control_process = daemon()
                     until(lambda: api(spec['http_port'])['code'] == 200)
                     emit({'ok': True})
+                elif cmd == 'exit_tx':
+                    os.kill(int((root/'mock.pid').read_text()), signal.SIGTERM)
+                    emit({'ok': True})
+                elif cmd == 'supervisor':
+                    with socket.socket(socket.AF_UNIX) as client:
+                        client.settimeout(2); client.connect(str(root/'run/tx.sock'))
+                        client.sendall(b'STATUS\n'); data = b''
+                        while b'STATUS ' not in data or not data.endswith(b'\n'):
+                            data += client.recv(4096)
+                        emit({'status':data.decode()})
                 elif cmd == 'media_receive':
                     capture = root/'received.ts'
                     media = spawn(['ffmpeg','-hide_banner','-nostdin','-loglevel','error',
@@ -265,13 +275,13 @@ def main():
             remote = Remote(host,destination,spec); remotes.append(remote)
             report[role] = remote.info
         slave, master = remotes
-        until(lambda: master.state()['peer']['config_ready'])
+        until(lambda: master.state()['peer']['config_ready'] and master.state()['peer']['telemetry_fresh'])
         report['checks']['authenticated_config_ready'] = True
         for path, body in [('/api/config',{'service_name':'disallowed'}),('/api/tx/start',None),('/api/srt/1/enable',None)]:
             assert slave.api(path,'POST',body)['code'] == 403
         report['checks']['slave_write_start_srt_lock'] = True
         assert master.api('/api/config','POST',{'service_name':'MOCK TX - NO RF'})['code'] == 200
-        until(lambda: master.state()['peer']['config_ready'])
+        until(lambda: master.state()['peer']['config_ready'] and master.state()['peer']['telemetry_fresh'])
         assert slave.api('/api/config')['data']['config']['service_name'] == 'MOCK TX - NO RF'
         received = slave.api('/api/config')['data']['config']
         assert received['modeinput'] == 'IPTSIN' and received['iptransport'] == 'srt'
@@ -292,6 +302,7 @@ def main():
             assert master.api('/api/tx/start','POST')['code'] == 200
             until(lambda: 'tx=running' in slave.state()['supervisor']['status'])
             assert 'tx=stopped' in master.state()['supervisor']['status']
+            until(lambda: master.state()['peer']['remote']['tx'] == 'running')
         def stopped():
             return 'tx=stopped' in slave.state()['supervisor']['status']
         start()
@@ -311,8 +322,15 @@ def main():
         assert slave.api('/api/tx/stop','POST')['code'] == 200
         until(stopped)
         report['checks']['slave_estop'] = True
-        report['known_limit_master_after_local_estop'] = master.state()['peer']
-        master.api('/api/tx/stop','POST')  # Clear outstanding request before next trial.
+        until(lambda: not master.state()['peer']['tx_requested'] and master.state()['peer']['remote']['tx'] == 'stopped')
+        report['master_after_local_estop'] = master.state()['peer']
+        report['checks']['local_estop_clears_master_request_and_reports_stopped'] = True
+        asyncio.run(snap('diablo-peer-master-slave-estop',29180,'MASTER · linked',False))
+        start()
+        slave.request({'cmd':'exit_tx'})
+        until(stopped)
+        until(lambda: not master.state()['peer']['tx_requested'] and master.state()['peer']['remote']['tx'] == 'stopped')
+        report['checks']['slave_process_exit_reported_to_master'] = True
         start()
         began = time.monotonic()
         master.request({'cmd':'freeze'})  # TCP remains open; no heartbeats.
@@ -333,12 +351,24 @@ def main():
         report['disconnect_state'] = slave.state()
         asyncio.run(snap('diablo-peer-slave-link-loss',29182,'SLAVE · not linked',True))
         master.request({'cmd':'reconnect'})
-        until(lambda: master.state()['peer']['config_ready'])
+        until(lambda: master.state()['peer']['config_ready'] and master.state()['peer']['telemetry_fresh'])
         assert stopped()
         report['checks']['reconnect_does_not_restart_tx'] = True
         start()
         master.api('/api/tx/stop','POST'); until(stopped)
         report['checks']['explicit_restart_after_reconnect'] = True
+        # Return-path telemetry loss: freeze SLAVE ucode, not its C watchdog.
+        start()
+        slave.request({'cmd':'freeze'})
+        until(lambda: not master.state()['peer']['telemetry_fresh'], 3)
+        until(lambda: 'tx=stopped' in slave.request({'cmd':'supervisor'})['status'], 3)
+        report['master_telemetry_unavailable'] = master.state()['peer']
+        asyncio.run(snap('diablo-peer-master-telemetry-loss',29180,'MASTER · not linked',False))
+        report['checks']['telemetry_loss_shows_unknown_and_c_watchdog_stops_tx'] = True
+        slave.request({'cmd':'resume'})
+        until(lambda: master.state()['peer']['config_ready'] and master.state()['peer']['telemetry_fresh'])
+        assert stopped()
+        report['checks']['telemetry_recovery_does_not_restart_tx'] = True
         report['slave_evidence'] = slave.request({'cmd':'evidence'})
         report['result'] = 'PASS'
     finally:
