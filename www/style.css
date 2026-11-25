@@ -3,4 +3,9 @@
 form .wide,form .asi-note{grid-column:1/-1}form .asi-note{margin:.1rem 0;color:#bed2df}form [hidden]{display:none}
 form .asi-status{grid-column:1/-1;margin:.1rem 0;padding:.55rem .7rem;border-left:3px solid #63977f;background:#233a37}form .asi-status.warning{border-left-color:#e1c56a;background:#3b3427}
 form .hdmi-note,form .route-summary{grid-column:1/-1;margin:.1rem 0;color:#bed2df}form .route-summary{border-left:3px solid #e1c56a;padding:.45rem .65rem;background:#263747}
+/* The four tiles occupy equal quarters of the composed monitor frame. */
+[hidden]{display:none!important}.tx-preview-panel{margin-top:1.2rem;border-top:1px solid #526473;padding-top:.7rem}.tx-preview-panel h3{margin:.2rem 0 .6rem}.multiview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));aspect-ratio:4/3;background:#05090d;gap:2px}.multiview-tile{position:relative;min-width:0;min-height:0;background:#05090d;overflow:hidden}.multiview-tile img{width:100%;height:100%;object-fit:contain}.multiview-tile .placeholder{position:absolute;inset:0}.multiview-tile span{position:absolute;left:.25rem;top:.25rem;background:#101820d9;padding:.12rem .3rem;font-size:.7rem}.multiview-selectors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.multiview-selectors p{grid-column:1/-1;color:#bed2df;font-size:.85rem;margin:.4rem 0}.multiview-selectors label{display:grid;gap:.2rem;font-size:.85rem}
+.source-ts-controls{margin-top:.5rem}.multiview-actions{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}#source-ts-status{margin:.4rem 0;font-size:.85rem;color:#bed2df}
+.multiview.wide{aspect-ratio:16/9}
+main{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:820px){main{grid-template-columns:1fr}}
 details summary{font-size:1.2rem;font-weight:700;cursor:pointer;list-style:revert}details[open] summary{margin-bottom:.9rem}

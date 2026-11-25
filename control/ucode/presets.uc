@@ -13,7 +13,8 @@ export function save(path, store, slot, values) {
   let allowed = ['modeoutput','modeinput','modulation','freqoutput','symbolrate','fec',
     'format','encoding','explevel','plutopwr','limegain',
     'asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice',
-    'call','service_name'];
+    'call','service_name','source_layout','srt_source_slot',
+    'multiview_1','multiview_2','multiview_3','multiview_4','ipts_input_port','ipts_bind_scope','picam_index'];
   let clean = {};
   for (let key, value in values) {
     if (index(allowed, key) < 0 || type(value) != 'string' && type(value) != 'number') return `unsupported field: ${key}`;

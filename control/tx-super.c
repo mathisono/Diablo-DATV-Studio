@@ -20,14 +20,14 @@
 #define LINE 512
 #define LOG_LINE 1024
 
-enum role { TX, RX, PREVIEW, SRT1, SRT2, SRT3, SRT4, SRT5, ROLE_COUNT };
+enum role { TX, RX, PREVIEW, SRT1, SRT2, SRT3, SRT4, SRT5, HDMI, PICAM, IPTS, SOURCE_TS, ROLE_COUNT };
 struct child { pid_t pid; int logfd; char pending[LOG_LINE]; size_t used; };
 struct client { int fd; char input[LINE]; size_t used; };
 
 static volatile sig_atomic_t stopping;
 static struct child children[ROLE_COUNT];
 static struct client clients[CLIENTS];
-static const char *role_names[] = { "TX", "RX", "PREVIEW", "SRT1", "SRT2", "SRT3", "SRT4", "SRT5" };
+static const char *role_names[] = { "TX", "RX", "PREVIEW", "SRT1", "SRT2", "SRT3", "SRT4", "SRT5", "HDMI", "PICAM", "IPTS", "SOURCE_TS" };
 static const char *executables[ROLE_COUNT];
 static const char *board;
 static const char *express_ctrl;
@@ -66,6 +66,26 @@ static bool board_config_matches(void)
     return strcmp(configured, "LIMEMINI") == 0 || strcmp(configured, "LIMEUSB") == 0 || strcmp(configured, "LIMEDVB") == 0;
   if (strcmp(board, "dektec_asi") == 0) return strcmp(configured, "DEKTEC_ASI") == 0;
   return false;
+}
+
+static bool source_ts_selected(void)
+{
+  if (!config_path) return false;
+  FILE *file = fopen(config_path, "r");
+  if (!file) return false;
+  char line[512], layout[32] = "", input[32] = "";
+  while (fgets(line, sizeof(line), file)) {
+    if (strncmp(line, "source_layout=", 14) == 0) {
+      char *value = line + 14; value[strcspn(value, "\r\n")] = 0;
+      if (strlen(value) < sizeof(layout)) strcpy(layout, value);
+    } else if (strncmp(line, "modeinput=", 10) == 0) {
+      char *value = line + 10; value[strcspn(value, "\r\n")] = 0;
+      if (strlen(value) < sizeof(input)) strcpy(input, value);
+    }
+  }
+  fclose(file);
+  return strcmp(layout, "MULTIVIEW") == 0 ||
+    (strcmp(layout, "DIRECT") == 0 && strcmp(input, "SRT") == 0);
 }
 
 static void on_signal(int signo) { (void)signo; stopping = 1; }
@@ -137,6 +157,9 @@ static bool start_role(enum role role)
         strcmp(board, "lime") != 0 && strcmp(board, "dektec_asi") != 0) return false;
     if (!safe_off_exec || safe_off_exec[0] != '/' || access(safe_off_exec, X_OK)) return false;
     (void)stop_role(PREVIEW); /* Release /dev/video0 before starting TX. */
+    (void)stop_role(HDMI);
+    (void)stop_role(PICAM);
+    (void)stop_role(IPTS);
     if (!safe_off()) { (void)start_role(PREVIEW); return false; }
   } else if (role == RX) {
     (void)stop_role(PREVIEW);
@@ -151,9 +174,11 @@ static bool start_role(enum role role)
     dup2(pipefd[1], STDOUT_FILENO);
     dup2(pipefd[1], STDERR_FILENO);
     close(pipefd[1]);
-    if (role >= SRT1) {
+    if (role >= SRT1 && role <= SRT5) {
       char slot[2] = { (char)('1' + role - SRT1), 0 };
       execl(execpath, execpath, slot, (char *)NULL);
+    } else if (role >= HDMI && role <= IPTS) {
+      execl(execpath, execpath, role_names[role], (char *)NULL);
     } else execl(execpath, execpath, (char *)NULL);
     _exit(127);
   }
@@ -171,14 +196,18 @@ static void command(int fd, const char *line)
     last_peer_hb = monotonic_ms(); send_client(fd, "OK\n"); return;
   }
   if (strcmp(line, "STATUS") == 0) {
-    char result[256];
-    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s srt1=%s srt2=%s srt3=%s srt4=%s srt5=%s\n",
+    char result[448];
+    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s srt1=%s srt2=%s srt3=%s srt4=%s srt5=%s hdmi=%s picam=%s ipts=%s source_ts=%s\n",
       children[TX].pid ? "running" : "stopped", children[RX].pid ? "running" : "stopped",
       children[PREVIEW].pid ? "running" : "stopped", board,
       slave_mode ? "slave" : "standalone", slave_mode && last_peer_hb > 0 && monotonic_ms() - last_peer_hb < 1500 ? "ok" : "stale",
       children[SRT1].pid ? "running" : "stopped", children[SRT2].pid ? "running" : "stopped",
       children[SRT3].pid ? "running" : "stopped", children[SRT4].pid ? "running" : "stopped",
-      children[SRT5].pid ? "running" : "stopped");
+      children[SRT5].pid ? "running" : "stopped",
+      children[HDMI].pid ? "running" : "stopped",
+      children[PICAM].pid ? "running" : "stopped",
+      children[IPTS].pid ? "running" : "stopped",
+      children[SOURCE_TS].pid ? "running" : "stopped");
     send_client(fd, result);
     return;
   }
@@ -192,6 +221,8 @@ static void command(int fd, const char *line)
       }
       if (role == TX && children[RX].pid) { send_client(fd, "ERR RX active\n"); return; }
       if (role == TX && !board_config_matches()) { send_client(fd, "ERR config board mismatch or unavailable\n"); return; }
+      if (role == TX && source_ts_selected()) { send_client(fd, "ERR selected source TS RF route unavailable\n"); return; }
+      if (role == SOURCE_TS && !source_ts_selected()) { send_client(fd, "ERR source TS route not selected\n"); return; }
       if (role == RX && children[TX].pid) { send_client(fd, "ERR TX active\n"); return; }
       send_client(fd, start_role((enum role)role) ? "OK\n" : "ERR unavailable\n");
       return;
@@ -255,6 +286,8 @@ int main(void)
   executables[RX] = getenv("PORTSDOWN_RX_EXEC");
   executables[PREVIEW] = getenv("PORTSDOWN_PREVIEW_EXEC");
   for (int i = SRT1; i <= SRT5; i++) executables[i] = getenv("PORTSDOWN_SRT_EXEC");
+  for (int i = HDMI; i <= IPTS; i++) executables[i] = getenv("PORTSDOWN_SOURCE_PREVIEW_EXEC");
+  executables[SOURCE_TS] = getenv("PORTSDOWN_SOURCE_TS_EXEC");
   for (int i = 0; i < ROLE_COUNT; i++) children[i].logfd = -1;
   for (int i = 0; i < CLIENTS; i++) clients[i].fd = -1;
   if (mkdir(dir, 0750) < 0 && errno != EEXIST) { perror("mkdir"); return 1; }

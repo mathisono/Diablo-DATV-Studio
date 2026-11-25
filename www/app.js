@@ -1,11 +1,23 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const fields = ['modeoutput','modeinput','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice','call','service_name'];
+const fields = ['modeoutput','modeinput','source_layout','srt_source_slot','multiview_1','multiview_2','multiview_3','multiview_4','ipts_input_port','ipts_bind_scope','picam_index','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice','call','service_name'];
 const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
 let logInitialized = false;
 let srtLocked = false;
+let lastState = null;
+const multiviewOptions = [
+  ['HDMI','Elgato HDMI'],['CAMH264','Pi Camera'],['IPTSIN','IPTS (UDP TS)'],
+  ...[1,2,3,4,5].map(n=>[`SRT${n}`,`SRT encoder ${n}`]),['CARDH264','Test card']
+];
+const previewSources = {
+  HDMI: ['/api/video/source/hdmi','/no-hdmi-input.jpg'],
+  CAMH264: ['/api/video/source/camera','/no-picam-input.jpg'],
+  IPTSIN: ['/api/video/source/ipts','/no-ipts-input.jpg'],
+  IPTSIN264: ['/api/video/source/ipts','/no-ipts-input.jpg'],
+  IPTSIN265: ['/api/video/source/ipts','/no-ipts-input.jpg']
+};
 function log(message) {
   const node = $('log');
   node.textContent = `${new Date().toLocaleTimeString()} ${message}\n` + node.textContent.slice(0, 10000);
@@ -63,34 +75,50 @@ async function refreshAsiFileStatus() {
   } catch { flag.textContent = 'ASI file metadata status unavailable. Playout is not blocked by metadata.'; }
 }
 function refreshSourceFields() {
-  const hdmi = $('modeinput').value === 'HDMI';
-  $('srt-details').open = $('modeinput').value === 'SRT';
+  const multi = $('source_layout').value === 'MULTIVIEW';
+  const selected = [1,2,3,4].map(n=>$(`multiview_${n}`).value);
+  const hdmi = multi ? selected.includes('HDMI') : $('modeinput').value === 'HDMI';
+  const picam = multi ? selected.includes('CAMH264') : $('modeinput').value === 'CAMH264';
+  const ipts = multi ? selected.includes('IPTSIN') : $('modeinput').value.startsWith('IPTSIN');
+  $('srt-details').open = multi ? selected.some(s=>s.startsWith('SRT')) : $('modeinput').value === 'SRT';
+  for (const el of document.querySelectorAll('.direct-only')) el.hidden = multi;
+  for (const el of document.querySelectorAll('.srt-direct-only')) el.hidden = multi || $('modeinput').value !== 'SRT';
+  $('direct-preview').hidden = multi;
+  $('multiview-preview').hidden = !multi;
+  $('multiview-preview').classList.toggle('wide',['16:9','720p','1080p'].includes($('format').value));
+  $('multiview-selectors').hidden = !multi;
+  $('source-ts-controls').hidden = !multi && $('modeinput').value !== 'SRT';
   for (const el of document.querySelectorAll('.hdmi-only')) el.hidden = !hdmi;
+  for (const el of document.querySelectorAll('.picam-only')) el.hidden = !picam;
+  for (const el of document.querySelectorAll('.ipts-only')) el.hidden = !ipts;
   $('expresshdmidevice').required = hdmi;
   const route = $('route-summary');
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
   const codec = $('encoding').value === 'H264' ? 'H.264' : $('encoding').value;
-  route.textContent = `Elgato HDMI → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
+  route.textContent = multi ? `HDMI is one multiview tile. The current low-rate composite TS is a local monitor source, not yet a live ${codec} → DekTec ASI transmitter route.` :
+    `Elgato HDMI → ${codec} MPEG-TS → DekTec ASI → external modulator (configuration example; live ASI capture is not integrated yet).`;
+  if (lastState) updatePreview(lastState);
 }
 function fill(config, updateCurrent=true) {
-  if (updateCurrent) {
-    current = config;
-    const hdmi = config.modeinput === 'HDMI';
-    $('video-placeholder').src = hdmi ? '/no-hdmi-input.svg' : '/no-ip-input.svg';
-    $('video-placeholder').alt = hdmi ? 'NO HDMI INPUT' : 'NO IP INPUT';
-  }
+  if (updateCurrent) current = config;
   choices('modeoutput', Object.entries(capabilities).map(([id,cap])=>[id,cap.label]), config.modeoutput);
   choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,mode]), config.modulation);
+  choices('source_layout', [['DIRECT','Direct source'],['MULTIVIEW','Four-source multiview']], config.source_layout || 'DIRECT');
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
     ['CARDH264','Test card'],['HDMI','Elgato HDMI'],['DESKTOP','Desktop'],['SRT','SRT input'],
     ['IPTSIN','IP transport stream'],['IPTSIN264','IPTS H.264'],['IPTSIN265','IPTS H.265']
   ], config.modeinput);
+  choices('srt_source_slot', [1,2,3,4,5].map(n=>[String(n),`SRT encoder ${n}`]), config.srt_source_slot || '1');
+  for (let n=1;n<=4;n++) choices(`multiview_${n}`,multiviewOptions,config[`multiview_${n}`] || `SRT${n}`);
+  choices('ipts_bind_scope', [['LOCAL','Loopback only'],['LAN','LAN interfaces']],config.ipts_bind_scope || 'LOCAL');
   choices('encoding', ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'].map(v=>[v,v]), config.encoding);
   choices('format', ['4:3','16:9','720p','1080p'].map(v=>[v,v]), config.format);
   choices('fec', (config.modulation==='ASI' ? [] : config.modulation==='S2QPSK' ? fecS2 : fecS).map(v => [v,v]), config.fec);
-  for (const id of fields.filter(x => !['modeoutput','modeinput','modulation','encoding','format','fec'].includes(x)))
+  for (const id of fields.filter(x => !['modeoutput','modeinput','source_layout','srt_source_slot','multiview_1','multiview_2','multiview_3','multiview_4','ipts_bind_scope','modulation','encoding','format','fec'].includes(x)))
     $(id).value = config[id] ?? '';
+  if (!$('ipts_input_port').value) $('ipts_input_port').value = '10000';
+  if (!$('picam_index').value) $('picam_index').value = '0';
   if (!/^[A-Z0-9/]{3,20}$/.test($('call').value) || !/[0-9]/.test($('call').value))
     $('call').value = ''; // Old generic values such as BATC are not a station callsign.
   refreshBoardFields();
@@ -99,19 +127,63 @@ async function reload() {
   const result = await api('/api/config'); capabilities = result.capabilities; fill(result.config);
   const state = await api('/api/state'); showState(state);
 }
+function previewFor(source, state) {
+  if (source?.startsWith('SRT')) {
+    const slot=Number(source.slice(3));
+    return {url:`/api/video/srt/${slot}`, card:`/no-srt-input-${slot}.jpg`,
+      live:!!state.srt?.find(item=>item.slot===slot)?.live, label:`SRT encoder ${slot}`};
+  }
+  if (source === 'CARDH264') return {url:null,card:'/test-card.jpg',live:false,label:'Test card'};
+  const mapped=previewSources[source];
+  if (mapped) {
+    const key=source.startsWith('IPTS')?'IPTSIN':source;
+    const legacyHdmi=key==='HDMI' && !state.source_preview_available;
+    return {url:legacyHdmi?'/api/video':mapped[0],card:mapped[1],
+      live:legacyHdmi?!!state.video?.producer:!!state.sources?.[key]?.preview?.producer,
+      label:key==='CAMH264'?'Pi Camera':key==='IPTSIN'?'IPTS':'HDMI'};
+  }
+  return {url:'/api/video',card:'/no-ip-input.svg',live:!!state.video?.producer,label:source||'Direct'};
+}
+function setImage(image, url) {
+  if (!url) { image.removeAttribute('src'); return; }
+  if (image.getAttribute('src') !== url) image.setAttribute('src',url);
+}
+function updatePreview(state) {
+  if ($('source_layout').value === 'MULTIVIEW') {
+    let live=0;
+    for (let n=1;n<=4;n++) {
+      const source=$(`multiview_${n}`).value;
+      const info=previewFor(source,state);
+      setImage($(`mv-image-${n}`),info.url);
+      setImage($(`mv-placeholder-${n}`),info.card);
+      $(`mv-placeholder-${n}`).hidden=info.live;
+      if (info.live) live++;
+    }
+    $('video-status').textContent=`Multiview · ${live}/4 live sources · waiting cards for unavailable inputs`;
+  } else {
+    const source=$('modeinput').value==='SRT'?`SRT${$('srt_source_slot').value}`:$('modeinput').value;
+    const info=previewFor(source,state);
+    setImage($('live-preview'),info.url);
+    setImage($('video-placeholder'),info.card);
+    $('video-placeholder').hidden=info.live;
+    $('video-status').textContent=info.live?`${info.label} preview live`:`Waiting for ${info.label}`;
+  }
+}
 function showState(state) {
+  lastState = state;
   $('connection').textContent = state.supervisor?.ok ? 'Supervisor connected' : 'Supervisor unavailable';
   const supervisorStatus = state.supervisor?.status || '';
   const supervisorBoard = /board=([^ ]+)/.exec(supervisorStatus)?.[1];
   const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : state.board === 'DEKTEC_ASI' ? 'dektec_asi' : null;
   const boardReady = expectedBoard && supervisorBoard === expectedBoard;
-  $('tx-status').textContent = !boardReady && state.peer_role !== 'MASTER'
+  const localRoute = current.source_layout === 'MULTIVIEW' ||
+    (current.source_layout === 'DIRECT' && current.modeinput === 'SRT');
+  $('tx-status').textContent = localRoute
+    ? 'RF TX unavailable for this source route; local MPEG-TS output is separate.'
+    : !boardReady && state.peer_role !== 'MASTER'
     ? `TX disabled: configured ${state.board} does not match supervisor ${supervisorBoard || 'unavailable'}.`
     : supervisorStatus || state.supervisor?.message || 'Unknown';
-  $('video-status').textContent = state.video?.producer
-    ? `${current.modeinput === 'HDMI' ? 'HDMI' : 'MJPEG'} preview live · ${state.video.frames} frames`
-    : current.modeinput === 'HDMI' ? 'Waiting for HDMI capture' : 'Waiting for MJPEG source';
-  $('video-placeholder').hidden = !!state.video?.producer;
+  updatePreview(state);
   $('peer-status').textContent = `${state.peer_role || 'STANDALONE'} · ${state.peer?.connected ? 'linked' : 'not linked'}${state.peer?.config_ready ? ' · config ready' : ''}`;
   if (!logInitialized && state.logs) {
     $('log').textContent = state.logs.join('\n');
@@ -121,7 +193,16 @@ function showState(state) {
   $('remote-preview-box').hidden = !remote;
   if (remote && $('remote-preview').src !== remote) $('remote-preview').src = remote;
   const locked = state.peer_role === 'SLAVE';
-  $('tx-start').disabled = locked || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
+  const monitorRunning = /source_ts=running/.test(supervisorStatus);
+  const outputSelected = current.source_layout === 'MULTIVIEW' ||
+    (current.source_layout === 'DIRECT' && current.modeinput === 'SRT');
+  const selectedSrt = state.srt?.find(item=>item.slot===Number(current.srt_source_slot||'1'));
+  $('source-ts-status').textContent = !state.source_ts_available ? 'Local TS launcher not configured' :
+    monitorRunning ? `Local MPEG-TS output running${current.source_layout === 'DIRECT' ? ` · SRT encoder ${current.srt_source_slot||'1'} selected` : ' · four-tile multiview'}` :
+    current.source_layout === 'DIRECT' && selectedSrt ? `SRT encoder ${selectedSrt.slot} selected · input UDP ${selectedSrt.ts_port} · output starts on request` : 'Local MPEG-TS output stopped';
+  $('source-ts-start').disabled = locked || !outputSelected || !state.source_ts_available || monitorRunning;
+  $('source-ts-stop').disabled = locked || !monitorRunning;
+  $('tx-start').disabled = locked || localRoute || (state.peer_role === 'MASTER' ? !state.peer?.config_ready : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
   for (const id of fields) $(id).disabled = locked;
   $('settings').querySelector('button[type=submit]').disabled = locked;
@@ -164,16 +245,21 @@ async function command(path) {
 }
 for (const [id,path] of Object.entries({
   'tx-start':'/api/tx/start','tx-stop':'/api/tx/stop',
-  'rx-start':'/api/rx/start','rx-stop':'/api/rx/stop'
+  'rx-start':'/api/rx/start','rx-stop':'/api/rx/stop',
+  'source-ts-start':'/api/source-ts/start','source-ts-stop':'/api/source-ts/stop'
 })) $(id).addEventListener('click',()=>command(path));
 $('modeoutput').addEventListener('change',refreshMode);
 $('modeinput').addEventListener('change',refreshSourceFields);
+$('source_layout').addEventListener('change',refreshSourceFields);
+$('srt_source_slot').addEventListener('change',()=>{ if(lastState) updatePreview(lastState); });
+for (let n=1;n<=4;n++) $(`multiview_${n}`).addEventListener('change',refreshSourceFields);
 $('call').addEventListener('input', () => { $('call').value = $('call').value.toUpperCase(); });
 $('service_name').addEventListener('input', () => {
   $('service_name').setCustomValidity(new TextEncoder().encode($('service_name').value).length > 64
     ? 'Service name must be at most 64 UTF-8 bytes' : '');
 });
 $('encoding').addEventListener('change',refreshSourceFields);
+$('format').addEventListener('change',refreshSourceFields);
 $('modulation').addEventListener('change',refreshFec);
 $('settings').addEventListener('submit',async event => {
   event.preventDefault();

@@ -39,6 +39,43 @@ function srt_state(status) {
   return slots;
 }
 
+const local_sources = { HDMI: 6, CAMH264: 7, IPTSIN: 8 };
+let source_attempts = {};
+function wants_source(cfg, source) {
+  if (!cfg) return false;
+  if ((cfg.source_layout ?? 'DIRECT') != 'MULTIVIEW')
+    return cfg.modeinput == source ||
+      (source == 'IPTSIN' && (cfg.modeinput == 'IPTSIN264' || cfg.modeinput == 'IPTSIN265'));
+  for (let tile = 1; tile <= 4; tile++)
+    if (cfg[`multiview_${tile}`] == source) return true;
+  return false;
+}
+
+function source_state(cfg) {
+  let result = {};
+  for (let source, slot in local_sources)
+    result[source] = { selected: wants_source(cfg, source), preview: video.stats(slot) };
+  return result;
+}
+
+function sync_sources(cfg, status) {
+  let can_run = index(status ?? '', 'tx=stopped') >= 0 &&
+    index(status ?? '', 'rx=stopped') >= 0;
+  for (let source, slot in local_sources) {
+    let role = source == 'CAMH264' ? 'PICAM' : source == 'IPTSIN' ? 'IPTS' : 'HDMI';
+    let wanted = wants_source(cfg, source);
+    let key = source == 'CAMH264' ? 'picam' : source == 'IPTSIN' ? 'ipts' : 'hdmi';
+    let running = index(status ?? '', `${key}=running`) >= 0;
+    if (!wanted || !can_run) {
+      if (running) super.request(sockpath, `STOP_${role}`);
+    } else if (!running && getenv('PORTSDOWN_SOURCE_PREVIEW_EXEC') &&
+               time() - (source_attempts[source] ?? 0) >= 5) {
+      source_attempts[source] = time();
+      super.request(sockpath, `START_${role}`);
+    }
+  }
+}
+
 function asi_file_status() {
   let path = getenv('PORTSDOWN_ASI_TS_FILE');
   if (!path) return { state: 'unconfigured' };
@@ -98,7 +135,9 @@ function api(peer, method, path, body) {
     return response(peer, '200 OK', 'application/json', sprintf('%J', {
       supervisor: result, board: cfg?.modeoutput ?? 'unknown', modulation: cfg?.modulation ?? 'unknown',
       peer_role: peer_role, peer: peerctl.status(), logs: logs, video: video.stats(),
-      srt: srt_state(result.status),
+      srt: srt_state(result.status), sources: source_state(cfg),
+      source_preview_available: !!getenv('PORTSDOWN_SOURCE_PREVIEW_EXEC'),
+      source_ts_available: !!getenv('PORTSDOWN_SOURCE_TS_EXEC'),
       remote_preview_url: peer_role == 'MASTER' ? getenv('PORTSDOWN_SLAVE_PREVIEW_URL') : null
     }));
   }
@@ -117,6 +156,8 @@ function api(peer, method, path, body) {
     if (type(changes) != 'object') return response(peer, '400 Bad Request', 'application/json', '{"error":"JSON object required"}');
     let error = config.update(cfgpath, store, changes);
     if (error) return response(peer, '400 Bad Request', 'application/json', sprintf('%J', { error: error }));
+    if (index(running, 'source_ts=running') >= 0)
+      super.request(sockpath, 'STOP_SOURCE_TS');
     if (changes.call != null || changes.service_name != null) {
       /* SRT slots capture service metadata at process start. Restart only
        * enabled listeners so no stale provider/name remains on TS output. */
@@ -129,6 +170,18 @@ function api(peer, method, path, body) {
             sprintf('%J', { error: `Configuration saved but SRT ${slot} restart failed: ${started.message}` }));
       }
     }
+    if (changes.expresshdmidevice != null)
+      super.request(sockpath, 'STOP_HDMI');
+    if (changes.picam_index != null)
+      super.request(sockpath, 'STOP_PICAM');
+    if (changes.ipts_input_port != null || changes.ipts_bind_scope != null)
+      super.request(sockpath, 'STOP_IPTS');
+    if (changes.modeinput != null || changes.source_layout != null ||
+        changes.multiview_1 != null || changes.multiview_2 != null ||
+        changes.multiview_3 != null || changes.multiview_4 != null ||
+        changes.expresshdmidevice != null || changes.picam_index != null ||
+        changes.ipts_input_port != null || changes.ipts_bind_scope != null)
+      source_attempts = {};
     if (changes.modeinput != null || changes.expresshdmidevice != null) {
       /* The standby FFmpeg process reads the saved capture source at launch. */
       super.request(sockpath, 'STOP_PREVIEW');
@@ -159,6 +212,12 @@ function api(peer, method, path, body) {
   if (method == 'POST' && commands[path]) {
     if (peer_role == 'SLAVE' && path != '/api/tx/stop')
       return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only except E-Stop"}');
+    let route = config.load(cfgpath);
+    if (path == '/api/tx/start' &&
+        (route?.source_layout == 'MULTIVIEW' ||
+         route?.source_layout == 'DIRECT' && route?.modeinput == 'SRT'))
+      return response(peer, '409 Conflict', 'application/json',
+        '{"error":"selected source TS output is separate; RF TX route is not integrated"}');
     let result;
     if (peer_role == 'MASTER' && path == '/api/tx/start')
       result = peerctl.set_tx(true) ? { ok: true, message: 'remote TX requested' } : { ok: false, message: 'peer unavailable or config not acknowledged' };
@@ -183,6 +242,22 @@ function api(peer, method, path, body) {
     emit('state', { command: `${enabled ? 'START' : 'STOP'}_SRT${slot}`, result: result });
     return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json', sprintf('%J', result));
   }
+  if (method == 'POST' && match(path, /^\/api\/source-ts\/(start|stop)$/)) {
+    if (peer_role == 'SLAVE') return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only"}');
+    let start = path == '/api/source-ts/start';
+    let cfg = config.load(cfgpath);
+    if (start && cfg?.source_layout != 'MULTIVIEW' &&
+        !(cfg?.source_layout == 'DIRECT' && cfg?.modeinput == 'SRT'))
+      return response(peer, '409 Conflict', 'application/json', '{"error":"save Direct SRT or Multiview output source first"}');
+    if (start && cfg?.source_layout == 'DIRECT') {
+      let slot = cfg.srt_source_slot ?? '1';
+      let armed = super.request(sockpath, `START_SRT${slot}`);
+      if (!armed.ok) return response(peer, '503 Service Unavailable', 'application/json', sprintf('%J', armed));
+    }
+    let result = super.request(sockpath, start ? 'START_SOURCE_TS' : 'STOP_SOURCE_TS');
+    emit('state', { command: start ? 'START_SOURCE_TS' : 'STOP_SOURCE_TS', result: result });
+    return response(peer, result.ok ? '200 OK' : '503 Service Unavailable', 'application/json', sprintf('%J', result));
+  }
   if (method == 'GET' && path == '/api/events') {
     if (length(sessions) >= 16) return response(peer, '503 Service Unavailable', 'text/plain', 'Too many subscribers');
     if (response(peer, '200 OK', 'text/event-stream', ': connected\n\n', true)) push(sessions, peer);
@@ -198,7 +273,19 @@ function api(peer, method, path, body) {
     if (!video.subscribe(peer, +substr(path, -1))) peer.close();
     return;
   }
+  if (method == 'GET' && match(path, /^\/api\/video\/source\/(hdmi|camera|ipts)$/)) {
+    let source = substr(path, 18);
+    let slot = source == 'hdmi' ? 6 : source == 'camera' ? 7 : 8;
+    if (!response(peer, '200 OK', 'multipart/x-mixed-replace; boundary=frame', '', true)) return;
+    if (!video.subscribe(peer, slot)) peer.close();
+    return;
+  }
   if (method == 'GET' && match(path, /^\/no-srt-input-[1-5]\.jpg$/)) {
+    let file = fs.readfile(`${dir}/www${path}`);
+    return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :
+      response(peer, '200 OK', 'image/jpeg', file);
+  }
+  if (method == 'GET' && (match(path, /^\/no-(hdmi|picam|ipts)-input\.jpg$/) || path == '/test-card.jpg')) {
     let file = fs.readfile(`${dir}/www${path}`);
     return file == null ? response(peer, '404 Not Found', 'text/plain', 'Missing file') :
       response(peer, '200 OK', 'image/jpeg', file);
@@ -239,6 +326,17 @@ for (let slot = 1; slot <= 5; slot++) {
   if (!video.set_fallback(slot, fs.readfile(`${dir}/www/no-srt-input-${slot}.jpg`)))
     die(`Missing SRT test card for slot ${slot}`);
   push(srt_servers, listener);
+}
+let source_preview_base = +(getenv('PORTSDOWN_SOURCE_MJPEG_PORT_BASE') ??
+  ('' + (+(getenv('PORTSDOWN_MJPEG_PORT') ?? '8082') + 6)));
+if (source_preview_base < 1024 || source_preview_base > 65533)
+  die('Invalid source preview port base');
+for (let source, slot in local_sources) {
+  if (!video.start(source_preview_base + slot - 6, slot))
+    die(`Cannot bind ${source} preview ingest port`);
+  let card = source == 'HDMI' ? 'hdmi' : source == 'CAMH264' ? 'picam' : 'ipts';
+  if (!video.set_fallback(slot, fs.readfile(`${dir}/www/no-${card}-input.jpg`)))
+    die(`Missing ${source} preview test card`);
 }
 /* tx-super may have started its standby preview before the MJPEG listener
  * existed, causing FFmpeg's first TCP connect to fail. Retry now. */
@@ -299,7 +397,8 @@ uloop.handle(server, () => {
 uloop.timer(1000, function() {
   let result = super.request(sockpath, 'STATUS');
   let state = result.status ?? result.message;
-  for (let slot in srt_state(result.status)) video.tick(slot.slot, slot.enabled);
+  let cfg = config.load(cfgpath);
+  sync_sources(cfg, result.status);
   if (state != last_status) { last_status = state; emit('state', result); }
   if (!log_subscription || !log_subscription.handle.fileno()) {
     log_subscription = super.subscribe(sockpath, (line) => {
@@ -310,8 +409,24 @@ uloop.timer(1000, function() {
       } else if (substr(line, 0, 6) == 'STATE ') emit('state', { status: line });
     });
   }
-  /* EventSource will reconnect if its peer has disappeared. */
   this.set(1000);
+});
+
+/* Waiting cards are paced at 5 fps, matching the MJPEG compositor input. */
+uloop.timer(200, function() {
+  let cfg = config.load(cfgpath);
+  let result = super.request(sockpath, 'STATUS');
+  for (let slot in srt_state(result.status)) {
+    let source = `SRT${slot.slot}`;
+    let selected = cfg?.source_layout == 'MULTIVIEW' ?
+      cfg.multiview_1 == source || cfg.multiview_2 == source ||
+      cfg.multiview_3 == source || cfg.multiview_4 == source :
+      cfg?.modeinput == 'SRT' && (cfg.srt_source_slot ?? '1') == '' + slot.slot;
+    video.tick(slot.slot, slot.enabled || selected);
+  }
+  for (let source, slot in local_sources)
+    video.tick(slot, wants_source(cfg, source));
+  this.set(200);
 });
 
 uloop.timer(15000, function() { emit('heartbeat', { alive: true }); this.set(15000); });

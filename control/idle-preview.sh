@@ -16,6 +16,14 @@ if [ -n "${PORTSDOWN_CONFIG:-}" ] && [ ! -r "$config" ]; then
 fi
 if [ -n "$config" ] && [ -r "$config" ]; then
   mode=$(awk -F= '$1 == "modeinput" { print substr($0, index($0, "=") + 1); exit }' "$config")
+  layout=$(awk -F= '$1 == "source_layout" { print substr($0, index($0, "=") + 1); exit }' "$config")
+  # Independent source producers own their captures; never open a V4L2 device
+  # a second time simply because the legacy standby preview is configured.
+  if [ -n "${PORTSDOWN_SOURCE_PREVIEW_EXEC:-}" ]; then
+    case "$layout:$mode" in
+      MULTIVIEW:*|*:HDMI|*:CAMH264|*:IPTSIN|*:IPTSIN264|*:IPTSIN265|*:SRT) exit 0;;
+    esac
+  fi
   if [ "$mode" = HDMI ]; then
     device=$(awk -F= '$1 == "expresshdmidevice" { print substr($0, index($0, "=") + 1); exit }' "$config")
     printf '%s\n' "$device" | grep -Eq '^/dev/video[0-9]+$' || {

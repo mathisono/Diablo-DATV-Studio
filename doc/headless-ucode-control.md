@@ -14,6 +14,13 @@ Captured from an isolated local run with all five SRT listeners enabled and
 waiting for video. TX was disabled (`PORTSDOWN_BOARD=none`); no RF or physical
 Portsdown display was involved.
 
+![Four-source multiview with HDMI, Pi Camera, IPTS and SRT tile selectors below the preview](images/headless-web-gui-multiview.png)
+
+The multiview screenshot is an isolated local simulation: HDMI, IPTS, and SRT
+tiles have synthetic MJPEG frames, while Pi Camera displays its waiting card.
+No Elgato, Pi Camera, IP transmitter, ASI card, or RF path was used. The GUI
+shows how source-specific settings appear together for a mixed-source layout.
+
 ![Experimental ASI output settings with five enabled SRT input previews](images/headless-web-gui-asi.png)
 
 The ASI view was also captured locally with `PORTSDOWN_BOARD=none`; its
@@ -35,10 +42,11 @@ arrive; it falls back to **NO HDMI INPUT** when they stop. The five SRT slots
 remain available in a collapsed section. The legacy Express capture path
 recognizes `modeinput=HDMI`, `expresshdmidevice`, and `expressaudiodevice`,
 but this headless ASI route is **not yet a live encoder or playout path**.
-The standby MJPEG preview launcher reads the saved `expresshdmidevice` for
-HDMI, scales to 320×240 at 5 fps, and restarts when the saved source/device
-changes. It does not play a saved TS file. `PORTSDOWN_VIDEO_DEVICE` remains
-the fallback for non-HDMI standby preview. Set `PORTSDOWN_HDMI_INPUT_FORMAT`
+With `PORTSDOWN_SOURCE_PREVIEW_EXEC` configured, the independent HDMI preview
+reads the saved `expresshdmidevice` and scales to 320×240 at 5 fps; the legacy
+standby preview does not reopen the same device. Without that producer, the
+standby preview is the direct HDMI fallback. `PORTSDOWN_VIDEO_DEVICE` remains
+the fallback for other legacy standby preview sources. Set `PORTSDOWN_HDMI_INPUT_FORMAT`
 to `mjpeg` or `yuyv422` only when the capture device requires a format
 override. The Express HDMI capture helper can also send a low-resolution
 MJPEG tap from the **same FFmpeg capture process** while it generates TS when
@@ -59,8 +67,41 @@ capture, audio, and RF remain unverified.
   events, 128 KiB-capped MJPEG latest-frame fan-out, and token-protected
   Master/Slave NDJSON control. Video never uses the peer-control socket.
 - `www/`: no-framework responsive dashboard, four server-side presets,
-  320×240 preview with a **NO IP INPUT** placeholder, and an E-Stop button.
+  low-resolution preview in the **Transmitter** column with a **NO IP INPUT**
+  placeholder, and an E-Stop button.
   An optional remote-slave preview URL can be configured separately.
+- **Output source** selects Direct source or Four-source multiview. Direct SRT
+  offers an explicit encoder-slot selector (1–5). The selected slot is the
+  only input to the local Direct SRT TS relay; starting output TS also enables
+  that SRT listener. The relay copies the live MPEG-TS video/audio to the
+  configured output and sends nothing until valid TS arrives. It stays armed
+  across disconnects and never replays a recording. This local relay is not
+  yet connected to an RF transmitter. Multiview exposes four
+  independent top-left/top-right/bottom-left/bottom-right dropdowns below the
+  preview. Each tile may select HDMI, Pi Camera, IPTS, any SRT encoder 1–5,
+  or a test card; the browser preview has four equal quadrants. The saved
+  selection is included in presets and Master/Slave configuration. HDMI V4L2
+  device, Pi Camera index, IPTS UDP port, and loopback/LAN listen scope appear
+  whenever that source type is selected in either direct or multiview mode.
+  The five SRT listeners remain independently enabled below the main controls.
+- `control/source-preview.sh` runs selected HDMI, Pi Camera, and IPTS previews
+  independently at 320×240/5 fps. HDMI uses the configured V4L2 device, Pi
+  Camera uses `rpicam-vid` (or `libcamera-vid`), and IPTS decodes MPEG-TS on
+  the configured UDP port. The web server supplies source-specific waiting
+  cards when no live frames arrive and returns to them after loss. Set
+  `PORTSDOWN_SOURCE_PREVIEW_EXEC` to enable these producers. Pi Camera and
+  physical HDMI capture are not yet hardware-tested in this control plane.
+- `control/source-ts.sh` composes the four current low-resolution preview
+  feeds (including waiting cards) with FFmpeg `xstack` into a **video-only,
+  5 fps** H.264 MPEG-TS monitor output. Use **Start/Stop output TS** in the
+  GUI; default output is loopback UDP
+  `127.0.0.1:12010`. `PORTSDOWN_SOURCE_TS_EXEC` names the launcher;
+  `PORTSDOWN_SOURCE_TS_URL` can select another FFmpeg output URL or a local
+  file for testing. `PORTSDOWN_SOURCE_TS_DURATION` makes
+  a finite test run. This is a low-resolution composite sourced from previews,
+  **not** a full-quality multiview encoder or an RF output. An offline run with
+  four mixed waiting-card inputs produced a valid 640×480 H.264 TS. Source
+  capture, downstream ASI/RF, and receiver behavior still need hardware tests.
 - The Output settings form asks for **CALLSIGN** and **Service name**. The
   callsign becomes MPEG-TS `service_provider`; the service name becomes
   MPEG-TS `service_name`. `KG6MDW` / `Trevor` are example placeholders, **not**
@@ -77,8 +118,10 @@ capture, audio, and RF remain unverified.
   H.264/AAC MPEG-TS output, and provide a 320×240 aspect-preserving MJPEG
   preview. Each preview serves a
   numbered **NO SRT INPUT** test card while its listener has no valid video,
-  then returns to the card after input loss. The test card is **preview-only**:
-  it never generates TS or satisfies a transmitter's live-input gate.
+  then returns to the card after input loss. The per-slot live TS output never
+  substitutes the card for absent video; the separate low-rate multiview TS
+  may include the card, but it cannot satisfy an RF transmitter's live-input
+  gate.
 - A **DekTec DTA-2145 ASI** output-hardware choice is available for an
   x86-64/PCIe host. It exposes device index, output channel, and MPEG-TS/ASI
   bitrate. It does **not** offer RF frequency, symbol rate, or FEC controls:
@@ -117,6 +160,9 @@ an explicit private-interface address.
   programs. With either unset, `START_TX` fails closed. The C supervisor
   compares `PORTSDOWN_BOARD` with `modeoutput` on every start. Changing boards
   in the web UI requires reconfiguring/restarting the supervisor before TX.
+  Selecting Direct SRT or Multiview deliberately rejects RF `START_TX` both at the API and
+  supervisor socket until a board-specific, interlocked TS-to-transmitter
+  path is implemented. The output TS Start button is separate from RF TX.
 - **ASI is not DVB-S/S2 modulation.** The DTA-2145 delivers MPEG-TS packets
   over ASI to an external modulator. The SRT slots' local UDP TS outputs are
   not yet wired to this ASI launcher; the launcher plays one analyzed TS file

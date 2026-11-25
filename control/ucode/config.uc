@@ -18,12 +18,15 @@ const fec_s = ['12', '23', '34', '56', '78'];
 const fec_s2 = ['14', '13', '12', '35', '23', '34', '56', '89', '91'];
 const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','HDMI','DESKTOP','SRT',
   'IPTSIN','IPTSIN264','IPTSIN265'];
+const multiview_sources = ['HDMI','CAMH264','IPTSIN','SRT1','SRT2','SRT3','SRT4','SRT5','CARDH264'];
 const formats = ['4:3','16:9','720p','1080p'];
 const encoders = ['MPEG-2','H264','H265','IPTS in','IPTS in H264','IPTS in H265'];
 const mutable = ['modeoutput', 'modeinput', 'modulation', 'freqoutput', 'symbolrate',
   'fec', 'format', 'encoding', 'explevel', 'plutopwr', 'limegain', 'streamurl', 'streamkey',
   'asi_device', 'asi_channel', 'asi_bitrate', 'expresshdmidevice', 'expressaudiodevice',
-  'call', 'service_name'];
+  'call', 'service_name', 'source_layout', 'srt_source_slot',
+  'multiview_1', 'multiview_2', 'multiview_3', 'multiview_4',
+  'ipts_input_port', 'ipts_bind_scope', 'picam_index'];
 
 export function load(path) {
   let raw = fs.readfile(path);
@@ -59,11 +62,30 @@ export function validate(cfg) {
     if (index(mod == 'S2QPSK' ? fec_s2 : fec_s, cfg.fec) < 0) return 'unsupported FEC';
   }
   if (cfg.modeinput != null && index(sources, cfg.modeinput) < 0) return 'unsupported source';
-  if (cfg.modeinput == 'HDMI' && !match(cfg.expresshdmidevice ?? '', /^\/dev\/video[0-9]+$/))
+  if (cfg.source_layout != null && index(['DIRECT','MULTIVIEW'], cfg.source_layout) < 0)
+    return 'source layout must be direct or multiview';
+  if (cfg.srt_source_slot != null && !match(cfg.srt_source_slot, /^[1-5]$/))
+    return 'SRT source slot must be 1-5';
+  for (let slot = 1; slot <= 4; slot++) {
+    let choice = cfg[`multiview_${slot}`];
+    if (choice != null && index(multiview_sources, choice) < 0)
+      return `unsupported multiview source in tile ${slot}`;
+  }
+  let uses_hdmi = (cfg.source_layout ?? 'DIRECT') == 'DIRECT' ? cfg.modeinput == 'HDMI' :
+    (cfg.multiview_1 == 'HDMI' || cfg.multiview_2 == 'HDMI' ||
+     cfg.multiview_3 == 'HDMI' || cfg.multiview_4 == 'HDMI');
+  if (uses_hdmi && !match(cfg.expresshdmidevice ?? '', /^\/dev\/video[0-9]+$/))
     return 'HDMI capture requires a /dev/videoN device';
   if (cfg.expressaudiodevice != null && cfg.expressaudiodevice != '' &&
       !match(cfg.expressaudiodevice, /^(default|hw:[A-Za-z0-9_,.:=-]+|plughw:[A-Za-z0-9_,.:=-]+)$/))
     return 'unsupported HDMI audio device';
+  if (cfg.ipts_input_port != null && (!match(cfg.ipts_input_port, /^[0-9]{4,5}$/) ||
+      +cfg.ipts_input_port < 1024 || +cfg.ipts_input_port > 65535))
+    return 'IPTS UDP input port outside 1024-65535';
+  if (cfg.ipts_bind_scope != null && index(['LOCAL','LAN'], cfg.ipts_bind_scope) < 0)
+    return 'IPTS bind scope must be LOCAL or LAN';
+  if (cfg.picam_index != null && !match(cfg.picam_index, /^[0-3]$/))
+    return 'Pi Camera index outside 0-3';
   if (cfg.format != null && index(formats, cfg.format) < 0) return 'unsupported format';
   if (cfg.encoding != null && index(encoders, cfg.encoding) < 0) return 'unsupported encoder';
   if (cfg.call != null && (!match(cfg.call, /^[A-Z0-9\/]{3,20}$/) || !match(cfg.call, /[0-9]/)))

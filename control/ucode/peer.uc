@@ -45,7 +45,10 @@ function disconnect() {
 function cfg_subset() {
   let cfg = config.load(cfgpath);
   if (!cfg) return null;
-  let keys = ['modeoutput','modeinput','modulation','freqoutput','symbolrate','fec',
+  let keys = ['modeoutput','modeinput','source_layout','srt_source_slot',
+    'multiview_1','multiview_2','multiview_3','multiview_4',
+    'ipts_input_port','ipts_bind_scope','picam_index',
+    'modulation','freqoutput','symbolrate','fec',
     'format','encoding','explevel','plutopwr','limegain',
     'asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice',
     'call','service_name'];
@@ -91,6 +94,13 @@ function handle_line(line) {
   if (message.cmd == 'cfg') {
     if (tx_active) { send({ cmd: 'fault', reason: 'stop TX before configuration update' }); return; }
     let error = config.update(cfgpath, store, message.data);
+    if (!error) {
+      /* Producers and the selected TS route read configuration at start. */
+      super.request(sockpath, 'STOP_SOURCE_TS');
+      super.request(sockpath, 'STOP_HDMI');
+      super.request(sockpath, 'STOP_PICAM');
+      super.request(sockpath, 'STOP_IPTS');
+    }
     if (!error && (message.data.call != null || message.data.service_name != null)) {
       let running = super.request(sockpath, 'STATUS').status ?? '';
       for (let slot = 1; slot <= 5; slot++) {

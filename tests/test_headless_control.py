@@ -4,6 +4,7 @@ import http.client
 import json
 import os
 from pathlib import Path
+import random
 import shutil
 import socket
 import subprocess
@@ -105,6 +106,20 @@ class SupervisorTest(unittest.TestCase):
         self.config.write_text("modeoutput=PLUTO\n")
         self.assertIn("mismatch", command(self.sock, "START_TX"))
 
+    def test_source_ts_monitor_is_separate_from_rf_tx(self):
+        self.config.write_text("modeoutput=DATVEXPRESS\nsource_layout=MULTIVIEW\n")
+        self.start(PORTSDOWN_SOURCE_TS_EXEC=str(self.tx))
+        self.assertIn("source TS RF route unavailable", command(self.sock, "START_TX"))
+        self.assertEqual(command(self.sock, "START_SOURCE_TS"), "OK")
+        self.assertIn("source_ts=running", command(self.sock, "STATUS"))
+        self.assertEqual(command(self.sock, "STOP_SOURCE_TS"), "OK")
+        self.config.write_text("modeoutput=DATVEXPRESS\nsource_layout=DIRECT\nmodeinput=SRT\n")
+        self.assertIn("source TS RF route unavailable", command(self.sock, "START_TX"))
+        self.assertEqual(command(self.sock, "START_SOURCE_TS"), "OK")
+        self.assertEqual(command(self.sock, "STOP_SOURCE_TS"), "OK")
+        self.config.write_text("modeoutput=DATVEXPRESS\nsource_layout=DIRECT\nmodeinput=HDMI\n")
+        self.assertIn("not selected", command(self.sock, "START_SOURCE_TS"))
+
     def test_second_supervisor_cannot_replace_live_socket(self):
         self.start()
         env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent)}
@@ -154,23 +169,38 @@ class UcodeTest(unittest.TestCase):
         self.config = self.path / "config.txt"
         self.config.write_text("modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nfreqoutput=437\nsymbolrate=333\nfec=12\ncall=KG6MDW\nservice_name=Trevor\n")
         self.asi_file = self.path / "asi-source.ts"
+        self.source_ts_mock = self.path / "source-ts-mock"
+        self.source_ts_mock.write_text('#!/bin/sh\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
+        self.source_ts_mock.chmod(0o755)
         self.sock = self.path / "run" / "tx.sock"
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0)); self.port = probe.getsockname()[1]
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0)); self.video_port = probe.getsockname()[1]
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0)); self.srt_port = probe.getsockname()[1]
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0)); self.ts_port = probe.getsockname()[1]
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0)); self.srt_preview_port = probe.getsockname()[1]
+        for _ in range(50):
+            base = random.randint(25000, 45000)
+            probes = []
+            try:
+                for offset in (0, 1, 40, 41, 42, 43, 44, 50, 51, 52):
+                    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    probes.append(probe); probe.bind(("127.0.0.1", base + offset))
+                for offset in (*range(20, 25), *range(30, 35)):
+                    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    probes.append(probe); probe.bind(("127.0.0.1", base + offset))
+                break
+            except OSError:
+                pass
+            finally:
+                for probe in probes: probe.close()
+        else:
+            self.fail("No free control-test port block")
+        self.port, self.video_port = base, base + 1
+        self.srt_port, self.ts_port = base + 20, base + 30
+        self.srt_preview_port, self.source_preview_port = base + 40, base + 50
         env = os.environ | {"PORTSDOWN_RUN_DIR": str(self.sock.parent),
                             "PORTSDOWN_DIR": str(ROOT), "PORTSDOWN_CONFIG": str(self.config),
                             "PORTSDOWN_SRT_EXEC": str(CONTROL / "srt-slot.sh"),
                             "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
                             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
                             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
+                            "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
+                            "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
                             "PORTSDOWN_FFMPEG": shutil.which("ffmpeg") or ""}
         self.supervisor = subprocess.Popen([str(CONTROL / "tx-super")], env=env,
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -184,6 +214,8 @@ class UcodeTest(unittest.TestCase):
             "PORTSDOWN_SRT_PORT_BASE": str(self.srt_port),
             "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
             "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(self.srt_preview_port),
+            "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port),
+            "PORTSDOWN_SOURCE_TS_EXEC": str(self.source_ts_mock),
             "PORTSDOWN_PRESETS_PATH": str(self.path / "presets.json"),
         }
         args = [self.ucode]
@@ -290,6 +322,94 @@ class UcodeTest(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertIn(b"NO HDMI INPUT", body)
 
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg unavailable")
+    def test_mixed_multiview_generates_local_ts_and_waiting_cards(self):
+        choices = {"source_layout": "MULTIVIEW", "multiview_1": "HDMI",
+                   "multiview_2": "CAMH264", "multiview_3": "IPTSIN",
+                   "multiview_4": "SRT1", "expresshdmidevice": "/dev/video2",
+                   "format": "4:3", "ipts_input_port": "10000", "picam_index": "0"}
+        status, body = self.request("POST", "/api/config", choices)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.request("POST", "/api/tx/start")[0], 409)
+        self.assertEqual(self.request("POST", "/api/source-ts/start")[0], 200)
+        self.assertIn("source_ts=running", json.loads(self.request("GET", "/api/state")[1])["supervisor"]["status"])
+        self.assertEqual(self.request("POST", "/api/source-ts/stop")[0], 200)
+        self.assertEqual(self.request("POST", "/api/config", {"multiview_3": "../../file"})[0], 400)
+        self.assertEqual(self.request("POST", "/api/config", {"ipts_input_port": "70000"})[0], 400)
+        for path in ("/api/video/source/hdmi", "/api/video/source/camera",
+                     "/api/video/source/ipts", "/api/video/srt/1"):
+            with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+                viewer.settimeout(3)
+                viewer.sendall(f"GET {path} HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+                data = b""
+                while b"\xff\xd9" not in data:
+                    data += viewer.recv(8192)
+                self.assertIn(b"image/jpeg", data, path)
+        output = self.path / "multiview.ts"
+        env = os.environ | {"PORTSDOWN_CONFIG": str(self.config),
+                            "PORTSDOWN_DIR": str(ROOT),
+                            "PORTSDOWN_HTTP_PORT": str(self.port),
+                            "PORTSDOWN_SOURCE_TS_URL": str(output),
+                            "PORTSDOWN_SOURCE_TS_DURATION": "3"}
+        result = subprocess.run([str(CONTROL / "source-ts.sh")], env=env,
+                                capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr[-1500:])
+        probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                "stream=codec_name,width,height:program_tags=service_provider,service_name",
+                                "-of", "json", str(output)], check=True,
+                               capture_output=True, text=True, timeout=10)
+        stream = json.loads(probe.stdout)
+        self.assertEqual(stream["streams"][0], {"codec_name": "h264", "width": 640, "height": 480})
+        self.assertEqual(stream["programs"][0]["tags"]["service_provider"], "KG6MDW")
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg unavailable")
+    def test_direct_srt_slot_selection_relays_only_selected_live_ts(self):
+        status, body = self.request("POST", "/api/config", {
+            "source_layout": "DIRECT", "modeinput": "SRT", "srt_source_slot": "3"})
+        self.assertEqual(status, 200, body)
+        output = self.path / "selected-srt.ts"
+        env = os.environ | {"PORTSDOWN_CONFIG": str(self.config),
+                            "PORTSDOWN_DIR": str(ROOT),
+                            "PORTSDOWN_SRT_TS_PORT_BASE": str(self.ts_port),
+                            "PORTSDOWN_SOURCE_TS_URL": str(output),
+                            "PORTSDOWN_SOURCE_TS_DURATION": "2"}
+        relay = subprocess.Popen([str(CONTROL / "source-ts.sh")], env=env,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        try:
+            time.sleep(0.3)
+            sender = subprocess.run([
+                "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
+                "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=10",
+                "-t", "3", "-c:v", "mpeg2video", "-f", "mpegts",
+                f"udp://127.0.0.1:{self.ts_port+2}?pkt_size=1316",
+            ], capture_output=True, text=True, timeout=10)
+            self.assertEqual(sender.returncode, 0, sender.stderr)
+            self.assertEqual(relay.wait(timeout=8), 0, relay.stderr.read().decode()[-1000:])
+            probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                    "stream=codec_name,width,height:program_tags=service_provider,service_name",
+                                    "-of", "json", str(output)], check=True,
+                                   capture_output=True, text=True, timeout=10)
+            result = json.loads(probe.stdout)
+            self.assertEqual(result["streams"][0]["codec_name"], "mpeg2video")
+            self.assertEqual(result["programs"][0]["tags"]["service_name"], "Trevor")
+        finally:
+            if relay.poll() is None:
+                relay.terminate(); relay.wait(timeout=3)
+            relay.stderr.close()
+
+    def test_direct_srt_output_control_enables_selected_listener(self):
+        status, body = self.request("POST", "/api/config", {
+            "source_layout": "DIRECT", "modeinput": "SRT", "srt_source_slot": "4"})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.request("POST", "/api/tx/start")[0], 409)
+        status, body = self.request("POST", "/api/source-ts/start")
+        self.assertEqual(status, 200, body)
+        state = json.loads(self.request("GET", "/api/state")[1])
+        self.assertTrue(state["srt"][3]["enabled"])
+        self.assertFalse(state["srt"][2]["enabled"])
+        self.assertIn("source_ts=running", state["supervisor"]["status"])
+        self.assertEqual(self.request("POST", "/api/source-ts/stop")[0], 200)
+
     def test_cross_origin_form_and_dns_rebinding_are_rejected(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=2)
         conn.request("POST", "/api/tx/start")
@@ -334,6 +454,92 @@ class UcodeTest(unittest.TestCase):
             env=os.environ | {"PORTSDOWN_CONFIG": str(self.config), "PORTSDOWN_FFMPEG": str(fake)},
             capture_output=True)
         self.assertEqual(result.returncode, 2)
+
+    def test_independent_preview_inputs_use_saved_sources(self):
+        bin_dir = self.path / "bin"
+        bin_dir.mkdir()
+        ffmpeg = bin_dir / "ffmpeg"
+        ffmpeg.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$PORTSDOWN_ARGS_OUT"\n')
+        ffmpeg.chmod(0o755)
+        camera = bin_dir / "rpicam-vid"
+        camera.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$PORTSDOWN_CAM_ARGS_OUT"\n')
+        camera.chmod(0o755)
+        args_file = self.path / "preview-args"
+        cam_args = self.path / "camera-args"
+        self.config.write_text("expresshdmidevice=/dev/video2\npicam_index=1\n"
+                               "ipts_input_port=10123\nipts_bind_scope=LAN\n")
+        env = os.environ | {"PORTSDOWN_CONFIG": str(self.config),
+                            "PORTSDOWN_FFMPEG": str(ffmpeg),
+                            "PORTSDOWN_ARGS_OUT": str(args_file),
+                            "PORTSDOWN_CAM_ARGS_OUT": str(cam_args),
+                            "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]}
+        for role, expected in (("HDMI", "/dev/video2"),
+                               ("IPTS", "udp://0.0.0.0:10123"),
+                               ("PICAM", "-f\nmjpeg\n-i\npipe:0")):
+            result = subprocess.run([str(CONTROL / "source-preview.sh"), role],
+                                    env=env, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(expected, args_file.read_text(), role)
+        self.assertIn("--camera\n1", cam_args.read_text())
+
+    def test_selected_source_preview_returns_to_waiting_card_after_loss(self):
+        status, body = self.request("POST", "/api/config", {
+            "source_layout": "MULTIVIEW", "multiview_1": "HDMI",
+            "multiview_2": "SRT2", "multiview_3": "SRT3",
+            "multiview_4": "SRT4", "expresshdmidevice": "/dev/video2"})
+        self.assertEqual(status, 200, body)
+        with socket.create_connection(("127.0.0.1", self.source_preview_port), timeout=2) as source:
+            source.sendall((ROOT / "www/no-hdmi-input.jpg").read_bytes())
+            self.assertTrue(wait_for(lambda: json.loads(self.request("GET", "/api/state")[1])
+                                     ["sources"]["HDMI"]["preview"]["producer"]))
+        self.assertTrue(wait_for(lambda: not json.loads(self.request("GET", "/api/state")[1])
+                                 ["sources"]["HDMI"]["preview"]["producer"]))
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as viewer:
+            viewer.settimeout(3)
+            viewer.sendall(f"GET /api/video/source/hdmi HTTP/1.1\r\nHost: localhost:{self.port}\r\n\r\n".encode())
+            data = b""
+            while b"\xff\xd9" not in data:
+                data += viewer.recv(8192)
+            self.assertIn((ROOT / "www/no-hdmi-input.jpg").read_bytes(), data)
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "FFmpeg unavailable")
+    def test_live_udp_ipts_decodes_to_preview_then_loses_live_state(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.bind(("127.0.0.1", 0))
+            input_port = probe.getsockname()[1]
+        status, body = self.request("POST", "/api/config", {
+            "source_layout": "MULTIVIEW", "multiview_1": "IPTSIN",
+            "multiview_2": "SRT2", "multiview_3": "SRT3",
+            "multiview_4": "SRT4", "ipts_input_port": str(input_port),
+            "ipts_bind_scope": "LOCAL"})
+        self.assertEqual(status, 200, body)
+        preview = subprocess.Popen([str(CONTROL / "source-preview.sh"), "IPTS"],
+            env=os.environ | {"PORTSDOWN_CONFIG": str(self.config),
+                              "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(self.source_preview_port)},
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        sender = None
+        try:
+            time.sleep(0.3)
+            sender = subprocess.Popen([
+                "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-re",
+                "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=10",
+                "-t", "6", "-c:v", "mpeg2video", "-f", "mpegts",
+                f"udp://127.0.0.1:{input_port}?pkt_size=1316",
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            live = lambda: json.loads(self.request("GET", "/api/state")[1])[
+                "sources"]["IPTSIN"]["preview"]["producer"]
+            self.assertTrue(wait_for(live, 5), preview.stderr.read().decode() if preview.poll() is not None else '')
+            self.assertEqual(sender.wait(timeout=9), 0, sender.stderr.read())
+            self.assertTrue(wait_for(lambda: not live(), 5))
+        finally:
+            for process in (sender, preview):
+                if process is not None:
+                    if process.poll() is None:
+                        process.terminate()
+                        try: process.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            process.kill(); process.wait(timeout=3)
+                    process.stderr.close()
 
     def test_five_srt_slots_are_independent_and_offer_test_card(self):
         status, body = self.request("GET", "/api/srt")
@@ -520,10 +726,6 @@ class PeerTest(unittest.TestCase):
         subprocess.run(["make", "-C", str(CONTROL)], check=True, stdout=subprocess.DEVNULL)
 
     def test_master_loss_stops_slave_mock_tx(self):
-        def port():
-            with socket.socket() as probe:
-                probe.bind(("127.0.0.1", 0)); return probe.getsockname()[1]
-
         with tempfile.TemporaryDirectory(prefix="portsdown-peer-test-") as directory:
             root = Path(directory)
             config = root / "config.txt"
@@ -534,7 +736,25 @@ class PeerTest(unittest.TestCase):
             tx.write_text('#!/bin/sh\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n'); tx.chmod(0o755)
             ctrl = root / "expctrl"; ctrl.touch()
             offlog = root / "off.log"
-            peer_port, master_port, slave_port, master_video, slave_video, master_srt_video, slave_srt_video = (port() for _ in range(7))
+            for _ in range(50):
+                base = random.randint(25000, 45000)
+                probes = []
+                try:
+                    for offset in (*range(0, 5), *range(20, 25), *range(30, 35),
+                                   *range(40, 43), *range(50, 53)):
+                        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        probes.append(probe); probe.bind(("127.0.0.1", base + offset))
+                    break
+                except OSError:
+                    pass
+                finally:
+                    for probe in probes: probe.close()
+            else:
+                self.fail("No free peer-test port block")
+            peer_port, master_port, slave_port = base, base + 1, base + 2
+            master_video, slave_video = base + 3, base + 4
+            master_srt_video, slave_srt_video = base + 20, base + 30
+            master_source_video, slave_source_video = base + 40, base + 50
             procs = []
 
             def start_process(args, env):
@@ -573,11 +793,13 @@ class PeerTest(unittest.TestCase):
                     "PORTSDOWN_TX_SOCKET": str(slave_sock), "PORTSDOWN_HTTP_PORT": str(slave_port),
                     "PORTSDOWN_MJPEG_PORT": str(slave_video), "PORTSDOWN_PEER_ROLE": "SLAVE",
                     "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(slave_srt_video),
+                    "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(slave_source_video),
                     "PORTSDOWN_PEER_BIND": "127.0.0.1"})
                 master = start_process(daemon_args(), shared | {
                     "PORTSDOWN_TX_SOCKET": str(master_sock), "PORTSDOWN_HTTP_PORT": str(master_port),
                     "PORTSDOWN_MJPEG_PORT": str(master_video), "PORTSDOWN_PEER_ROLE": "MASTER",
                     "PORTSDOWN_SRT_MJPEG_PORT_BASE": str(master_srt_video),
+                    "PORTSDOWN_SOURCE_MJPEG_PORT_BASE": str(master_source_video),
                     "PORTSDOWN_PEER_HOST": "127.0.0.1"})
                 def configured():
                     try:
