@@ -140,15 +140,14 @@ The inherited Express capture helper supports a same-process TS/MJPEG tap using
   uses `ExecStopPost` as a second attempt to invoke the safe-off hook if the
   supervisor dies while systemd is alive.
 
-The HTTP server listens on **127.0.0.1** only. It checks `Host` and requires
-`X-Portsdown-Control: 1` on POST requests to block cross-origin forms and
-simple DNS-rebinding attempts. Put authentication and TLS in front of it
-before exposing control to another computer; set `PORTSDOWN_ALLOWED_HOST` to
-the reverse proxy's exact Host value if needed, and do not add permissive CORS.
-The Master/Slave
-token is sent over TCP without TLS; use a private LAN/VPN or a protected
-tunnel. `PORTSDOWN_PEER_BIND` defaults to loopback, so remote peers require
-an explicit private-interface address.
+The HTTP backend listens on **127.0.0.1** only. The supported installer adds
+**stunnel HTTPS** and a shared-password login in front of the GUI, API, previews
+and events. It checks Host, Origin and a control header on POST requests. The
+same installation password derives the **TLS-PSK peer key**; Master/Slave control
+is encrypted and authenticated before reaching its loopback NDJSON socket.
+No SSH tunnel or separate copied token is required. A trusted loopback-only
+internal HTTP port is reserved for local source helpers. Local OS processes
+remain trusted; media transport security is separate. See [LAN_ACCESS](LAN_ACCESS.md).
 
 ## What is not integrated
 
@@ -244,7 +243,9 @@ overhead before using a TS in a 1000 ksym/s mode.
 set them identically in both service processes. The listener ports bind all
 interfaces, so restrict access to trusted senders with a firewall/VPN.
 
-Open `http://127.0.0.1:8080/` locally, or tunnel the loopback port over SSH.
+For normal use, follow [FIRST_START](FIRST_START.md), open the printed HTTPS LAN
+address and sign in. The manual service arrangement below is a **legacy developer
+template**, not the password-protected paired launcher; do not expose it to the LAN.
 For a service install, create a dedicated `portsdown` user/group, copy and
 edit `control/portsdown.env.example` as `/etc/portsdown/portsdown.env`, install
 `ucode`/`libubox`, and only then install the two service units. **Do not enable

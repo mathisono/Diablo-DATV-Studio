@@ -1,8 +1,8 @@
 # Documentation index
 
-- [LAN access: shared password, HTTPS and Master/Slave setup](LAN_ACCESS.md)
-
 ## Current Diablo documentation
+
+- [LAN access: shared password, HTTPS and Master/Slave setup](LAN_ACCESS.md)
 
 - [Automated first start: wizard, source setup and verification](FIRST_START.md)
 - [Installation, startup, update and rollback](INSTALL.md)
