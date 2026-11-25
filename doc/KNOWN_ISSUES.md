@@ -43,6 +43,8 @@ card output and receiver/RF acceptance.
 
 ### D-01 — Headless RF output launchers and interlocks
 
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/1
+
 **Scope:** connect eligible live TS sources to DATV-Express DVB-S / experimental
 DVB-S2 QPSK; port Pluto/Lime as separate backend implementations. Current GUI TX
 is deliberately unarmed or route-blocked. Inherited Python interlocks are not
@@ -55,6 +57,8 @@ setup docs. No source loss may silently substitute saved recordings.
 
 ### D-02 — Live ASI integration and physical DTA-2145 acceptance
 
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/2
+
 **Scope:** feed shaped live TS from the selected source into a single-owner
 TSDuck/DekTec pipeline; keep file playout supported and metadata mismatch advisory.
 
@@ -65,6 +69,8 @@ physical ASI output is not. External RF remains independently controlled.
 
 ### D-03 — Full-quality multiview and capture/audio handoff
 
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/3
+
 **Scope:** replace preview-derived video-only composition with a full-quality
 source graph, choose audio policy, and avoid double-opening V4L2/Pi cameras.
 
@@ -74,6 +80,8 @@ analog/webcam and remaining legacy capture modes need explicit new-GUI routing.
 
 ### D-04 — Real-source and endurance coverage
 
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/4
+
 **Scope:** actual ATEM SRT; Elgato video/audio; free Pi Camera; two physical RTSP
 cameras; five concurrent SRT encoders; source-specific reconnect behavior.
 
@@ -82,6 +90,8 @@ for a recorded duration with stable CPU/temperature/latency and valid output TS.
 Synthetic caller results remain useful but are not this acceptance gate.
 
 ### D-05 — Rate-bounded Intel hardware encoding
+
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/5
 
 **Scope:** determine whether compatible iHD/oneVPL/firmware can provide CBR/VBR on
 Jasper Lake, or provide an explicitly budgeted alternative. QSV CQP is working;
@@ -94,6 +104,8 @@ synthetic TS; QP 30 passed only that bounded sample.
 
 ### D-06 — Platform, peer and restart acceptance
 
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/6
+
 **Scope:** fresh armhf Pi image, full arm64 platform checks, two-host Master/Slave
 with network delay/loss, service-account/device permissions and reboot behavior.
 
@@ -102,6 +114,8 @@ pass without disturbing existing applications. Clean-checkout software tests are
 not a full OS-image qualification. SRT enable state is currently runtime-only.
 
 ### D-07 — Receiver and remaining legacy operations
+
+Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/7
 
 **Scope:** implement new-GUI RX launcher, receiver controls and remaining legacy
 menu functions. Preserve working old software until each replacement is ready.

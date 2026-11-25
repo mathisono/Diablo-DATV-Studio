@@ -1,5 +1,10 @@
 # LattePanda 3 Delta — DTA-2145 driver bring-up
 
+Diablo's current repository is [mathisono/Diablo-DATV-Studio](https://github.com/mathisono/Diablo-DATV-Studio),
+branch **Trixie**. For the new web GUI use [INSTALL.md](INSTALL.md); these
+hardware/environment findings are retained and remain separate from GUI setup.
+The old `portsdown4_NTSC` paths and commits below identify historical evidence.
+
 On 24 November 2026, the LattePanda (`VideoLP3D`, Linux Mint 22.3 x86-64,
 kernel `6.14.0-37-generic`) enumerated the DTA-2145 Rev. 2 at PCI `02:00.0`
 as `1a0e:0861`. This is the **legacy `Dta`** device, not `DtPcie`.

@@ -77,6 +77,11 @@ layout overflow, not a test of a physical phone's touchscreen.
 | Two-host Master/Slave UI with link loss | Peer control guide | Isolated two-host control test, secrets redacted |
 | Actual 32-bit and 64-bit Pi clean installs | Platform acceptance guide | Spare images/devices; not inferred from native builds |
 
+Track real-source captures in [issue #4](https://github.com/mathisono/Diablo-DATV-Studio/issues/4),
+ASI in [issue #2](https://github.com/mathisono/Diablo-DATV-Studio/issues/2), RF in
+[issue #1](https://github.com/mathisono/Diablo-DATV-Studio/issues/1), and peer/platform
+acceptance in [issue #6](https://github.com/mathisono/Diablo-DATV-Studio/issues/6).
+
 Do not replace these missing captures with simulated “success” screenshots.
 When a real test becomes available, record source, host, software commit, test
 conditions and limitations next to the image. New captures must not show camera

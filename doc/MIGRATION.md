@@ -3,7 +3,7 @@
 ## Destination
 
 - Repository: https://github.com/mathisono/Diablo-DATV-Studio
-- Integration/default branch: **Trixie** (no migration to upstream `master`).
+- Integration/default branch: **Trixie** (verified on GitHub; no migration to upstream `master`).
 - Source: `mathisono/portsdown4_NTSC`, `headless-ucode-control` at `a9106a9`.
 - All preceding Git history and license notices are preserved. The old repository
   and its branches are not deleted or force-pushed.
@@ -58,6 +58,7 @@ Portsdown product photo is no longer the project's landing image.
 | New installer on isolated LattePanda prefix | Pinned libubox/ucode built; fs/socket/uloop loaded; native C utilities rebuilt |
 | Installer rerun | Config and environment SHA-256 unchanged after adding a preservation marker |
 | Foreground launcher on LattePanda | Startup/API save/duplicate rejection/unarmed TX/complete shutdown smoke test passed |
+| Fresh clone from the published Diablo repo | `a92fb3b` on LattePanda, separate prefix; full bootstrap and real launcher smoke test passed; checkout clean |
 | Full software suite on development host | 44 tests ran: 43 passed; one Pi-4-only live revision test skipped |
 | Native AArch64 C build on TANK | Both C utilities built; all 7 supervisor tests passed in an isolated directory |
 | TANK headless install | Not claimed: host lacks CMake/JSON-C build prerequisites; no system packages changed |
@@ -73,6 +74,7 @@ output are tracked work, not prerequisites to publishing this consolidation.
 ## Follow-up ownership
 
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md) is the authoritative open-work register.
+Its seven items are also tracked as [GitHub issues #1–#7](https://github.com/mathisono/Diablo-DATV-Studio/issues).
 Migration resolves packaging/docs/screenshots; it does not claim completion of
 unavailable hardware tests or implementation of full-quality mixing, live ASI,
 headless RF launchers, all receiver functions, or DVB-S2X. Old upstream PRs are

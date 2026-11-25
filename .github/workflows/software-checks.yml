@@ -1,5 +1,6 @@
 name: Software checks (no hardware output)
 on:
+  workflow_dispatch:
   push:
     branches: [Trixie]
   pull_request:
