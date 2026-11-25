@@ -187,6 +187,25 @@ models a silent control sender; no router, cable, firewall or system-wide networ
 configuration was altered. This does not cover sustained packet loss, jitter,
 reordering, or long-duration operation.
 
+## Reverse-role acceptance — 2026-11-25 UTC (Nov 24 PST)
+
+**PASS:** TANK (AArch64) MASTER → VideoLP3D (x86-64) SLAVE, using the same
+revision `5264929`, isolated runtimes and no-hardware substitutes. All 16 recorded
+checks passed. TANK generated 720p24 H.264/AAC; VideoLP3D received a 6.02-second
+TS over SRT with stream copy. Local SLAVE E-Stop cleared MASTER's pending
+request; process exit and missing return telemetry were reported correctly.
+Heartbeat loss stopped mock TX in **1.460 s**; disconnect stopped it in
+**0.031 s**. Recovery required an explicit new start. Both workers report all
+owned processes exited.
+
+[Reverse-role results](testing/peer-two-host-reverse-2026-11-25.json) ·
+[Reverse-role captures](SCREENSHOTS.md#reverse-roles-tank-master--videolp3d-slave)
+
+This clears the reverse-role test subset. It does not close fresh-image,
+permissions/reboot, impaired-network endurance, integrated media-loss gating,
+preview-return or physical RF/ASI acceptance. Media delivery remains separate
+from the mock TX control test, just as in the forward run.
+
 ## Reproduce the isolated test
 
 Development dependencies on the orchestration host: Python 3, requests,
@@ -205,6 +224,9 @@ python3 scripts/dev/test-peer-two-host.py \
   --slave-address 192.168.3.33 \
   --output /tmp/diablo-peer-evidence
 ```
+
+For the reverse-role run, swap both SSH aliases, repo paths and runtime paths,
+set `--slave-address 192.168.3.232`, and use a separate output directory.
 
 These aliases/paths are the recorded lab setup; substitute your own. The script
 uses temporary directories, a freshly generated token sent over SSH stdin, and
@@ -229,7 +251,7 @@ Review results and images before copying them into documentation.
 - Incoming connections replace the active link before authentication; hardening
   and authenticated peer replacement remain work items.
 - Physical safe-off, integrated valid-TS/media-loss gate and preview return,
-  source-to-output integration, reverse-role testing, actual
+  source-to-output integration, actual
   impaired-network endurance, fresh armhf installs, permissions and reboot
   persistence remain outside this run. See [issue #6](https://github.com/mathisono/Diablo-DATV-Studio/issues/6)
   and the [work register](KNOWN_ISSUES.md).

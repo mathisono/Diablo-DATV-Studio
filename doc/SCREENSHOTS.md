@@ -2,7 +2,7 @@
 
 These are **actual Chromium captures of the new Diablo web GUI**, not painted
 mockups. The original six fixtures were regenerated during repository migration
-with `PORTSDOWN_BOARD=none`. The six peer captures below use real VideoLP3D/TANK
+with `PORTSDOWN_BOARD=none`. The peer captures below use real VideoLP3D/TANK
 control instances with a simulated Express board and mock TX/safe-off scripts.
 **No RF or physical ASI output was enabled in any capture.**
 Synthetic preview frames are labeled in the images. Camera endpoints and station
@@ -131,6 +131,25 @@ stopped. **UNKNOWN is not presented as confirmed RF-off.**
 No peer token or camera credentials appear in these captures. These satisfy the
 **isolated two-host UI/link-loss screenshot requirement**, not physical RF
 shutdown, media-loss interlocking, network-impairment endurance or reboot testing.
+
+## Reverse roles: TANK MASTER → VideoLP3D SLAVE
+
+**Completed 2026-11-25 UTC (Nov 24 PST)** at revision `5264929`.
+[All 16 recorded checks passed](testing/peer-two-host-reverse-2026-11-25.json),
+including finite 720p24 H.264/AAC SRT delivery, telemetry and watchdog behavior.
+
+![TANK MASTER acknowledges VideoLP3D local E-Stop](images/diablo-peer-reverse-master-estop.png)
+
+TANK shows **SLAVE TX process: STOPPED · local E-Stop**, and its pending request
+is cleared. This is returned process telemetry, not a physical RF measurement.
+
+![VideoLP3D SLAVE has locked IPTS over SRT controls and enabled E-Stop](images/diablo-peer-reverse-slave-linked.png)
+
+VideoLP3D runs only the mock transmitter. Its only source is MASTER-produced
+IPTS over SRT; settings remain locked and local E-Stop is available. The separate
+finite SRT receiver is not connected to the preview, hence **NO IPTS INPUT**.
+Heartbeat loss stopped mock TX in 1.460 s; disconnect in 0.031 s. No automatic
+restart occurred. RF/ASI were not enabled, and owned test processes were stopped.
 
 ## Screenshots still needed
 

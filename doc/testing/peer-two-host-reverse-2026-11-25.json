@@ -1,0 +1,522 @@
+{
+  "date_utc": "2026-11-25T07:12:59Z",
+  "test": "real two-host TCP control and finite MASTER-produced SRT TS; mock TX/safe-off only; no hardware",
+  "checks": {
+    "authenticated_config_ready": true,
+    "slave_write_start_srt_lock": true,
+    "master_source_stays_local_slave_ipts_srt_only": true,
+    "configuration_sync": true,
+    "master_720p_h264_aac_ts_over_srt_received_copy": true,
+    "remote_start_stop": true,
+    "slave_estop": true,
+    "local_estop_clears_master_request_and_reports_stopped": true,
+    "slave_process_exit_reported_to_master": true,
+    "heartbeat_loss_stop_seconds": 1.46,
+    "resume_does_not_restart_tx": true,
+    "disconnect_stop_seconds": 0.031,
+    "reconnect_does_not_restart_tx": true,
+    "explicit_restart_after_reconnect": true,
+    "telemetry_loss_shows_unknown_and_c_watchdog_stops_tx": true,
+    "telemetry_recovery_does_not_restart_tx": true
+  },
+  "screenshots": {
+    "diablo-peer-master-linked": {
+      "peer": "MASTER \u00b7 linked \u00b7 config ready",
+      "tx": "SLAVE TX process: RUNNING \u00b7 TX start processed. Process status is not an RF measurement.",
+      "locked": false,
+      "stopEnabled": true
+    },
+    "diablo-peer-slave-linked": {
+      "peer": "SLAVE \u00b7 linked \u00b7 config ready \u00b7 IPTS over SRT \u00b7 UDP port 28900",
+      "tx": "STATUS tx=running rx=stopped preview=stopped board=express peer=slave link=ok srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped",
+      "locked": true,
+      "stopEnabled": true
+    },
+    "diablo-peer-master-slave-estop": {
+      "peer": "MASTER \u00b7 linked \u00b7 config ready",
+      "tx": "SLAVE TX process: STOPPED \u00b7 local E-Stop. Process status is not an RF measurement.",
+      "locked": false,
+      "stopEnabled": true
+    },
+    "diablo-peer-slave-watchdog": {
+      "peer": "SLAVE \u00b7 linked \u00b7 config ready \u00b7 IPTS over SRT \u00b7 UDP port 28900",
+      "tx": "STATUS tx=stopped rx=stopped preview=stopped board=express peer=slave link=stale srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped",
+      "locked": true,
+      "stopEnabled": true
+    },
+    "diablo-peer-slave-link-loss": {
+      "peer": "SLAVE \u00b7 not linked \u00b7 IPTS over SRT \u00b7 UDP port 28900",
+      "tx": "STATUS tx=stopped rx=stopped preview=stopped board=express peer=slave link=stale srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped",
+      "locked": true,
+      "stopEnabled": true
+    },
+    "diablo-peer-master-telemetry-loss": {
+      "peer": "MASTER \u00b7 not linked",
+      "tx": "SLAVE telemetry unavailable \u2014 remote TX state UNKNOWN; do not assume RF is off.",
+      "locked": false,
+      "stopEnabled": true
+    }
+  },
+  "slave": {
+    "ready": true,
+    "hostname": "VideoLP3D",
+    "arch": "x86_64",
+    "commit": "5264929a395096f97fee4050b97485ae79606550"
+  },
+  "master": {
+    "ready": true,
+    "hostname": "TANK",
+    "arch": "aarch64",
+    "commit": "5264929a395096f97fee4050b97485ae79606550"
+  },
+  "media": {
+    "exit_code": 0,
+    "probe": {
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+          "profile": "Constrained Baseline",
+          "codec_type": "video",
+          "codec_tag_string": "[27][0][0][0]",
+          "codec_tag": "0x001b",
+          "width": 1280,
+          "height": 720,
+          "coded_width": 1280,
+          "coded_height": 720,
+          "closed_captions": 0,
+          "film_grain": 0,
+          "has_b_frames": 0,
+          "sample_aspect_ratio": "1:1",
+          "display_aspect_ratio": "16:9",
+          "pix_fmt": "yuv420p",
+          "level": 31,
+          "chroma_location": "left",
+          "field_order": "progressive",
+          "refs": 1,
+          "is_avc": "false",
+          "nal_length_size": "0",
+          "ts_packetsize": "188",
+          "id": "0x100",
+          "r_frame_rate": "24/1",
+          "avg_frame_rate": "24/1",
+          "time_base": "1/90000",
+          "start_pts": 127920,
+          "start_time": "1.421333",
+          "duration_ts": 540000,
+          "duration": "6.000000",
+          "bits_per_raw_sample": "8",
+          "extradata_size": 34,
+          "disposition": {
+            "default": 0,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_long_name": "AAC (Advanced Audio Coding)",
+          "profile": "LC",
+          "codec_type": "audio",
+          "codec_tag_string": "[15][0][0][0]",
+          "codec_tag": "0x000f",
+          "sample_fmt": "fltp",
+          "sample_rate": "48000",
+          "channels": 2,
+          "channel_layout": "stereo",
+          "bits_per_sample": 0,
+          "initial_padding": 0,
+          "ts_packetsize": "188",
+          "id": "0x101",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "time_base": "1/90000",
+          "start_pts": 126000,
+          "start_time": "1.400000",
+          "duration_ts": 524160,
+          "duration": "5.824000",
+          "bit_rate": "50471",
+          "disposition": {
+            "default": 0,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0
+          }
+        }
+      ],
+      "format": {
+        "filename": "/tmp/diablo-peer-acceptance-v48hkah9/received.ts",
+        "nb_streams": 2,
+        "nb_programs": 1,
+        "format_name": "mpegts",
+        "format_long_name": "MPEG-TS (MPEG-2 Transport Stream)",
+        "start_time": "1.400000",
+        "duration": "6.021333",
+        "size": "575844",
+        "bit_rate": "765071",
+        "probe_score": 50
+      }
+    }
+  },
+  "master_after_local_estop": {
+    "role": "MASTER",
+    "connected": true,
+    "config_ready": true,
+    "tx_requested": false,
+    "missed_heartbeats": 0,
+    "remote": {
+      "tx": "stopped",
+      "supervisor_ok": true,
+      "status": "STATUS tx=stopped rx=stopped preview=stopped board=express peer=slave link=ok srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped",
+      "reason": "local E-Stop",
+      "request_id": 3
+    },
+    "telemetry_fresh": true
+  },
+  "watchdog_state": {
+    "supervisor": {
+      "ok": true,
+      "status": "STATUS tx=stopped rx=stopped preview=stopped board=express peer=slave link=ok srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped"
+    },
+    "board": "DATVEXPRESS",
+    "modulation": "S2QPSK",
+    "peer_role": "SLAVE",
+    "peer_input": {
+      "transport": "SRT",
+      "port": 28900
+    },
+    "peer": {
+      "role": "SLAVE",
+      "connected": true,
+      "config_ready": true,
+      "tx_requested": false,
+      "missed_heartbeats": 3,
+      "remote": null,
+      "telemetry_fresh": false
+    },
+    "logs": [
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE"
+    ],
+    "video": {
+      "frames": 0,
+      "producer": false,
+      "viewers": 1
+    },
+    "srt": [
+      {
+        "slot": 1,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28300,
+        "ts_port": 28400,
+        "caller_url": "srt://192.168.3.232:28300?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 2,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28301,
+        "ts_port": 28401,
+        "caller_url": "srt://192.168.3.232:28301?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 3,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28302,
+        "ts_port": 28402,
+        "caller_url": "srt://192.168.3.232:28302?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 4,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28303,
+        "ts_port": 28403,
+        "caller_url": "srt://192.168.3.232:28303?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 5,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28304,
+        "ts_port": 28404,
+        "caller_url": "srt://192.168.3.232:28304?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      }
+    ],
+    "sources": {
+      "HDMI": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "CAMH264": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "IPTSIN": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 1
+        }
+      },
+      "IPCAM1": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "IPCAM2": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      }
+    },
+    "source_preview_available": false,
+    "source_ts_available": false,
+    "remote_preview_url": null
+  },
+  "disconnect_state": {
+    "supervisor": {
+      "ok": true,
+      "status": "STATUS tx=stopped rx=stopped preview=stopped board=express peer=slave link=ok srt1=stopped srt2=stopped srt3=stopped srt4=stopped srt5=stopped hdmi=stopped picam=stopped ipts=stopped ipcam1=stopped ipcam2=stopped source_ts=stopped"
+    },
+    "board": "DATVEXPRESS",
+    "modulation": "S2QPSK",
+    "peer_role": "SLAVE",
+    "peer_input": {
+      "transport": "SRT",
+      "port": 28900
+    },
+    "peer": {
+      "role": "SLAVE",
+      "connected": false,
+      "config_ready": false,
+      "tx_requested": false,
+      "missed_heartbeats": 0,
+      "remote": null,
+      "telemetry_fresh": false
+    },
+    "logs": [
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE",
+      "LOG TX MOCK TX ONLY - NO HARDWARE"
+    ],
+    "video": {
+      "frames": 0,
+      "producer": false,
+      "viewers": 2
+    },
+    "srt": [
+      {
+        "slot": 1,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28300,
+        "ts_port": 28400,
+        "caller_url": "srt://192.168.3.232:28300?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 2,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28301,
+        "ts_port": 28401,
+        "caller_url": "srt://192.168.3.232:28301?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 3,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28302,
+        "ts_port": 28402,
+        "caller_url": "srt://192.168.3.232:28302?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 4,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28303,
+        "ts_port": 28403,
+        "caller_url": "srt://192.168.3.232:28303?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      {
+        "slot": 5,
+        "enabled": false,
+        "live": false,
+        "srt_port": 28304,
+        "ts_port": 28404,
+        "caller_url": "srt://192.168.3.232:28304?mode=caller&latency=200000",
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      }
+    ],
+    "sources": {
+      "HDMI": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "CAMH264": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "IPTSIN": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 2
+        }
+      },
+      "IPCAM1": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      },
+      "IPCAM2": {
+        "selected": false,
+        "preview": {
+          "frames": 0,
+          "producer": false,
+          "viewers": 0
+        }
+      }
+    },
+    "source_preview_available": false,
+    "source_ts_available": false,
+    "remote_preview_url": null
+  },
+  "master_telemetry_unavailable": {
+    "role": "MASTER",
+    "connected": false,
+    "config_ready": false,
+    "tx_requested": false,
+    "missed_heartbeats": 0,
+    "remote": null,
+    "telemetry_fresh": false
+  },
+  "slave_evidence": {
+    "off_count": 16,
+    "process_log": "MOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\nMOCK SAFE-OFF ONLY\n"
+  },
+  "result": "PASS",
+  "cleanup": [
+    {
+      "stopped": true,
+      "all_owned_processes_exited": true
+    },
+    {
+      "stopped": true,
+      "all_owned_processes_exited": true
+    }
+  ]
+}

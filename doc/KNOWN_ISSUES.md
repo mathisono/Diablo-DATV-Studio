@@ -9,7 +9,7 @@ card output and receiver/RF acceptance.
 
 | Capability | Current evidence | Limit |
 | --- | --- | --- |
-| Persistent C/ucode web control | Native x86-64 tests; C builds on AArch64 | Linux only; loopback HTTP needs tunnel/authenticated TLS proxy |
+| Persistent C/ucode web control | Native x86-64 and AArch64 C/ucode runtimes; both peer roles tested | Linux only; loopback HTTP needs tunnel/authenticated TLS proxy |
 | Five SRT source encoders | Synthetic callers; arrival/loss and raster checks | Five-way hardware CPU/thermal endurance and actual ATEM pending |
 | Direct SRT local TS | Selected-slot live relay tests | No headless RF/ASI connection yet |
 | Two IP CAM configurations | Private URL handling and restart tests; one real camera previously checked | Two physical cameras together not tested |
@@ -115,8 +115,19 @@ E-Stop/exit to MASTER and clears its pending request; lost return telemetry show
 UNKNOWN and disables starts. All 31 headless-control regression tests passed again with telemetry enabled,
 along with the real two-host telemetry cases.
 
+**Additional completed subset (2026-11-25 UTC / Nov 24 PST):**
+[TANK MASTER → VideoLP3D SLAVE](testing/peer-two-host-reverse-2026-11-25.json)
+passed all 16 recorded checks on revision `5264929`. Native AArch64 MASTER
+produced 720p24 H.264/AAC TS; x86-64 SLAVE received 6.02 seconds over SRT without
+video/audio re-encoding. Reverse-role configuration locks, remote start/stop,
+local SLAVE E-Stop acknowledgement, process-exit telemetry, return-telemetry
+loss/UNKNOWN, watchdog stop and explicit-only restart all passed. Heartbeat-loss
+stop was 1.460 s; disconnect stop was 0.031 s. These are observed software
+timings, not RF measurements. Both isolated instances cleaned up all owned
+processes. **Reverse-role testing is cleared**, not the complete D-06 issue.
+
 **Remaining scope:** fresh armhf Pi image, full arm64 platform checks,
-network delay/loss/endurance, reverse-role tests, service-account/device
+network delay/loss/endurance, service-account/device
 permissions and reboot behavior. Complete the production MASTER TS → SLAVE
 SRT receiver → valid-video/media-loss gate → output/preview lifecycle. Current
 peer test uses separate FFmpeg media and mock TX; it is not physical RF/ASI proof.
