@@ -7,6 +7,9 @@ See the [five-SRT web GUI screenshot](doc/images/headless-web-gui-srt.png) and
 [DekTec ASI output screenshot](doc/images/headless-web-gui-asi.png).
 An [Elgato HDMI → ASI example](doc/images/headless-web-gui-elgato-asi.png)
 shows the proposed simple capture setup; it is not a hardware test.
+For the x86-64 LattePanda/DTA-2145 test host, use the separate
+[Dta DKMS install and Secure Boot notes](doc/lattepanda-dta-driver.md), not
+the legacy Raspberry Pi `install_portsdown.sh`.
 It does not yet replace the working touchscreen GUI or drive verified RF
 hardware. The existing Buster and Trixie transmitter paths remain intact.
 

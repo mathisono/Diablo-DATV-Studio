@@ -1,5 +1,8 @@
 # Headless `ucode` control plane — experimental, not a transmitter release
 
+The x86-64 DTA-2145 driver installation and current Secure Boot blocker are
+recorded in [LattePanda Dta driver bring-up](lattepanda-dta-driver.md).
+
 This branch adds a **parallel** web/control implementation that does not use
 `rpidatvgui`, a touchscreen, `/dev/fb0`, or `/touchscreen/`. It does **not**
 remove those legacy paths yet. Do not enable it as a replacement for a working
