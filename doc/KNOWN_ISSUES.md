@@ -105,6 +105,8 @@ analog/webcam and remaining legacy capture modes need explicit new-GUI routing.
 
 Track: https://github.com/mathisono/Diablo-DATV-Studio/issues/4
 
+Test procedure: [real-source and endurance acceptance instructions](testing/d04-real-source-acceptance.md), with a physical **ATEM Mini Pro SRT** test required for closure.
+
 **Scope:** actual ATEM SRT; Elgato video/audio; Pi Camera coverage; two physical RTSP
 cameras; five concurrent SRT encoders; source-specific reconnect behavior.
 

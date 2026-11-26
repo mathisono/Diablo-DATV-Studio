@@ -10,6 +10,7 @@
 - [Peer control, IPTS/SRT-only SLAVE and two-host acceptance](peer-control.md)
 - [Screenshot gallery and captures still needed](SCREENSHOTS.md)
 - [Real Pi Camera → SRT and two-host peer test](testing/picam-srt-two-host-2026-11-25.md)
+- [D-04 real-source and endurance test instructions (ATEM Mini Pro required)](testing/d04-real-source-acceptance.md)
 - [Development, source layout and tests](DEVELOPMENT.md)
 - [Capability matrix and open issues](KNOWN_ISSUES.md)
 - [Repository migration and validation record](MIGRATION.md)
