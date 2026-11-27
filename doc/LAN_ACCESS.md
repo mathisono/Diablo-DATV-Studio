@@ -31,7 +31,7 @@ commands or SSH tunnel are needed after First Start.
 
 ![Access and Master/Slave settings popup, with password hidden](images/diablo-access-settings.png)
 
-Actual Chromium capture of an isolated test installation. The selected Master
+Actual Chromium capture refreshed with the current web admin labels. The selected Master
 role and `192.0.2.10` address illustrate the form; use your own Slave's LAN address.
 The password is hidden and no hardware output was running.
 
