@@ -92,12 +92,12 @@ export function validate(cfg) {
     return 'Pi Camera index outside 0-3';
   if (cfg.format != null && index(formats, cfg.format) < 0) return 'unsupported format';
   if (cfg.encoding != null && index(encoders, cfg.encoding) < 0) return 'unsupported encoder';
-  if (cfg.call != null && (!match(cfg.call, /^[A-Z0-9\/]{3,20}$/) || !match(cfg.call, /[0-9]/)))
-    return 'CALLSIGN must be 3-20 uppercase letters, digits or / and contain a digit';
+  if (cfg.call != null && (!match(cfg.call, /^[A-Z0-9\/]{3,20}$/) || !match(cfg.call, /[0-9]/) || cfg.call == 'N0CALL'))
+    return 'Enter your own callsign; N0CALL is not accepted';
   if (cfg.service_name != null &&
       (length(trim(cfg.service_name)) < 1 || length(cfg.service_name) > 64 ||
        match(cfg.service_name, /[[:cntrl:]]/)))
-    return 'Service name must be 1-64 UTF-8 bytes of printable text';
+    return 'Service name is missing, too long, or contains an invalid character';
   if (cfg.explevel != null && (!match(cfg.explevel, /^[0-9]+$/) || +cfg.explevel > 44)) return 'Express level outside 0-44';
   if (cfg.plutopwr != null && (!match(cfg.plutopwr, /^[0-9]+$/) || +cfg.plutopwr > 71)) return 'Pluto attenuation outside 0-71';
   if (cfg.limegain != null && (!match(cfg.limegain, /^[0-9]+$/) || +cfg.limegain > 100)) return 'Lime gain outside 0-100';

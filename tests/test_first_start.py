@@ -68,7 +68,7 @@ class FirstStartTest(unittest.TestCase):
                                *args], env=env, capture_output=True, text=True, timeout=20)
 
     def good(self, *args, env=None):
-        r = self.setup('--callsign', 'n0call', '--service-name', 'Station test', *args, env=env)
+        r = self.setup('--callsign', 'k1test', '--service-name', 'Station test', *args, env=env)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return r
 
@@ -79,7 +79,7 @@ class FirstStartTest(unittest.TestCase):
         self.assertEqual(self.marker.read_text(), '3\n')
         self.assertFalse((self.path / 'run/tx.sock').exists())
         self.assertIn('srt_source_slot=3', self.config.read_text())
-        self.assertIn('call=N0CALL', self.config.read_text())
+        self.assertIn('call=K1TEST', self.config.read_text())
         self.assertEqual(self.camera.read_text(), 'PRIVATE CAMERA SENTINEL\n')
         with socket.socket() as s:
             self.assertNotEqual(s.connect_ex(('127.0.0.1', self.values['PORTSDOWN_HTTP_PORT'])), 0)
@@ -87,7 +87,7 @@ class FirstStartTest(unittest.TestCase):
 
     def test_rerun_and_literal_text(self):
         service = 'News "quotes" $HOME `id` Café'
-        r = self.setup('--callsign', 'N0CALL', '--service-name', service, '--no-verify')
+        r = self.setup('--callsign', 'K1TEST', '--service-name', service, '--no-verify')
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         config_before, env_before = self.config.read_bytes(), self.envfile.read_bytes()
         r = self.setup('--no-verify')
@@ -98,12 +98,19 @@ class FirstStartTest(unittest.TestCase):
         self.assertIn('operator_extra=keep', self.config.read_text())
         self.assertEqual(self.envfile.stat().st_mode & 0o777, 0o600)
 
+    def test_callsign_defaults_service_name(self):
+        r = self.setup('--callsign', 'K1TEST', '--no-verify')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('call=K1TEST\n', self.config.read_text())
+        self.assertIn('service_name=K1TEST\n', self.config.read_text())
+
     def test_invalid_settings_do_not_write(self):
         before = self.config.read_bytes(), self.envfile.read_bytes()
         for args in [('--callsign', 'bad!', '--service-name', 'Test'),
-                     ('--callsign', 'N0CALL', '--service-name', 'x' * 65),
-                     ('--callsign', 'N0CALL', '--service-name', 'Test', '--advertise-ip', '192.999.0.1'),
-                     ('--callsign', 'N0CALL', '--service-name', 'Test', '--device-groups', 'sudo')]:
+                     ('--callsign', 'N0CALL', '--service-name', 'Test'),
+                     ('--callsign', 'K1TEST', '--service-name', 'x' * 65),
+                     ('--callsign', 'K1TEST', '--service-name', 'Test', '--advertise-ip', '192.999.0.1'),
+                     ('--callsign', 'K1TEST', '--service-name', 'Test', '--device-groups', 'sudo')]:
             r = self.setup('--no-verify', *args)
             self.assertNotEqual(r.returncode, 0)
             self.assertEqual((self.config.read_bytes(), self.envfile.read_bytes()), before)
@@ -112,12 +119,12 @@ class FirstStartTest(unittest.TestCase):
     def test_active_or_armed_install_rejected(self):
         with (self.path / 'run/launcher.lock').open('w') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            result = self.setup('--callsign', 'N0CALL', '--service-name', 'Test', '--no-verify')
+            result = self.setup('--callsign', 'K1TEST', '--service-name', 'Test', '--no-verify')
             self.assertEqual(result.returncode, 2)
             self.assertIn('Stop the running', result.stderr)
         with self.envfile.open('a') as f:
             f.write('export PORTSDOWN_BOARD=express\n')
-        result = self.setup('--callsign', 'N0CALL', '--service-name', 'Test', '--no-verify')
+        result = self.setup('--callsign', 'K1TEST', '--service-name', 'Test', '--no-verify')
         self.assertEqual(result.returncode, 2)
         self.assertIn('left unchanged', result.stderr)
 
@@ -135,6 +142,21 @@ class FirstStartTest(unittest.TestCase):
         self.assertIn('systemctl enable --now ssh', commands)
         self.assertIn('usermod -aG video ', commands)
         self.assertNotIn('chmod', commands)
+
+    def test_password_prompt_retries_without_leaving_setup(self):
+        args = ['bash', str(ROOT / 'scripts/setup-access.sh'), '--prefix', str(self.path),
+                '--first-start-managed', '--host', '127.0.0.1', '--role', 'STANDALONE',
+                '--https-port', str(self.values['PORTSDOWN_HTTP_PORT'] + 60)]
+        r = subprocess.run(args, input='\nshort\npass1234\nwrong\npass1234\npass1234\n',
+                           capture_output=True, text=True, timeout=20)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('Please try again', r.stderr)
+        self.assertIn('LAN browser:', r.stdout)
+        records = list((self.path / 'security').glob('access-*/password.conf'))
+        self.assertEqual(len(records), 1)
+        verified = subprocess.run([str(ROOT / 'control/auth-store'), 'verify', str(records[0])],
+                                  input='pass1234', capture_output=True, text=True)
+        self.assertEqual(verified.returncode, 0, verified.stderr)
 
 
 if __name__ == '__main__':

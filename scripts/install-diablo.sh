@@ -27,6 +27,8 @@ if ((check_only)); then exec bash "$repo/scripts/check-diablo-host.sh"; fi
 umask 077
 mkdir -p "$prefix"
 [[ ! -L $prefix && -O $prefix ]] || { echo 'Prefix must be an owned, real directory.' >&2; exit 2; }
+new_install=0
+[[ -e $prefix/diablo.env ]] || new_install=1
 exec 9>"$prefix/install.lock"
 flock -n 9 || { echo 'Another Diablo installer is running.' >&2; exit 2; }
 # Share the launcher's lifetime lock, so it cannot start during a rebuild either.
@@ -52,6 +54,10 @@ if ((packages)); then
         *) echo 'Install build dependencies manually, then use --skip-system-packages.' >&2; exit 2;;
     esac
     sudo apt-get update
+    if ((new_install)); then
+        echo 'Updating the operating system before the first Diablo installation. This may take a while; no reboot will be started.'
+        sudo apt-get -y -o Dpkg::Options::=--force-confold upgrade
+    fi
     sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev libssl-dev stunnel4 openssl git ca-certificates curl ffmpeg util-linux v4l-utils alsa-utils
 fi
 bash "$repo/scripts/check-diablo-host.sh"
@@ -134,9 +140,12 @@ printf '\nInstalled. Start manually: %q\n' "$prefix/bin/diablo-studio"
     printf 'libubox=%s\nucode=%s\n' "$(git -C "$prefix/src/libubox" rev-parse HEAD)" "$(git -C "$prefix/src/ucode" rev-parse HEAD)"
     ffmpeg -version | sed -n '1p'
 } > "$prefix/logs/installed-version.txt"
-echo 'Complete guided setup to choose the shared GUI/peer password and HTTPS LAN address.'
+if ((new_install)) && [[ -e /var/run/reboot-required ]]; then
+    echo 'The OS update requests a reboot. Finish setup first, then reboot before testing hardware; Diablo will not reboot for you.'
+fi
+echo 'Complete guided setup to choose Pi-only or protected LAN browser access.'
 echo 'Existing protected installs retain their access settings. Stop the launcher with Ctrl+C.'
 echo "First-start guide: $repo/doc/FIRST_START.md"
 printf 'Guided configuration: bash %q --configure-only --prefix %q\n' "$repo/scripts/first-start.sh" "$prefix"
-echo 'Enter your CALLSIGN and service name in the GUI before generating TS.'
+echo 'First Start asks for your callsign and uses it as the initial stream service name.'
 echo 'No service enabled, driver installed, ASI playout started, or RF keyed.'

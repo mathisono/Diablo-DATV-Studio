@@ -26,8 +26,9 @@ card output and receiver/RF acceptance.
 
 ## Shared-password LAN access
 
-The install wizard now sets a shared password for direct HTTPS GUI access and
-Master/Slave TLS control, with no SSH tunnel. See [LAN setup](LAN_ACCESS.md) and
+The install wizard offers Pi-only browser access without a password, or a web
+admin password for direct HTTPS LAN access and Master/Slave TLS control, with no
+SSH tunnel. See [LAN setup](LAN_ACCESS.md) and
 [bounded two-host acceptance](testing/shared-password-2026-11-25.md). This closes
 the missing built-in LAN-login requirement, not all D-06 platform or physical
 output acceptance. SRT/UDP media security is separate; shared-password access

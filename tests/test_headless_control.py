@@ -289,7 +289,7 @@ class UcodeTest(unittest.TestCase):
         self.assertNotIn("DVB-S2X", self.config.read_text())
 
     def test_service_metadata_validation_and_persistence(self):
-        for changes in ({"call": "BATC"}, {"call": "kg6mdw"},
+        for changes in ({"call": "BATC"}, {"call": "kg6mdw"}, {"call": "N0CALL"},
                         {"service_name": " "}, {"service_name": "A" * 65},
                         {"service_name": "é" * 33},
                         {"service_name": "bad\tname"}):

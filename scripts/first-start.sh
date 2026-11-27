@@ -29,8 +29,8 @@ Default: install, prompt for initial settings, verify GUI, offer foreground star
   --enable-ssh                Install openssh-server and enable/start ssh; no auth edits
   --pi-camera-packages        Install distro rpicam package on a detected Raspberry Pi
   --start                    Continue into foreground GUI after setup
-  --password-file PATH        Mode-600 file for unattended shared-password setup
-  --local-only                Development only: retain loopback access without LAN TLS
+  --password-file PATH        Mode-600 file for unattended web admin password setup
+  --local-only                Pi-only browser on loopback; no LAN access or web password
   --no-verify                Skip bounded GUI startup/API/shutdown check
 No RF/ASI/TS start, firewall edits, reboot, lingering or boot autostart.
 HELP
@@ -112,14 +112,16 @@ if [[ -z $advertise ]]; then
     done
 fi
 if ((interactive)); then
-    prompt call 'CALLSIGN (required)'
-    prompt service 'Service name (required, up to 64 UTF-8 bytes)'
-    prompt source 'Direct source: SRT, HDMI, CAMH264, IPTSIN, IPCAM1 or IPCAM2'
-    source_selected=1
+    while :; do
+        prompt call 'Your amateur-radio callsign'
+        call=${call^^}
+        if [[ $call =~ ^[A-Z0-9/]{3,20}$ && $call =~ [0-9] && $call != N0CALL ]]; then break; fi
+        echo 'Enter your own callsign; N0CALL is not accepted.' >&2
+        call=
+    done
     if [[ $source == SRT ]]; then
-        prompt slot 'SRT input slot 1-5'
-        prompt advertise 'SRT advertised LAN IPv4 (blank = auto-detect)'
-        prompt enable_srt 'Start selected SRT listener on each launch? yes/no/keep'
+        echo 'First video input: SRT test picture. Choose a camera or other input in the web page later.'
+        if [[ $enable_srt == keep && -z ${PORTSDOWN_START_SRT_SLOT:-} ]]; then enable_srt=yes; fi
     elif [[ $source == HDMI ]]; then
         command -v v4l2-ctl >/dev/null && v4l2-ctl --list-devices || true
         prompt device 'USB HDMI capture node'
@@ -132,11 +134,23 @@ if ((interactive)); then
         prompt ipts_port 'IPTS UDP listening port'
         prompt ipts_scope 'IPTS UDP bind: LOCAL or LAN'
     fi
-    prompt http_port 'Loopback web GUI port'
-    prompt groups 'Device groups to add, comma-separated video,audio,render (blank = none)'
+    if ((!local_only)) && [[ -z ${PORTSDOWN_AUTH_FILE:-} ]]; then
+        while :; do
+            read -r -p 'Open Diablo from another computer on your network? yes/no [yes]: ' answer
+            case ${answer,,} in
+                ''|yes|y) break;;
+                no|n) local_only=1; break;;
+                *) echo 'Answer yes or no.' >&2;;
+            esac
+        done
+    fi
 fi
-[[ -n $call && -n $service ]] || fail 'CALLSIGN and service name are required; supply options or use interactive setup.'
 call=${call^^}
+[[ -n $call && $call != N0CALL ]] || fail 'Enter your own callsign; N0CALL is not accepted.'
+service=${service:-$call}
+if ((local_only)) && [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+    fail 'This installation already has protected LAN access; --local-only cannot disable it.'
+fi
 case $source in SRT|HDMI|CAMH264|IPTSIN|IPCAM1|IPCAM2) ;; *) fail 'Unsupported initial source; configure advanced sources in the GUI.';; esac
 [[ $slot =~ ^[1-5]$ ]] || fail 'SRT slot must be 1-5.'
 case $enable_srt in yes|no|keep) ;; *) fail 'Listener choice must be yes, no or keep.';; esac
@@ -264,13 +278,13 @@ if ((verify)); then
 fi
 printf 'Settings saved; private backup: %s\n' "$backup"
 if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
-    printf 'Browser: https://%s:%s/ (use your shared password; no SSH tunnel)\n' "$PORTSDOWN_TLS_HOST" "${PORTSDOWN_HTTPS_PORT:-8443}"
+    printf 'Browser: https://%s:%s/ (use your web admin password; no SSH tunnel)\n' "$PORTSDOWN_TLS_HOST" "${PORTSDOWN_HTTPS_PORT:-8443}"
 else
-    printf 'Browser: http://127.0.0.1:%s/ (local-only development)\n' "$port"
+    printf 'Browser on this Pi only: http://127.0.0.1:%s/ (no web password)\n' "$port"
 fi
 if [[ $source == SRT ]]; then
     printf 'SRT caller: srt://%s:%s?mode=caller&latency=200000\n' "${advertise:-ENCODER_LAN_IP}" "$(( ${PORTSDOWN_SRT_PORT_BASE:-9101} + slot - 1 ))"
-    echo 'Send MPEG-TS; UDP access must be allowed from the intended sender. The HTTPS browser connection does not carry this video stream.'
+    echo 'Send MPEG-TS; UDP access must be allowed from the intended sender. The browser connection does not carry this video stream.'
 fi
 [[ $source != IPCAM* ]] || echo 'Save the private RTSP URL in IP CAM input encoders, then Restart; never pass camera passwords on this command line.'
 if ((interactive && !start)); then

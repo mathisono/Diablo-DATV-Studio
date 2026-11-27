@@ -185,8 +185,8 @@ function access_apply(peer, request) {
     return response(peer, '400 Bad Request', 'application/json', '{"error":"Select a role and enter the Slave LAN IPv4 address for Master mode"}');
   let password = request.new_password ?? '';
   if (type(password) != 'string' || (password != '' &&
-      (length(password) < 12 || length(password) > 128 || index(password, chr(0)) >= 0 || index(password, '\r') >= 0 || index(password, '\n') >= 0)))
-    return response(peer, '400 Bad Request', 'application/json', '{"error":"New password must be 12–128 bytes without line breaks"}');
+      (length(password) < 8 || length(password) > 128 || index(password, chr(0)) >= 0 || index(password, '\r') >= 0 || index(password, '\n') >= 0)))
+    return response(peer, '400 Bad Request', 'application/json', '{"error":"New password is too short, too long, or contains a line break"}');
   let running = super.request(sockpath, 'STATUS');
   let remote = peerctl.status();
   if (!running.ok || index(running.status ?? '', 'tx=running') >= 0 ||

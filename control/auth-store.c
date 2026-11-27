@@ -95,7 +95,7 @@ int main(int argc,char **argv) {
     char sh[33],wh[65],kh[65],pw[130]={0}; int rc=1;
     if (!strcmp(argv[1],"create")) {
         size_t n=fread(pw,1,sizeof(pw),stdin);
-        if (n<12 || n>128 || memchr(pw,0,n) || memchr(pw,'\n',n) || memchr(pw,'\r',n)) goto done;
+        if (n<8 || n>128 || memchr(pw,0,n) || memchr(pw,'\n',n) || memchr(pw,'\r',n)) goto done;
         static const unsigned char domain[]="Diablo DATV Studio peer TLS PSK v1";
         if (!RAND_bytes(salt,16) || !derive(pw,(int)n,salt,16,want) || !derive(pw,(int)n,domain,sizeof(domain)-1,key)) goto done;
         hex(salt,16,sh);hex(want,32,wh);hex(key,32,kh);
@@ -110,7 +110,7 @@ int main(int argc,char **argv) {
         if (count!=4 || strcmp(version,"v1") || !unhex(sh,salt,16) || !unhex(wh,want,32) || !unhex(kh,key,32)) goto done;
         if (!strcmp(argv[1],"peer-key")) { printf("%s\n",kh);rc=0;goto done; }
         size_t n=fread(pw,1,sizeof(pw),stdin);
-        if (n<12 || n>128 || memchr(pw,0,n)) goto done;
+        if (n<8 || n>128 || memchr(pw,0,n)) goto done;
         if (!derive(pw,(int)n,salt,16,got)) goto done;
         rc=CRYPTO_memcmp(got,want,32)?1:0;
         // Upgrade old one-way records after a successful login, never from a guess.

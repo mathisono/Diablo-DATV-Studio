@@ -139,7 +139,7 @@ class AccessTest(unittest.TestCase):
         self.stop()
         before=self.cert.read_bytes()
         result=subprocess.run(['bash',str(ROOT/'scripts/first-start.sh'),'--configure-only',
-            '--non-interactive','--prefix',str(self.root),'--callsign','N0CALL',
+            '--non-interactive','--prefix',str(self.root),'--callsign','K1TEST',
             '--service-name','Secure setup test','--advertise-ip','192.0.2.10'],
             env={**os.environ,'PORTSDOWN_STUNNEL':self.stunnel},capture_output=True,text=True,timeout=20)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -152,6 +152,16 @@ class AccessTest(unittest.TestCase):
             '--non-interactive'],capture_output=True,text=True)
         self.assertEqual(again.returncode,0,again.stderr)
         self.assertEqual(len(list((self.root/'security').glob('cert-*'))),count)
+
+    def test_eight_character_web_password(self):
+        cookie=self.login()
+        result=self.request('POST','/api/access',{'role':'STANDALONE',
+            'slave_host':'','new_password':'pass1234'},cookie)
+        self.assertEqual(result[0],200,result[2])
+        self.after_restart(cookie)
+        self.password='pass1234'
+        cookie=self.login()
+        self.assertEqual(self.request('GET','/api/state',cookie=cookie)[0],200)
 
     def test_session_expires_and_closes_events(self):
         cookie=self.login()
