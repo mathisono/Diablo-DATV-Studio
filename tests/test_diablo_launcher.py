@@ -98,7 +98,7 @@ class DiabloLauncherTest(unittest.TestCase):
                     else:
                         self.fail('No API after launcher start')
                     self.assertEqual(request('POST', '/api/config', {
-                        'call': 'N0CALL', 'service_name': 'Install test'})[0], 200)
+                        'call': 'K1TEST', 'service_name': 'Install test'})[0], 200)
                     self.assertIn('service_name=Install test', config.read_text())
                     self.assertNotEqual(request('POST', '/api/tx/start')[0], 200)
                     duplicate = subprocess.run(

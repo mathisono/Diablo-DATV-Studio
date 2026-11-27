@@ -34,7 +34,7 @@ def worker():
         camera_host = spec['camera_host']
         source = 'CAMH264' if camera_host else 'SRT'
         cfg = root / 'config.txt'
-        cfg.write_text((repo/'control/diablo-config.example').read_text().replace('modeoutput=DATVEXPRESS_S2','modeoutput=DATVEXPRESS').replace('modeinput=SRT',f'modeinput={source}') + '\ncall=N0CALL\nservice_name=Real Pi camera test - NO RF\n')
+        cfg.write_text((repo/'control/diablo-config.example').read_text().replace('modeoutput=DATVEXPRESS_S2','modeoutput=DATVEXPRESS').replace('modeinput=SRT',f'modeinput={source}') + '\ncall=K1TEST\nservice_name=Real Pi camera test - NO RF\n')
         mock = root/'mock-tx'
         mock.write_text('#!/bin/sh\necho "MOCK TX - NO HARDWARE"\nexec sleep 180\n')
         mock.chmod(0o700)
@@ -106,7 +106,7 @@ def worker():
                     port=28900 if spec['role']=='MASTER' else 28300
                     sender=spawn(['bash',str(repo/'scripts/capture_ts_ffmpeg.sh'),'--source','rpicam','--video-encoder','software',
                                   '--codec','h264','--size','1280x720','--fps','24','--video-bitrate','800000','--muxrate','1200000',
-                                  '--audio-device','testtone','--audio-bitrate','48000','--service-provider','N0CALL',
+                                  '--audio-device','testtone','--audio-bitrate','48000','--service-provider','K1TEST',
                                   '--service-name','Real Pi camera test - NO RF','--duration','60',
                                   '--preview-tcp','127.0.0.1:28221','--output',f'srt://{spec["host"]}:{port}?mode=caller&latency=200000'],True)
                     emit({'ok':True})

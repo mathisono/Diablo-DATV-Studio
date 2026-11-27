@@ -57,7 +57,7 @@ export function login(password, reply) {
   if (job || time() < next_attempt)
     return reply({ status: '429 Too Many Requests', error: 'Please wait before trying again' });
   next_attempt = time() + 1;
-  if (type(password) != 'string' || length(password) < 12 || length(password) > 128)
+  if (type(password) != 'string' || length(password) < 8 || length(password) > 128)
     return reply({ status: '401 Unauthorized', error: 'Incorrect password' });
   let finished = false;
   let timer = uloop.timer(10000, () => {

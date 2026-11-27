@@ -12,7 +12,7 @@ documentation-only address. Random test ports are not the installation defaults.
 | Screenshot | What it demonstrates | Use in docs |
 | --- | --- | --- |
 | [Access / Peer settings](#access--peer-settings) | Actual popup: role, Slave IP, show/change password, apply/reconnect | LAN access / peer setup |
-| [Shared-password sign-in](#shared-password-sign-in) | Real HTTPS login screen; password field empty | First start / LAN access |
+| [Web admin sign-in](#web-admin-sign-in) | Real HTTPS login screen; password field empty | First start / LAN access |
 | [Direct SRT](#direct-srt-and-five-input-encoders) | Selected SRT slot, preview in TX column, waiting cards, caller links | README / first SRT setup |
 | [ASI settings](#asi-output-and-metadata-flag) | ASI bitrate/device/channel, advisory metadata mismatch | ASI guide |
 | [Elgato HDMI](#elgato-hdmi-configuration) | V4L2/ALSA controls, low-resolution preview | Capture setup |
@@ -22,11 +22,11 @@ documentation-only address. Random test ports are not the installation defaults.
 | [Real Pi Camera / SRT](#real-pi-camera-to-srt-and-peer-control) | Real IMX708 source, standalone live/loss, MASTER/SLAVE previews and E-Stop acknowledgement | README / Pi setup |
 | [Mobile](#mobile-layout) | Single-column responsive controls at 390 px viewport | UI/device support |
 
-## Shared-password sign-in
+## Web admin sign-in
 
-![Diablo shared-password sign-in over HTTPS](images/diablo-login.png)
+![Diablo web admin sign-in over HTTPS](images/diablo-login.png)
 
-Real Chromium capture of an isolated HTTPS fixture, 2026-11-25. The password field
+Real Chromium capture of an isolated HTTPS fixture, refreshed 2026-11-27. The password field
 is empty. Browser sign-in, protected dashboard access, HttpOnly cookies and
 Sign out were exercised; no hardware or personal password was used. This is the
 new LAN entry screen; older dashboard captures below predate the Sign out button.
@@ -36,7 +36,7 @@ See [LAN setup](LAN_ACCESS.md).
 
 ![Web access and Master/Slave popup](images/diablo-access-settings.png)
 
-Actual Chromium capture, 2026-11-25, from an isolated managed HTTPS installation.
+Actual Chromium capture, refreshed 2026-11-27, from an isolated managed HTTPS installation.
 Master is selected in the form with documentation-only address `192.0.2.10`.
 Saved/new passwords are hidden or empty. The test exercised reveal/hide, role
 application, automatic restart/sign-in and reloaded saved values, plus the popup

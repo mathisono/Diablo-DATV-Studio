@@ -128,7 +128,7 @@ function fill(config, updateCurrent=true) {
   if (updateCurrent) current = config;
   choices('modeoutput', Object.entries(capabilities).map(([id,cap])=>[id,cap.label]), config.modeoutput);
   choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,mode]), config.modulation);
-  choices('source_layout', [['DIRECT','Direct source'],['MULTIVIEW','Four-source multiview']], config.source_layout || 'DIRECT');
+  choices('source_layout', [['DIRECT','One video input'],['MULTIVIEW','Four-source multiview']], config.source_layout || 'DIRECT');
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
     ['CARDH264','Test card'],['HDMI','USB HDMI capture'],['DESKTOP','Desktop'],['SRT','SRT input'],
@@ -305,10 +305,13 @@ $('modeinput').addEventListener('change',refreshSourceFields);
 $('source_layout').addEventListener('change',refreshSourceFields);
 $('srt_source_slot').addEventListener('change',()=>{ if(lastState) updatePreview(lastState); });
 for (let n=1;n<=4;n++) $(`multiview_${n}`).addEventListener('change',refreshSourceFields);
-$('call').addEventListener('input', () => { $('call').value = $('call').value.toUpperCase(); });
+$('call').addEventListener('input', () => {
+  $('call').value = $('call').value.toUpperCase();
+  $('call').setCustomValidity($('call').value==='N0CALL' ? 'Enter your own callsign; N0CALL is not accepted' : '');
+});
 $('service_name').addEventListener('input', () => {
   $('service_name').setCustomValidity(new TextEncoder().encode($('service_name').value).length > 64
-    ? 'Service name must be at most 64 UTF-8 bytes' : '');
+    ? 'Service name is too long; please shorten it' : '');
 });
 $('encoding').addEventListener('change',refreshSourceFields);
 $('format').addEventListener('change',refreshSourceFields);
@@ -316,6 +319,7 @@ $('modulation').addEventListener('change',refreshFec);
 $('settings').addEventListener('submit',async event => {
   event.preventDefault();
   $('call').value = $('call').value.trim().toUpperCase();
+  $('call').setCustomValidity($('call').value==='N0CALL' ? 'Enter your own callsign; N0CALL is not accepted' : '');
   $('service_name').value = $('service_name').value.trim();
   $('service_name').dispatchEvent(new Event('input'));
   if (!$('settings').reportValidity()) return;
@@ -418,7 +422,7 @@ $('access-form').addEventListener('submit',async event=>{
   const password=$('access-new-password').value;
   if(password!==$('access-confirm-password').value) {$('access-message').textContent='New passwords do not match.';return;}
   const bytes=new TextEncoder().encode(password).length;
-  if(password && (bytes<12 || bytes>128 || /[\0\r\n]/.test(password))) {$('access-message').textContent='Use 12–128 bytes without line breaks for the new password.';return;}
+  if(password && (bytes<8 || bytes>128 || /[\0\r\n]/.test(password))) {$('access-message').textContent='New password is too short, too long, or contains a line break.';return;}
   accessApplying=true;hideSavedPassword();
   $('access-apply').disabled=true;$('access-close').disabled=true;$('access-reveal').disabled=true;
   $('access-message').textContent='Saving access settings…';

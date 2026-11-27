@@ -60,7 +60,7 @@ done
     -L "$PORTSDOWN_DIR/control/ucode" "$PORTSDOWN_DIR/control/ucode/daemon.uc" 9>&- & daemon_pid=$!
 if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
     "$stunnel" "$PORTSDOWN_RUN_DIR/stunnel.conf" 9>&- & tls_pid=$!
-    echo "Diablo DATV Studio: https://${PORTSDOWN_TLS_HOST}:${PORTSDOWN_HTTPS_PORT:-8443}/ (shared password; Ctrl+C to stop)"
+    echo "Diablo DATV Studio: https://${PORTSDOWN_TLS_HOST}:${PORTSDOWN_HTTPS_PORT:-8443}/ (web admin password; Ctrl+C to stop)"
     rc=0; wait -n "$super_pid" "$daemon_pid" "$tls_pid" || rc=$?
 else
     echo "Diablo DATV Studio: http://127.0.0.1:${PORTSDOWN_HTTP_PORT:-8080}/ (local-only; run setup-access.sh for LAN login)"

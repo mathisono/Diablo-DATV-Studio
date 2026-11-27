@@ -19,6 +19,7 @@ class ServiceMetadataTest(unittest.TestCase):
         self.assertEqual(values({"call": "KG6MDW", "service_name": "Trevor"}),
                          ("KG6MDW", "Trevor"))
         for cfg in ({"call": "BATC", "service_name": "Trevor"},
+                    {"call": "N0CALL", "service_name": "Trevor"},
                     {"call": "kg6mdw", "service_name": "Trevor"},
                     {"call": "KG6MDW", "service_name": " "},
                     {"call": "KG6MDW", "service_name": "x" * 65}):

@@ -57,16 +57,19 @@ cd Diablo-DATV-Studio &&
 bash scripts/first-start.sh
 ```
 
-For the first test choose **SRT**, slot **1**, and **yes** to listener-on-launch.
-Choose a **shared password** during setup. Open the printed **HTTPS LAN address**,
-check the first-visit certificate fingerprint and sign in—**no SSH tunnel**.
-Use the same password on a paired Master and Slave. Click **Access / Peer settings** to view/change the password, select a role, and enter the Slave address. [Web pairing, step by step](doc/LAN_ACCESS.md#pair-a-master-and-slave).
+The first test uses SRT input 1 automatically. Enter your own callsign. Choose
+either **Pi-only browser access** without a web password, or **access from another
+computer** with a web admin password. For LAN access, open the printed HTTPS
+address, check the first-visit certificate fingerprint and sign in—**no SSH
+tunnel**. Paired Master and Slave systems use the same password. Click
+**Access / Peer settings** to view/change it, select a role, and enter the Slave
+address. [Web pairing, step by step](doc/LAN_ACCESS.md#pair-a-master-and-slave).
 Leave Diablo's terminal running. In a second terminal on that same
 Linux computer, run `bash "$HOME/Diablo-DATV-Studio/scripts/test-srt-input.sh"`.
 Watch for live video, then the waiting card when the 30-second sender finishes.
 Stop Diablo with **Ctrl+C**. Keep the downloaded folder in place.
 
-![Shared-password LAN sign-in](doc/images/diablo-login.png)
+![LAN web admin sign-in](doc/images/diablo-login.png)
 
 ![Web access and Master/Slave settings, password hidden](doc/images/diablo-access-settings.png)
 

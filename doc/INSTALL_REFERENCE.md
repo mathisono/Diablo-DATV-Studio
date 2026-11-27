@@ -34,10 +34,13 @@ cd Diablo-DATV-Studio
 bash scripts/install-diablo.sh
 ```
 
-The script installs distribution build tools, FFmpeg, curl, JSON-C headers and V4L2/ALSA diagnostics; builds
+On a first installation, the script runs `apt-get update` and `apt-get upgrade`
+before installing dependencies. It does not reboot the machine; check its
+reboot-required notice before hardware testing. It installs distribution build
+tools, FFmpeg, curl, JSON-C headers and V4L2/ALSA diagnostics; builds
 pinned libubox and ucode with fs/socket/uloop; builds the C supervisor/config
 writer; creates private initial configuration; and installs a foreground launcher.
-It does not change apt sources, upgrade the OS/kernel, reboot, alter Secure Boot,
+It does not change apt sources, reboot, alter Secure Boot,
 install a DekTec driver, or automatically start/enable anything.
 
 Optional controls:
@@ -47,7 +50,7 @@ bash scripts/install-diablo.sh --prefix "$HOME/diablo-local" --jobs 2
 # Read-only platform/dependency/capture-access report:
 bash scripts/install-diablo.sh --check
 # If dependencies are already installed:
-bash scripts/install-diablo.sh
+bash scripts/install-diablo.sh --skip-system-packages
 ```
 
 Default prefix: `$HOME/.local/share/diablo-datv-studio`. `logs/install.log` points
@@ -70,7 +73,8 @@ logging back in. The installer does not attempt GPU driver or QSV tuning.
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
 ```
 
-The recommended `first-start.sh` workflow configures password-protected HTTPS.
+The recommended `first-start.sh` workflow offers computer-only browser access
+without a web password or protected HTTPS LAN access.
 If you ran the lower-level installer alone, stop Diablo and configure access:
 
 ```sh
@@ -83,8 +87,9 @@ required. After First Start, use **Access / Peer settings** in the GUI for ordin
 role and password changes. [LAN/password setup](LAN_ACCESS.md) covers changing roles/passwords,
 private files, peer TLS and the local trust boundary.
 
-`--local-only` on first-start is an explicit development/test option: it leaves
-an unconfigured instance's unauthenticated HTTP on loopback, not the LAN. It does
+`--local-only` on first-start selects browser access on the Diablo computer
+only: it leaves an unconfigured instance's unauthenticated HTTP on loopback,
+not the LAN. It does
 not remove protection from an already protected install. Never expose that
 plain loopback API with a network forwarder.
 
@@ -95,10 +100,12 @@ units are advanced templates for a dedicated account, not used by this installer
 
 ## First configuration
 
-1. Set **CALLSIGN** and **Service name**, then Save configuration. No station
-   identity is supplied by the installer.
+1. First Start asks for your callsign and initially uses it as the stream
+   service name. The installer alone does not supply station identity; set both
+   under Output settings if you bypass First Start.
 2. For SRT, enable the desired input slot and use its displayed caller URL.
-   Select **Direct source → SRT**, choose that slot, and save. Example:
+   Select **Video layout → One video input**, then **Video input → SRT input**,
+   choose that slot, and save. Example:
    `srt://ENCODER_LAN_IP:9101?mode=caller&latency=200000`.
 3. For an IP camera, enter its RTSP URL in **IP CAM input encoders → Save IP**.
    Use **Restart** to reconnect. Each camera is configured independently;
@@ -167,7 +174,7 @@ installer does not enable these launchers or physical playout automatically.
 
 ## Scripted first-start setup
 
-Replace `N0CALL`, the service name and address with your own values. For the
+Replace `K1TEST`, the service name and address with your own values. For the
 first unattended setup, supply a **private, owned mode-600 file** containing the
 password on one line, via `--password-file`. Create it with your secret manager
 or a hidden terminal prompt, not a literal password in shell history. Subsequent
@@ -176,7 +183,7 @@ unattended runs keep the existing password if that option is omitted.
 ```sh
 bash scripts/first-start.sh --non-interactive \
   --password-file "$HOME/diablo-password.private" \
-  --callsign N0CALL --service-name "My DATV station" \
+  --callsign K1TEST --service-name "My DATV station" \
   --source SRT --srt-slot 1 --enable-srt \
   --advertise-ip 192.168.3.33 --http-port 18880 --start
 ```
@@ -194,7 +201,7 @@ Example USB capture setup (use the actual video/audio nodes):
 ```sh
 bash scripts/first-start.sh --configure-only --non-interactive \
   --password-file "$HOME/diablo-password.private" \
-  --callsign N0CALL --service-name "HDMI test" \
+  --callsign K1TEST --service-name "HDMI test" \
   --source HDMI --video-device /dev/video0 --input-format mjpeg \
   --audio-device hw:1,0 --device-groups video,audio --start
 ```

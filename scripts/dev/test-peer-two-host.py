@@ -61,7 +61,7 @@ def worker():
     with tempfile.TemporaryDirectory(prefix='diablo-peer-acceptance-') as directory:
         root = Path(directory)
         cfg = root/'config.txt'
-        cfg.write_text('modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nmodeinput=CARDH264\nsource_layout=DIRECT\nfreqoutput=437\nsymbolrate=1000\nfec=12\nformat=720p\nencoding=H264\ncall=N0CALL\nservice_name=MOCK TX - NO RF initial\n')
+        cfg.write_text('modeoutput=DATVEXPRESS\nmodulation=S2QPSK\nmodeinput=CARDH264\nsource_layout=DIRECT\nfreqoutput=437\nsymbolrate=1000\nfec=12\nformat=720p\nencoding=H264\ncall=K1TEST\nservice_name=MOCK TX - NO RF initial\n')
         mock = root/'mock-tx'
         mock.write_text('#!/bin/sh\necho "MOCK TX ONLY - NO HARDWARE"\necho $$ > "$PORTSDOWN_MOCK_PID"\ntrap "exit 0" TERM\nwhile :; do sleep 1; done\n')
         mock.chmod(0o700)
@@ -183,7 +183,7 @@ def worker():
                                    '-tune','zerolatency','-pix_fmt','yuv420p','-g','24',
                                    '-b:v','600k','-maxrate','600k','-bufsize','600k',
                                    '-c:a','aac','-b:a','48k','-ar','48000','-ac','2',
-                                   '-metadata','service_provider=N0CALL',
+                                   '-metadata','service_provider=K1TEST',
                                    '-metadata','service_name=MASTER produced TS',
                                    '-muxrate','900000','-f','mpegts',
                                    'srt://'+spec['host']+':28900?mode=caller&latency=200000'])

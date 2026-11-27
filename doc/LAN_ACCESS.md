@@ -1,10 +1,14 @@
-# LAN access — one shared password, no SSH tunnel
+# LAN access — web admin password, no SSH tunnel
 
 ## First installation
 
-Run the [First start wizard](FIRST_START.md). Choose a **12–128 byte shared
-password** when asked, and repeat it. A long, unique passphrase is easiest to type.
-This is not your Linux login password. Password characters are hidden while typing.
+Run the [First start wizard](FIRST_START.md) and choose access from another
+computer. Enter a **web admin password of at least 8 characters**, then repeat
+it. A long, unique passphrase is better. This is not your Pi login password;
+password characters are hidden while typing. For no web password, First Start
+can instead set up **Pi-only** browser access at `http://127.0.0.1:8080/`.
+That address works only in a browser running on the Pi. LAN access stays
+password-protected because it can control station outputs.
 
 Setup prints an address such as **`https://192.168.3.33:8443/`**. Open **your
 printed address** in a browser on any computer on the same LAN. Check the locally
@@ -27,7 +31,7 @@ commands or SSH tunnel are needed after First Start.
 
 ![Access and Master/Slave settings popup, with password hidden](images/diablo-access-settings.png)
 
-Actual Chromium capture of an isolated test installation. The selected Master
+Actual Chromium capture refreshed with the current web admin labels. The selected Master
 role and `192.0.2.10` address illustrate the form; use your own Slave's LAN address.
 The password is hidden and no hardware output was running.
 
@@ -36,7 +40,7 @@ The password is hidden and no hardware output was running.
 | This computer acts as | Choose **Standalone**, **Master**, or **Slave** |
 | Slave IP address | On Master, enter the Slave's IPv4 address only, e.g. `192.168.3.232`—not a URL, port or SRT link |
 | Show saved password | Reveal the current password; **Hide saved password** hides it again. It clears after 30 seconds, when the tab is hidden, or when the popup closes |
-| New shared password / Repeat new password | Leave both blank to keep it, or type the same new 12–128 byte password in both boxes |
+| New web admin password / Repeat new password | Leave both blank to keep it, or type the same new password (at least 8 characters) in both boxes |
 | Apply & reconnect | Save, restart the control services, then return to sign-in |
 
 **Stop TX, RX and output TS first.** Apply is rejected while an output is active
@@ -107,7 +111,7 @@ cd "$HOME/Diablo-DATV-Studio" &&
 bash scripts/setup-access.sh
 ```
 
-Choose a new shared password twice; the old password is not required. Restart:
+Choose a new web admin password twice; the old password is not required. Restart:
 
 ```sh
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
@@ -165,12 +169,12 @@ cookie rules may prevent embedding it. Open SLAVE directly if needed.
 | Symptom | Check |
 | --- | --- |
 | Cannot open the page | Use `https://` and the printed LAN IP/port; keep Diablo running; allow TCP 8443 from your LAN in the host firewall if necessary |
-| Incorrect password | Use the Diablo shared password, not your Linux password; after repeated failures wait 30 seconds |
+| Incorrect password | Use the Diablo web admin password, not your Pi login password; after repeated failures wait 30 seconds |
 | Peer not linked | Same password on both, MASTER points to SLAVE, SLAVE role selected, TCP 8181 reachable, previous MASTER stopped |
 | Login unexpectedly reappears | Session expired or daemon restarted; sign in again |
 | Changed IP / HTTPS port | Stop Diablo, rerun `setup-access.sh --host NEW_IP --https-port 8443`, verify the printed fingerprint |
 | Old install lacks stunnel | Run the normal `install-diablo.sh` update to install the new dependencies, then `setup-access.sh` |
 
 The setup scripts do not edit firewall rules, enable boot services, or start
-RF/ASI output. Low-level developers may explicitly use `first-start.sh
---local-only` without LAN exposure; this does not remove existing HTTPS settings.
+RF/ASI output. `first-start.sh --local-only` selects Pi-only browser access;
+it cannot remove an existing protected LAN configuration.

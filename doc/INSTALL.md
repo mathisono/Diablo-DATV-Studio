@@ -13,7 +13,8 @@ A 64-bit Pi is an ARM64 computer. Windows/macOS can be browser clients, not the
 Diablo server. [Advanced platform details](INSTALL_REFERENCE.md#scope).
 
 The basic install starts **no RF or ASI output** and does not install board
-drivers. It does not replace Linux, reboot the computer, or enable startup at boot.
+drivers. On a new install it updates installed OS packages before building;
+it does not replace Linux, reboot the computer, or enable startup at boot.
 
 ## Everyday start and stop
 
@@ -23,9 +24,11 @@ Run this in Terminal **on the Linux computer running Diablo**:
 "$HOME/.local/share/diablo-datv-studio/bin/diablo-studio"
 ```
 
-Leave it running and open the browser address from setup, normally
-**https://YOUR_LINUX_IP:8443/**. Sign in with the shared password you chose during
-setup; no SSH tunnel is needed. See
+Leave it running and open the browser address from setup. If you chose access
+from another computer, it is normally **https://YOUR_DIABLO_IP:8443/**; sign in
+with your web admin password. If you chose browser access only on the Diablo
+computer, open **http://127.0.0.1:8080/** there; there is no web sign-in.
+No SSH tunnel is needed. See
 [First start, step 4](FIRST_START.md#4-open-the-web-page).
 
 To stop: return to the Diablo terminal and press **Ctrl+C**. Settings are saved.
@@ -80,7 +83,7 @@ Diablo is stopped, run:
 bash scripts/setup-access.sh
 ```
 
-Choose the role and a shared password. Existing protected installs may skip this;
+Choose the role and a web admin password. Existing protected installs may skip this;
 updates preserve their password and certificate. Once signed in, use **Access / Peer settings**
 to show/change the password, select Master/Slave, and enter the Slave IP. See [web setup](LAN_ACCESS.md).
 
@@ -112,8 +115,7 @@ cd "$HOME/Diablo-DATV-Studio" &&
 bash scripts/first-start.sh --configure-only --disable-srt
 ```
 
-Keep the listener answer `no` when prompted. This does not enable/disable a boot
-service: Diablo still needs to be launched manually.
+This does not enable/disable a boot service: Diablo still needs to be launched manually.
 
 **Downloaded the folder, but setup did not finish?** Run
 `cd "$HOME/Diablo-DATV-Studio" && bash scripts/first-start.sh` to retry the full

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure user-local HTTPS and shared-password peer TLS. No service or RF start.
+# Configure user-local HTTPS and web-admin-password peer TLS. No service or RF start.
 set -Eeuo pipefail
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 prefix=${DIABLO_PREFIX:-"$HOME/.local/share/diablo-datv-studio"}
@@ -34,7 +34,9 @@ https_port=${https_port:-${PORTSDOWN_HTTPS_PORT:-8443}}
 if ((!peer_host_set)); then peer_host=${PORTSDOWN_PEER_REMOTE_HOST:-}; fi
 if ((interactive)); then
     if [[ -z $role ]]; then read -r -p "Role STANDALONE/MASTER/SLAVE [${PORTSDOWN_PEER_ROLE:-STANDALONE}]: " role; fi
-    read -r -p "LAN address for browser [$host]: " answer; host=${answer:-$host}
+    if ((!managed)); then
+        read -r -p "LAN address for browser [$host]: " answer; host=${answer:-$host}
+    fi
 fi
 role=${role:-${PORTSDOWN_PEER_ROLE:-STANDALONE}}
 role=${role^^}
@@ -55,6 +57,11 @@ for reserved in "${PORTSDOWN_HTTP_PORT:-8080}" 18080 18181 18182 8181 {8082..809
     [[ $https_port != "$reserved" ]] || { echo 'HTTPS port conflicts with an internal/peer port' >&2; exit 2; }
 done
 password=
+valid_password() {
+    local bytes
+    bytes=$(printf %s "$1" | wc -c)
+    ((bytes >= 8 && bytes <= 128)) && [[ $1 != *$'\r'* && $1 != *$'\n'* ]]
+}
 if ((password_stdin)); then
     IFS= read -r password || [[ -n $password ]] || true
 elif [[ -n $password_file ]]; then
@@ -62,19 +69,39 @@ elif [[ -n $password_file ]]; then
     mapfile -t password_lines < "$password_file"
     [[ ${#password_lines[@]} == 1 ]] || { echo 'Password file must contain exactly one line' >&2; exit 2; }
     password=${password_lines[0]}; unset password_lines
-elif [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
-    if ((interactive)); then
-        read -r -s -p 'New shared password (Enter keeps current): ' password; echo
-    fi
+elif ((!interactive)) && [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+    : # An unattended rerun keeps the existing password.
 elif ((interactive)); then
-    read -r -s -p 'Shared password (12–128 bytes; use the same on Master/Slave): ' password; echo
+    while :; do
+        if [[ -n ${PORTSDOWN_AUTH_FILE:-} ]]; then
+            read -r -s -p 'New web admin password (Enter keeps current): ' password; echo
+            [[ -n $password ]] || break
+        else
+            read -r -s -p 'Web admin password (at least 8 characters): ' password; echo
+            if [[ -z $password ]]; then
+                echo 'A password is needed when opening Diablo from another computer. Choose Pi-only access for no password.' >&2
+                continue
+            fi
+        fi
+        if ! valid_password "$password"; then
+            echo 'Password is too short, too long, or contains a line break. Please try again.' >&2
+            continue
+        fi
+        read -r -s -p 'Repeat web admin password: ' confirm; echo
+        if [[ $password != "$confirm" ]]; then
+            echo 'Passwords do not match. Please try again.' >&2
+            unset confirm
+            continue
+        fi
+        unset confirm
+        break
+    done
 else
     echo 'First setup needs --password-file (private mode 600); never put passwords in command arguments.' >&2; exit 2
 fi
-if [[ -n $password && $interactive == 1 ]]; then
-    read -r -s -p 'Repeat shared password: ' confirm; echo
-    [[ $password == "$confirm" ]] || { echo 'Passwords do not match' >&2; exit 2; }
-    unset confirm
+if [[ -n $password ]] && ! valid_password "$password"; then
+    echo 'Web admin password is too short, too long, or contains a line break.' >&2
+    exit 2
 fi
 mkdir -p "$prefix/security"
 [[ -O $prefix/security && ! -L $prefix/security ]] || exit 2
@@ -82,12 +109,12 @@ chmod 700 "$prefix/security"
 if [[ -n $password ]]; then
     access=$(mktemp -d "$prefix/security/access-XXXXXXXX")
     printf %s "$password" | "$repo/control/auth-store" create "$access/password.conf" || {
-        echo 'Password must be 12–128 bytes, without line breaks.' >&2; exit 2;
+        echo 'Could not save the web admin password; no access settings were changed.' >&2; exit 2;
     }
     unset password
     printf 'diablo:%s\n' "$("$repo/control/auth-store" peer-key "$access/password.conf")" > "$access/peer.psk"
 else
-    [[ -n ${PORTSDOWN_AUTH_FILE:-} ]] || { echo 'A shared password is required' >&2; exit 2; }
+    [[ -n ${PORTSDOWN_AUTH_FILE:-} ]] || { echo 'A web admin password is required for LAN access' >&2; exit 2; }
     access=$(dirname "$PORTSDOWN_AUTH_FILE")
 fi
 # Keep a valid certificate on ordinary reruns so browser trust remains stable.
@@ -121,5 +148,5 @@ mkdir -p "$backup"; cp -p "$prefix/diablo.env" "$backup/diablo.env"
 printf 'LAN browser: https://%s:%s/\nRole: %s\n' "$host" "$https_port" "$role"
 echo 'Certificate SHA-256 fingerprint (check before trusting the first browser visit):'
 openssl x509 -in "$cert" -noout -fingerprint -sha256
-echo 'Access saved. Anyone knowing the shared password can sign in and control matching peers.'
+echo 'Access saved. Anyone knowing the web admin password can sign in and control matching peers.'
 echo 'Restart Diablo to apply. No router/firewall, boot service or output settings were changed.'
