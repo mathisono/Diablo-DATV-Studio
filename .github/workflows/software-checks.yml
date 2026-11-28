@@ -2,7 +2,7 @@ name: Software checks (no hardware output)
 on:
   workflow_dispatch:
   push:
-    branches: [Trixie]
+    branches: [Trixie, feature/sdrangel-backend]
   pull_request:
     branches: [Trixie]
 permissions:

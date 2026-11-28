@@ -65,6 +65,7 @@ static bool board_config_matches(void)
   if (strcmp(board, "lime") == 0)
     return strcmp(configured, "LIMEMINI") == 0 || strcmp(configured, "LIMEUSB") == 0 || strcmp(configured, "LIMEDVB") == 0;
   if (strcmp(board, "dektec_asi") == 0) return strcmp(configured, "DEKTEC_ASI") == 0;
+  if (strcmp(board, "sdrangel") == 0) return strcmp(configured, "SDRANGEL") == 0;
   return false;
 }
 
@@ -170,13 +171,18 @@ static bool stop_role(enum role role)
 static bool start_role(enum role role)
 {
   if (slave_mode && role != TX) return false; /* Receiver/TX pipeline owns any preview tap. */
+  if ((role == TX || role == RX) && strcmp(board, "sdrangel") == 0) {
+    const char *peer_role = getenv("PORTSDOWN_PEER_ROLE");
+    if ((peer_role && strcmp(peer_role, "STANDALONE") != 0) || !board_config_matches()) return false;
+  }
   if (children[role].pid > 0) return true;
   if (role == PREVIEW && (children[TX].pid > 0 || children[RX].pid > 0)) return false;
   const char *execpath = executables[role];
   if (!execpath || execpath[0] != '/' || access(execpath, X_OK) != 0) return false;
   if (role == TX) {
     if (strcmp(board, "express") != 0 && strcmp(board, "pluto") != 0 &&
-        strcmp(board, "lime") != 0 && strcmp(board, "dektec_asi") != 0) return false;
+        strcmp(board, "lime") != 0 && strcmp(board, "dektec_asi") != 0 &&
+        strcmp(board, "sdrangel") != 0) return false;
     if (!safe_off_exec || safe_off_exec[0] != '/' || access(safe_off_exec, X_OK)) return false;
     (void)stop_role(PREVIEW); /* Release /dev/video0 before starting TX. */
     (void)stop_role(HDMI);
@@ -203,7 +209,9 @@ static bool start_role(enum role role)
       execl(execpath, execpath, slot, (char *)NULL);
     } else if (role >= HDMI && role <= IPCAM2) {
       execl(execpath, execpath, role_names[role], (char *)NULL);
-    } else execl(execpath, execpath, (char *)NULL);
+    } else if ((role == TX || role == RX) && strcmp(board, "sdrangel") == 0)
+      execl(execpath, execpath, role == TX ? "tx" : "rx", (char *)NULL);
+    else execl(execpath, execpath, (char *)NULL);
     _exit(127);
   }
   close(pipefd[1]); nonblock(pipefd[0]);
@@ -221,7 +229,7 @@ static void command(int fd, const char *line)
   }
   if (strcmp(line, "STATUS") == 0) {
     char result[512];
-    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s srt1=%s srt2=%s srt3=%s srt4=%s srt5=%s hdmi=%s picam=%s ipts=%s ipcam1=%s ipcam2=%s source_ts=%s\n",
+    snprintf(result, sizeof(result), "STATUS tx=%s rx=%s preview=%s board=%s peer=%s link=%s srt1=%s srt2=%s srt3=%s srt4=%s srt5=%s hdmi=%s picam=%s ipts=%s ipcam1=%s ipcam2=%s source_ts=%s tx_pid=%ld rx_pid=%ld\n",
       children[TX].pid ? "running" : "stopped", children[RX].pid ? "running" : "stopped",
       children[PREVIEW].pid ? "running" : "stopped", board,
       slave_mode ? "slave" : "standalone", slave_mode && last_peer_hb > 0 && monotonic_ms() - last_peer_hb < 1500 ? "ok" : "stale",
@@ -233,7 +241,7 @@ static void command(int fd, const char *line)
       children[IPTS].pid ? "running" : "stopped",
       children[IPCAM1].pid ? "running" : "stopped",
       children[IPCAM2].pid ? "running" : "stopped",
-      children[SOURCE_TS].pid ? "running" : "stopped");
+      children[SOURCE_TS].pid ? "running" : "stopped", (long)children[TX].pid, (long)children[RX].pid);
     send_client(fd, result);
     return;
   }

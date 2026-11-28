@@ -20,6 +20,13 @@
         <button id="rx-stop">Stop RX</button>
       </div>
       <p id="tx-status" role="status">Supervisor status pending</p>
+      <div id="sdrangel-monitor" hidden>
+        <h3>SDRangel RF monitoring</h3>
+        <p id="sdrangel-health" role="status">Awaiting supervisor telemetry</p>
+        <p id="sdrangel-tx" role="status">TX: unknown</p>
+        <p id="sdrangel-rx" role="status">RX: unknown</p>
+        <p class="notice">Channel power is SDRangel telemetry, not measured transmitter watts. No signal or RF-off claim is inferred from process state.</p>
+      </div>
       <div class="tx-preview-panel">
         <h3>Low-resolution preview</h3>
         <div id="direct-preview" class="preview"><img id="live-preview" alt="Selected direct source preview"><img id="video-placeholder" src="/no-ip-input.svg" alt="NO IP INPUT"></div>
@@ -46,12 +53,13 @@
       <h2>Output settings</h2>
       <form id="settings">
         <label class="wide">Output hardware<select id="modeoutput"></select></label>
-        <label>Output source<select id="source_layout"><option value="DIRECT">Direct source</option><option value="MULTIVIEW">Four-source multiview</option></select></label>
-        <label class="direct-only">Direct source<select id="modeinput"></select></label>
+        <label class="legacy-source">Output source<select id="source_layout"><option value="DIRECT">Direct source</option><option value="MULTIVIEW">Four-source multiview</option></select></label>
+        <label class="direct-only legacy-source">Direct source<select id="modeinput"></select></label>
         <label class="srt-direct-only" hidden>SRT encoder slot<select id="srt_source_slot"></select></label>
+        <p id="sdrangel-profile-note" class="wide notice" hidden>SDRangel uses a host-approved device, modulation and video-source profile. Frequency, gain, sample rate, source and RF parameters are set in that profile, not the legacy fields below. Standalone only; analog TX is monochrome without sound.</p>
         <label><span id="modulation-label">Modulation</span><select id="modulation"></select></label>
-        <label>Encoder<select id="encoding"></select></label>
-        <label>Video format<select id="format"></select></label>
+        <label class="legacy-source">Encoder<select id="encoding"></select></label>
+        <label class="legacy-source">Video format<select id="format"></select></label>
         <label>CALLSIGN (TS provider)<input id="call" type="text" minlength="3" maxlength="20" pattern="[A-Z0-9/]*[0-9][A-Z0-9/]*" placeholder="Your callsign" autocapitalize="characters" autocomplete="off" required></label>
         <label>Service name<input id="service_name" type="text" maxlength="64" placeholder="Your DATV service" autocomplete="off" required></label>
         <p class="hdmi-note">Written into MPEG-TS service metadata. Set your own callsign and a service name (1–64 UTF-8 bytes); these example placeholders are not saved.</p>

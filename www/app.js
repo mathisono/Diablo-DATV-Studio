@@ -1,6 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const fields = ['modeoutput','modeinput','source_layout','srt_source_slot','multiview_1','multiview_2','multiview_3','multiview_4','ipts_input_port','ipts_bind_scope','picam_index','modulation','encoding','format','freqoutput','symbolrate','fec','explevel','plutopwr','limegain','asi_device','asi_channel','asi_bitrate','expresshdmidevice','expressaudiodevice','call','service_name'];
+const sdrModes = { 'DVB-S':'DVB-S', 'DVB-S2':'DVB-S2', ANALOG_NTSC:'Analog NTSC-style (mono)', ANALOG_PAL:'Analog PAL-style (mono)', NBTV:'Narrowband ATV', ANALOG_FM:'Analog FM television' };
 const fecS = ['12','23','34','56','78'];
 const fecS2 = ['14','13','12','35','23','34','56','89','91'];
 let capabilities = {}, current = {};
@@ -59,9 +60,21 @@ function choices(id, items, selected) {
     const option = document.createElement('option'); option.value=value; option.textContent=label; option.selected=value===selected; return option;
   }));
 }
+function selectSdrSource() {
+  const sdr = $('modeoutput').value === 'SDRANGEL';
+  const input = $('modeinput');
+  if (sdr) {
+    if (![...input.options].some(o=>o.value==='SDRANGEL_PROFILE')) input.add(new Option('SDRangel host profile','SDRANGEL_PROFILE'));
+    input.value='SDRANGEL_PROFILE'; $('source_layout').value='DIRECT';
+  } else {
+    const option=[...input.options].find(o=>o.value==='SDRANGEL_PROFILE');
+    if (option) { const selected=input.value==='SDRANGEL_PROFILE'; option.remove(); if(selected) input.value='CARDH264'; }
+  }
+}
 function refreshMode() {
   const cap = capabilities[$('modeoutput').value];
-  choices('modulation', (cap?.modulation || []).map(mode => [mode,mode]), current.modulation);
+  choices('modulation', (cap?.modulation || []).map(mode => [mode,sdrModes[mode]||mode]), current.modulation);
+  selectSdrSource();
   refreshFec();
   refreshBoardFields();
 }
@@ -72,13 +85,15 @@ function refreshFec() {
 function refreshBoardFields() {
   const board = $('modeoutput').value;
   const asi = board === 'DEKTEC_ASI';
+  const sdr = board === 'SDRANGEL';
+  $('sdrangel-profile-note').hidden = !sdr;
   for (const el of document.querySelectorAll('.asi-only')) el.hidden = !asi;
-  for (const el of document.querySelectorAll('.rf-only')) el.hidden = asi;
+  for (const el of document.querySelectorAll('.rf-only')) el.hidden = asi || sdr;
   for (const el of document.querySelectorAll('.express-only')) el.hidden = !board.startsWith('DATVEXPRESS');
   for (const el of document.querySelectorAll('.pluto-only')) el.hidden = board !== 'PLUTO';
   for (const el of document.querySelectorAll('.lime-only')) el.hidden = !board.startsWith('LIME');
   $('modulation-label').textContent = asi ? 'Transport output' : 'Modulation';
-  for (const id of ['freqoutput','symbolrate']) $(id).required = !asi;
+  for (const id of ['freqoutput','symbolrate']) $(id).required = !asi && !sdr;
   for (const id of ['asi_device','asi_channel','asi_bitrate']) $(id).required = asi;
   if (asi) {
     for (const [id,value] of Object.entries({asi_device:'0',asi_channel:'0',asi_bitrate:'3071588'}))
@@ -116,7 +131,9 @@ function refreshSourceFields() {
   for (const el of document.querySelectorAll('.hdmi-only')) el.hidden = !hdmi;
   for (const el of document.querySelectorAll('.picam-only')) el.hidden = !picam;
   for (const el of document.querySelectorAll('.ipts-only')) el.hidden = !ipts;
-  $('expresshdmidevice').required = hdmi;
+  const sdr = $('modeoutput').value === 'SDRANGEL';
+  for (const el of document.querySelectorAll('.legacy-source')) el.hidden = sdr || (el.classList.contains('direct-only') && multi);
+  $('expresshdmidevice').required = hdmi && !sdr;
   const route = $('route-summary');
   route.hidden = !(hdmi && $('modeoutput').value === 'DEKTEC_ASI');
   const codec = $('encoding').value === 'H264' ? 'H.264' : $('encoding').value;
@@ -127,7 +144,7 @@ function refreshSourceFields() {
 function fill(config, updateCurrent=true) {
   if (updateCurrent) current = config;
   choices('modeoutput', Object.entries(capabilities).map(([id,cap])=>[id,cap.label]), config.modeoutput);
-  choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,mode]), config.modulation);
+  choices('modulation', (capabilities[config.modeoutput]?.modulation || []).map(mode => [mode,sdrModes[mode]||mode]), config.modulation);
   choices('source_layout', [['DIRECT','Direct source'],['MULTIVIEW','Four-source multiview']], config.source_layout || 'DIRECT');
   choices('modeinput', [
     ['CAMH264','Pi Camera'],['ANALOGCAM','NTSC composite'],['WEBCAMH264','Webcam'],
@@ -135,6 +152,7 @@ function fill(config, updateCurrent=true) {
     ['IPCAM1','IP CAM 1 (RTSP)'],['IPCAM2','IP CAM 2 (RTSP)'],
     ['IPTSIN','IP transport stream'],['IPTSIN264','IPTS H.264'],['IPTSIN265','IPTS H.265']
   ], config.modeinput);
+  selectSdrSource();
   choices('srt_source_slot', [1,2,3,4,5].map(n=>[String(n),`SRT encoder ${n}`]), config.srt_source_slot || '1');
   for (let n=1;n<=4;n++) choices(`multiview_${n}`,multiviewOptions,config[`multiview_${n}`] || `SRT${n}`);
   choices('ipts_bind_scope', [['LOCAL','Loopback only'],['LAN','LAN interfaces']],config.ipts_bind_scope || 'LOCAL');
@@ -196,12 +214,25 @@ function updatePreview(state) {
     $('video-status').textContent=info.live?`${info.label} preview live`:`Waiting for ${info.label}`;
   }
 }
+function showSdrangel(state) {
+  const m=state.sdrangel;
+  $('sdrangel-monitor').hidden = state.board !== 'SDRANGEL' && !m?.enabled;
+  if ($('sdrangel-monitor').hidden) return;
+  $('sdrangel-health').textContent = !m?.enabled ? 'SDRangel supervisor is not configured' : 'Managed SDRangel · ' + (m.profile_configured ? 'host profile present' : 'host profile missing') + ' · ' + (state.peer_role || 'unknown');
+  for (const role of ['tx','rx']) {
+    const v=m?.[role];
+    const labels={channelPowerDB:'channel power dB (relative)',channelSampleRate:'sample rate S/s',dataRate:'TS capacity bit/s',udpByteCount:'UDP bytes',mer:'MER dB',cnr:'CNR dB',videoDecodeOK:'video decode',audioDecodeOK:'audio decode',udpRunning:'UDP running',symbolRate:'symbol rate S/s',modcodModulation:'MODCOD modulation',modcodCodeRate:'MODCOD FEC'};
+    const metrics=Object.entries(v?.metrics||{}).map(([k,n])=>`${labels[k]||k}: ${n}`);
+    $('sdrangel-'+role).textContent = `${role.toUpperCase()}: ${v?.state||'unknown'}${v?.device_state?' · device '+v.device_state:''}${v?.channel?' · '+v.channel:''}${metrics.length?' · '+metrics.join(' · '):''}${v?.state==='running'&&!metrics.length?' · channel metrics unavailable':''}${v?.state==='unknown'?' · do not assume RF off':''}`;
+  }
+}
 function showState(state) {
   lastState = state;
+  showSdrangel(state);
   $('connection').textContent = state.supervisor?.ok ? 'Supervisor connected' : 'Supervisor unavailable';
   const supervisorStatus = state.supervisor?.status || '';
   const supervisorBoard = /board=([^ ]+)/.exec(supervisorStatus)?.[1];
-  const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : state.board === 'DEKTEC_ASI' ? 'dektec_asi' : null;
+  const expectedBoard = state.board?.startsWith('DATVEXPRESS') ? 'express' : state.board === 'PLUTO' ? 'pluto' : state.board?.startsWith('LIME') ? 'lime' : state.board === 'DEKTEC_ASI' ? 'dektec_asi' : state.board === 'SDRANGEL' ? 'sdrangel' : null;
   const boardReady = expectedBoard && supervisorBoard === expectedBoard;
   const localRoute = current.source_layout === 'MULTIVIEW' ||
     (current.source_layout === 'DIRECT' && ['SRT','IPCAM1','IPCAM2'].includes(current.modeinput));
@@ -246,6 +277,12 @@ function showState(state) {
   $('source-ts-stop').disabled = locked || !monitorRunning;
   $('tx-start').disabled = locked || (localRoute && state.peer_role !== 'MASTER') || (state.peer_role === 'MASTER' ? (!state.peer?.config_ready || !state.peer?.telemetry_fresh || !state.peer?.remote?.supervisor_ok) : !boardReady || !state.supervisor?.ok);
   for (const id of ['rx-start','rx-stop']) $(id).disabled = locked;
+  if (state.board==='SDRANGEL' || supervisorBoard==='sdrangel') {
+    const busyTx=/tx=running/.test(supervisorStatus), busyRx=/rx=running/.test(supervisorStatus);
+    const ready=boardReady && state.supervisor?.ok && state.peer_role==='STANDALONE' && state.sdrangel?.profile_configured;
+    $('tx-start').disabled=!ready || !state.sdrangel?.tx_configured || busyRx || busyTx;
+    $('rx-start').disabled=!ready || !state.sdrangel?.rx_configured || busyTx || busyRx;
+  }
   for (const id of fields) $(id).disabled = locked;
   for (let n=1;n<=2;n++) for (const action of ['url','save']) $(`ipcam-${action}-${n}`).disabled = locked;
   $('settings').querySelector('button[type=submit]').disabled = locked;
@@ -361,7 +398,7 @@ events.addEventListener('log', event=>{ try { log(JSON.parse(event.data).line); 
 events.onerror=()=>{ $('connection').textContent='Event link reconnecting'; };
 reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
-setInterval(async () => { try { showState(await api('/api/state')); } catch {} }, 1000);
+setInterval(async () => { try { showState(await api('/api/state')); } catch { if (!$('sdrangel-monitor').hidden) { $('sdrangel-health').textContent='Telemetry disconnected'; for (const role of ['tx','rx']) $('sdrangel-'+role).textContent=role.toUpperCase()+': UNKNOWN — do not assume RF off'; } } }, 1000);
 setInterval(refreshAsiFileStatus, 10000);
 
 document.querySelector('#sign-out').addEventListener('click', async () => {

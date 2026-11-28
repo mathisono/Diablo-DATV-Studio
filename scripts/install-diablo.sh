@@ -52,7 +52,7 @@ if ((packages)); then
         *) echo 'Install build dependencies manually, then use --skip-system-packages.' >&2; exit 2;;
     esac
     sudo apt-get update
-    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev libssl-dev stunnel4 openssl git ca-certificates curl ffmpeg util-linux v4l-utils alsa-utils
+    sudo apt-get install -y build-essential cmake pkg-config libjson-c-dev libssl-dev stunnel4 openssl git ca-certificates curl ffmpeg util-linux v4l-utils alsa-utils python3
 fi
 bash "$repo/scripts/check-diablo-host.sh"
 

@@ -1,0 +1,138 @@
+{
+  "tx": {
+    "DVB-S": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 450000,
+        "symbolRate": 333000,
+        "modulation": 1,
+        "fec": 0,
+        "rollOff": 0.35,
+        "tsSource": 2,
+        "udpAddress": "127.0.0.1",
+        "udpPort": 12020
+      }
+    },
+    "DVB-S2": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 450000,
+        "symbolRate": 333000,
+        "modulation": 1,
+        "fec": 0,
+        "rollOff": 0.35,
+        "tsSource": 2,
+        "udpAddress": "127.0.0.1",
+        "udpPort": 12020
+      }
+    },
+    "ANALOG_NTSC": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 4200000,
+        "rfOppBandwidth": 750000,
+        "atvStd": 1,
+        "nbLines": 525,
+        "fps": 30,
+        "atvModulation": 4,
+        "atvModInput": 1,
+        "fmExcursion": 0.2,
+        "forceDecimator": 1
+      }
+    },
+    "ANALOG_PAL": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 4200000,
+        "rfOppBandwidth": 750000,
+        "atvStd": 1,
+        "nbLines": 525,
+        "fps": 30,
+        "atvModulation": 4,
+        "atvModInput": 1,
+        "fmExcursion": 0.2,
+        "forceDecimator": 1
+      }
+    },
+    "NBTV": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 30000,
+        "rfOppBandwidth": 10000,
+        "atvStd": 4,
+        "nbLines": 90,
+        "fps": 5,
+        "atvModulation": 4,
+        "atvModInput": 1,
+        "fmExcursion": 0.2,
+        "forceDecimator": 1
+      }
+    },
+    "ANALOG_FM": {
+      "device": {
+        "hwType": "PlutoSDR",
+        "serial": "REPLACE_WITH_REAL_SERIAL"
+      },
+      "deviceSettings": {
+        "plutoSdrOutputSettings": {}
+      },
+      "channelSettings": {
+        "inputFrequencyOffset": 0,
+        "rfBandwidth": 4200000,
+        "rfOppBandwidth": 750000,
+        "atvStd": 1,
+        "nbLines": 525,
+        "fps": 30,
+        "atvModulation": 1,
+        "atvModInput": 1,
+        "fmExcursion": 0.2,
+        "forceDecimator": 1
+      }
+    }
+  },
+  "rx": {
+    "device": {
+      "hwType": "PlutoSDR",
+      "serial": "REPLACE_WITH_REAL_SERIAL"
+    },
+    "deviceSettings": {
+      "plutoSdrInputSettings": {}
+    },
+    "channelSettings": {}
+  }
+}

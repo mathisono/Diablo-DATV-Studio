@@ -10,13 +10,14 @@ export const capabilities = {
     min_mhz: 325, max_mhz: 3800, min_ksym: 100, max_ksym: 5000 },
   LIMEMINI: { label: 'LimeSDR Mini (legacy path)', modulation: ['DVB-S', 'S2QPSK'],
     min_mhz: 30, max_mhz: 3500, min_ksym: 100, max_ksym: 5000 },
+  SDRANGEL: { label: 'SDRangel (experimental, host profiles)', modulation: ["DVB-S","DVB-S2","ANALOG_NTSC","ANALOG_PAL","NBTV","ANALOG_FM"], transport: 'sdrangel' },
   DEKTEC_ASI: { label: 'DekTec DTA-2145 ASI', modulation: ['ASI'],
     transport: 'asi' }
 };
 
 const fec_s = ['12', '23', '34', '56', '78'];
 const fec_s2 = ['14', '13', '12', '35', '23', '34', '56', '89', '91'];
-const sources = ['CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','HDMI','DESKTOP','SRT',
+const sources = ['SDRANGEL_PROFILE','CAMH264','ANALOGCAM','WEBCAMH264','CARDH264','HDMI','DESKTOP','SRT',
   'IPTSIN','IPTSIN264','IPTSIN265','IPCAM1','IPCAM2'];
 const multiview_sources = ['HDMI','CAMH264','IPTSIN','IPCAM1','IPCAM2','SRT1','SRT2','SRT3','SRT4','SRT5','CARDH264'];
 const formats = ['4:3','16:9','720p','1080p'];
@@ -44,7 +45,11 @@ export function load(path) {
 export function validate(cfg) {
   let cap = capabilities[cfg.modeoutput];
   if (!cap) return 'unsupported output board';
-  if (cap.transport == 'asi') {
+  if (cap.transport == 'sdrangel') {
+    if (index(cap.modulation, cfg.modulation) < 0) return 'unsupported SDRangel mode';
+    if (cfg.modeinput != 'SDRANGEL_PROFILE' || (cfg.source_layout ?? 'DIRECT') != 'DIRECT')
+      return 'SDRangel requires its host-configured direct source profile';
+  } else if (cap.transport == 'asi') {
     if (cfg.modulation != 'ASI') return 'ASI output requires ASI mode';
     if (!match(cfg.asi_device ?? '', /^[0-9]{1,2}$/) || +cfg.asi_device > 15)
       return 'ASI device index outside 0-15';
@@ -61,6 +66,7 @@ export function validate(cfg) {
     if (!match(cfg.symbolrate, /^[0-9]+$/) || sr < cap.min_ksym || sr > cap.max_ksym) return 'symbol rate outside board range';
     if (index(mod == 'S2QPSK' ? fec_s2 : fec_s, cfg.fec) < 0) return 'unsupported FEC';
   }
+  if (cfg.modeinput == 'SDRANGEL_PROFILE' && cfg.modeoutput != 'SDRANGEL') return 'SDRangel profile requires SDRangel output';
   if (cfg.modeinput != null && index(sources, cfg.modeinput) < 0) return 'unsupported source';
   if (cfg.source_layout != null && index(['DIRECT','MULTIVIEW'], cfg.source_layout) < 0)
     return 'source layout must be direct or multiview';

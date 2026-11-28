@@ -8,6 +8,7 @@ import * as peerctl from 'peer';
 import * as presets from 'presets';
 import * as ipcam from 'ipcam';
 import * as auth from 'auth';
+import * as sdrangel from 'sdrangel';
 
 /* Persistent loopback HTTP behind the managed TLS listener.
  * A separate trusted loopback-only endpoint serves local encoder helpers. */
@@ -296,6 +297,7 @@ function api(peer, method, path, body) {
     let cfg = config.load(cfgpath);
     return response(peer, '200 OK', 'application/json', sprintf('%J', {
       supervisor: result, board: cfg?.modeoutput ?? 'unknown', modulation: cfg?.modulation ?? 'unknown',
+      sdrangel: sdrangel.status(result, cfg),
       peer_role: peer_role, peer_input: peer_role == 'SLAVE' ? { transport: 'SRT', port: +(getenv('PORTSDOWN_PEER_SRT_PORT') ?? '9000') } : null, peer: peerctl.status(), logs: logs, video: video.stats(),
       srt: srt_state(result.status), sources: source_state(cfg),
       source_preview_available: !!getenv('PORTSDOWN_SOURCE_PREVIEW_EXEC'),
@@ -316,6 +318,8 @@ function api(peer, method, path, body) {
       return response(peer, '409 Conflict', 'application/json', '{"error":"stop TX/RX before changing configuration"}');
     let changes = json(body);
     if (type(changes) != 'object') return response(peer, '400 Bad Request', 'application/json', '{"error":"JSON object required"}');
+    if (changes.modeoutput == 'SDRANGEL' && peer_role != 'STANDALONE')
+      return response(peer, '409 Conflict', 'application/json', '{"error":"SDRangel is standalone-only during hardware validation"}');
     let error = config.update(cfgpath, store, changes);
     if (error) return response(peer, '400 Bad Request', 'application/json', sprintf('%J', { error: error }));
     if (index(running, 'source_ts=running') >= 0)
@@ -375,6 +379,8 @@ function api(peer, method, path, body) {
     if (peer_role == 'SLAVE' && path != '/api/tx/stop')
       return response(peer, '403 Forbidden', 'application/json', '{"error":"slave UI is read-only except E-Stop"}');
     let route = config.load(cfgpath);
+    if (route?.modeoutput == 'SDRANGEL' && (path == '/api/tx/start' || path == '/api/rx/start') && peer_role != 'STANDALONE')
+      return response(peer, '409 Conflict', 'application/json', '{"error":"SDRangel is standalone-only during hardware validation"}');
     if (path == '/api/tx/start' && peer_role != 'MASTER' &&
         (route?.source_layout == 'MULTIVIEW' ||
          route?.source_layout == 'DIRECT' &&
