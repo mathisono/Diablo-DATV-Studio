@@ -1,5 +1,9 @@
 import importlib.util
 import json
+import os
+import shutil
+import subprocess
+import time
 from pathlib import Path
 import tempfile
 import unittest
@@ -50,6 +54,35 @@ class SDRangelTests(unittest.TestCase):
         self.assertEqual(worker.metrics_from({}, "DATVDemod"), {})
         self.assertEqual(worker.metrics_from({"DATVDemodReport": {"mer": 12.3, "bad": 0}},
                                              "DATVDemod"), {"mer": 12.3})
+
+    def test_ucode_pid_and_age_gate(self):
+        ucode = os.environ.get("UCODE") or shutil.which("ucode")
+        if not ucode:
+            self.skipTest("ucode runtime not installed")
+        args = [ucode]
+        if os.environ.get("UCODE_MODULE_DIR"):
+            args += ["-L", os.environ["UCODE_MODULE_DIR"]]
+        args += ["-L", str(ROOT / "control/ucode")]
+        script = """
+import * as sdrangel from 'sdrangel';
+let status = { ok: true, status: 'STATUS tx=running rx=stopped board=sdrangel tx_pid=123 rx_pid=0' };
+print(sprintf('%J', sdrangel.status(status, { modulation: 'DVB-S2' })));
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sdrangel-tx.json"
+            script_path = Path(directory) / "test.uc"
+            script_path.write_text(script)
+            env = dict(os.environ, PORTSDOWN_RUN_DIR=directory, PORTSDOWN_SDRANGEL_PROFILE="")
+            def read():
+                return json.loads(subprocess.check_output(args + [str(script_path)], env=env))
+            for pid, timestamp, expected in [(123, int(time.time()), "running"),
+                                             (124, int(time.time()), "unknown"),
+                                             (123, int(time.time())-30, "unknown")]:
+                path.write_text(json.dumps({"pid": pid, "updated": timestamp,
+                                            "state": "running", "metrics": {"dataRate": 123}}))
+                result = read()
+                self.assertEqual(result["tx"]["state"], expected)
+                self.assertEqual(result["rx"]["state"], "stopped")
 
     def test_atomic_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:

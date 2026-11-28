@@ -93,6 +93,19 @@ class SupervisorTest(unittest.TestCase):
         self.assertIn("set ptt rx", self.control.read_text())
         self.assertGreaterEqual(self.hooklog.read_text().count("off"), 2)
 
+    def test_sdrangel_supervisor_rx_tx_exclusion_and_pid(self):
+        self.config.write_text("modeoutput=SDRANGEL\nmodulation=DVB-S2\nmodeinput=SDRANGEL_PROFILE\nsource_layout=DIRECT\n")
+        self.start(PORTSDOWN_BOARD="sdrangel", PORTSDOWN_RX_EXEC=str(self.tx))
+        self.assertEqual(command(self.sock, "START_RX"), "OK")
+        self.assertRegex(command(self.sock, "STATUS"), r"rx_pid=[1-9][0-9]*")
+        self.assertIn("RX active", command(self.sock, "START_TX"))
+        self.assertEqual(command(self.sock, "STOP_RX"), "OK")
+        self.assertEqual(command(self.sock, "START_TX"), "OK")
+        self.assertRegex(command(self.sock, "STATUS"), r"tx_pid=[1-9][0-9]*")
+        self.assertIn("TX active", command(self.sock, "START_RX"))
+        self.assertEqual(command(self.sock, "STOP_TX"), "OK")
+        self.assertIn("tx_pid=0", command(self.sock, "STATUS"))
+
     def test_missing_hook_fails_closed(self):
         self.start(PORTSDOWN_SAFE_OFF_EXEC="")
         self.assertIn("unavailable", command(self.sock, "START_TX"))
@@ -287,6 +300,23 @@ class UcodeTest(unittest.TestCase):
         status, body = self.request("POST", "/api/config", {"modeoutput": "DVB-S2X"})
         self.assertEqual(status, 400)
         self.assertNotIn("DVB-S2X", self.config.read_text())
+
+    def test_sdrangel_modes_and_api_telemetry_without_hardware(self):
+        modes = ("DVB-S", "DVB-S2", "ANALOG_NTSC", "ANALOG_PAL", "NBTV", "ANALOG_FM")
+        capabilities = json.loads(self.request("GET", "/api/config")[1])["capabilities"]
+        self.assertEqual(capabilities["SDRANGEL"]["modulation"], list(modes))
+        for mode in modes:
+            status, body = self.request("POST", "/api/config",
+                {"modeoutput": "SDRANGEL", "modeinput": "SDRANGEL_PROFILE",
+                 "source_layout": "DIRECT", "modulation": mode})
+            self.assertEqual(status, 200, body)
+        state = json.loads(self.request("GET", "/api/state")[1])
+        self.assertEqual(state["board"], "SDRANGEL")
+        self.assertFalse(state["sdrangel"]["enabled"])
+        self.assertEqual(state["sdrangel"]["tx"]["state"], "unknown")
+        self.assertEqual(state["sdrangel"]["rx"]["state"], "unknown")
+        self.assertEqual(self.request("POST", "/api/tx/start")[0], 503)
+        self.assertEqual(self.request("POST", "/api/config", {"modulation": "ATSC"})[0], 400)
 
     def test_service_metadata_validation_and_persistence(self):
         for changes in ({"call": "BATC"}, {"call": "kg6mdw"},
