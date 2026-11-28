@@ -82,7 +82,7 @@ Missing, stale, disconnected or mismatched-PID telemetry is unknown.
 A stopped supervisor process is not proof that a physical PA is off.
 
 Reported metrics depend on the actual plugin and version: channel-relative
-power, sample rate, data rate, UDP byte count, MER/CNR, decode flags,
+power, sample rate, data rate, UDP byte count and counter activity, MER/CNR, decode flags,
 symbol rate and MODCOD when available. Missing values are not fabricated.
 Video decode is not a certified RF lock indicator; no BER, actual watts,
 spectrum waterfall, decoded RX preview or RF detector is claimed here.

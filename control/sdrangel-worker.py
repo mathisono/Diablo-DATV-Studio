@@ -43,7 +43,7 @@ def profile_for(profile, role, mode):
         raise ValueError("Device hwType is required")
     if set(device) - {"hwType", "serial", "sequence"}:
         raise ValueError("Unsupported device selector")
-    if device["hwType"] not in {"FileOutput", "FileInput", "TestSource"} and not device.get("serial"):
+    if device["hwType"] not in {"FileOutput", "FileInput", "TestSource"} and (not isinstance(device.get("serial"), str) or not device["serial"] or device["serial"] == "REPLACE_WITH_REAL_SERIAL"):
         raise ValueError("Explicit hardware serial required (use the SDRangel device list)")
     direction = int(role == "tx")
     device["direction"] = direction
@@ -93,7 +93,8 @@ def profile_for(profile, role, mode):
         if not isinstance(settings.get("rfBandwidth"), (int, float)) or settings["rfBandwidth"] <= 0:
             raise ValueError("Positive channel bandwidth required")
     device_settings = entry["deviceSettings"]
-    if not isinstance(device_settings, dict) or not device_settings:
+    if (not isinstance(device_settings, dict) or len(device_settings) != 1 or
+            not all(isinstance(v, dict) and v for v in device_settings.values())):
         raise ValueError("Explicit device settings required")
     return device, device_settings, channel, settings
 
@@ -243,6 +244,8 @@ def run(role):
             await_value(initial, lambda v: v.get("devicesetcount") == 0, 15)
             prefix, _ = configure(api, device, device_settings, channel, settings)
             print("SDRangel %s device running (%s); process state is not RF measurement" % (role, channel), flush=True)
+            previous_udp = None
+            last_udp_change = None
             while not STOP:
                 if process.poll() is not None:
                     raise RuntimeError("SDRangel server exited")
@@ -253,7 +256,19 @@ def run(role):
                     metrics = metrics_from(api.call(prefix + "/channel/0/report"), channel)
                 except (OSError, ValueError):
                     metrics = {}
-                snapshot(out, "running", device_state=state, channel=channel, metrics=metrics)
+                input_activity = None
+                if channel == "DATVMod" and settings.get("tsSource") == 2:
+                    count = metrics.get("udpByteCount")
+                    now = time.monotonic()
+                    if count is None:
+                        previous_udp = last_udp_change = None
+                        input_activity = "unknown"
+                    else:
+                        if previous_udp is not None and count != previous_udp:
+                            last_udp_change = now
+                        previous_udp = count
+                        input_activity = "counter advancing" if last_udp_change is not None and now - last_udp_change <= 3 else "no recent counter change"
+                snapshot(out, "running", device_state=state, channel=channel, metrics=metrics, input_activity=input_activity)
                 time.sleep(0.5)
     finally:
         # The C supervisor also signals/kills this entire process group and

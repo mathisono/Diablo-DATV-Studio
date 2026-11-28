@@ -9,13 +9,14 @@ export function status(supervisor, cfg) {
   if (enabled && path && substr(path, 0, 1) == '/') {
     try { profile = json(fs.readfile(path) ?? 'null'); } catch (e) { profile = null; }
   }
+  let tx_profile = type(profile?.tx) == 'object' && cfg?.modulation ? profile.tx[cfg.modulation] : null;
   let result = { enabled, profile_configured: type(profile) == 'object',
-    tx_configured: type(profile?.tx?.[cfg?.modulation]) == 'object',
+    tx_configured: type(tx_profile) == 'object',
     rx_configured: type(profile?.rx) == 'object' };
   for (let role in ['tx', 'rx']) {
     result[role] = { state: 'unknown' };
     if (!enabled || !supervisor?.ok) continue;
-    let pid = match(line, new RegExp(role + '_pid=([0-9]+)'));
+    let pid = match(line, role == 'tx' ? /tx_pid=([0-9]+)/ : /rx_pid=([0-9]+)/);
     if (!pid) continue;
     if (+pid[1] == 0) { result[role] = { state: 'stopped' }; continue; }
     try {

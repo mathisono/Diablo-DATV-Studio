@@ -223,7 +223,7 @@ function showSdrangel(state) {
     const v=m?.[role];
     const labels={channelPowerDB:'channel power dB (relative)',channelSampleRate:'sample rate S/s',dataRate:'TS capacity bit/s',udpByteCount:'UDP bytes',mer:'MER dB',cnr:'CNR dB',videoDecodeOK:'video decode',audioDecodeOK:'audio decode',udpRunning:'UDP running',symbolRate:'symbol rate S/s',modcodModulation:'MODCOD modulation',modcodCodeRate:'MODCOD FEC'};
     const metrics=Object.entries(v?.metrics||{}).map(([k,n])=>`${labels[k]||k}: ${n}`);
-    $('sdrangel-'+role).textContent = `${role.toUpperCase()}: ${v?.state||'unknown'}${v?.device_state?' · device '+v.device_state:''}${v?.channel?' · '+v.channel:''}${metrics.length?' · '+metrics.join(' · '):''}${v?.state==='running'&&!metrics.length?' · channel metrics unavailable':''}${v?.state==='unknown'?' · do not assume RF off':''}`;
+    $('sdrangel-'+role).textContent = `${role.toUpperCase()}: ${v?.state||'unknown'}${v?.device_state?' · device '+v.device_state:''}${v?.channel?' · '+v.channel:''}${metrics.length?' · '+metrics.join(' · '):''}${v?.input_activity?' · UDP '+v.input_activity:''}${v?.state==='running'&&!metrics.length?' · channel metrics unavailable':''}${v?.state==='unknown'?' · do not assume RF off':''}`;
   }
 }
 function showState(state) {
@@ -398,7 +398,7 @@ events.addEventListener('log', event=>{ try { log(JSON.parse(event.data).line); 
 events.onerror=()=>{ $('connection').textContent='Event link reconnecting'; };
 reload().catch(error=>log(error.message));
 window.addEventListener('load', () => { $('live-preview').src = '/api/video'; });
-setInterval(async () => { try { showState(await api('/api/state')); } catch { if (!$('sdrangel-monitor').hidden) { $('sdrangel-health').textContent='Telemetry disconnected'; for (const role of ['tx','rx']) $('sdrangel-'+role).textContent=role.toUpperCase()+': UNKNOWN — do not assume RF off'; } } }, 1000);
+setInterval(async () => { try { showState(await api('/api/state')); } catch { if (!$('sdrangel-monitor').hidden) { $('sdrangel-health').textContent='Telemetry disconnected'; $('tx-start').disabled=true; $('rx-start').disabled=true; for (const role of ['tx','rx']) $('sdrangel-'+role).textContent=role.toUpperCase()+': UNKNOWN — do not assume RF off'; } } }, 1000);
 setInterval(refreshAsiFileStatus, 10000);
 
 document.querySelector('#sign-out').addEventListener('click', async () => {

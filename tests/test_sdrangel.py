@@ -21,6 +21,7 @@ class SDRangelTests(unittest.TestCase):
     def configured(self):
         profile = self.profile()
         for entry in list(profile["tx"].values()) + [profile["rx"]]:
+            entry["device"]["serial"] = "TEST_SERIAL"
             key = next(iter(entry["deviceSettings"]))
             entry["deviceSettings"][key] = {"centerFrequency": 437000000}
         return profile
